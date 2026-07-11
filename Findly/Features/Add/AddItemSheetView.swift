@@ -12,8 +12,14 @@ struct AddItemSheetView: View {
     // Source selection
     @State private var showPhotosPicker = false
     @State private var showDocumentPicker = false
+    @State private var showFilesImport = false
     @State private var showNoteComposer = false
     @State private var showLinkComposer = false
+    @State private var showCameraPicker = false
+
+    // Multi-file import
+    @State private var importedURLs: [URL] = []
+    @State private var showQuickImport = false
 
     // Upload flow
     @State private var pendingUpload: PendingUpload? = nil
@@ -65,7 +71,7 @@ struct AddItemSheetView: View {
                 await handlePhotoPickerItem(item)
             }
         }
-        // Document picker
+        // Document picker (single)
         .fileImporter(
             isPresented: $showDocumentPicker,
             allowedContentTypes: [.item],
@@ -79,6 +85,21 @@ struct AddItemSheetView: View {
             case .failure:
                 break
             }
+        }
+        // Files app import (multi)
+        .fileImporter(
+            isPresented: $showFilesImport,
+            allowedContentTypes: [.item],
+            allowsMultipleSelection: true
+        ) { result in
+            if case .success(let urls) = result, !urls.isEmpty {
+                importedURLs = urls
+                showQuickImport = true
+            }
+        }
+        .sheet(isPresented: $showQuickImport) {
+            QuickImportView(urls: importedURLs) { dismiss() }
+                .environment(appContainer)
         }
         // Upload flow sheet
         .sheet(item: $pendingUpload) { upload in
@@ -114,6 +135,19 @@ struct AddItemSheetView: View {
                 showLinkComposer = false
             }
         }
+        // Camera capture
+        .fullScreenCover(isPresented: $showCameraPicker) {
+            CameraPickerView(
+                onResult: { result in
+                    showCameraPicker = false
+                    Task { await handleCameraResult(result) }
+                },
+                onCancel: {
+                    showCameraPicker = false
+                }
+            )
+            .ignoresSafeArea()
+        }
     }
 
     // MARK: - Option button
@@ -127,7 +161,7 @@ struct AddItemSheetView: View {
                     RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous)
                         .fill(option.fileType.tintColor.opacity(0.12))
                         .frame(width: 64, height: 64)
-                    Image(systemName: option.fileType.addSheetSymbol)
+                    Image(systemName: option.customSymbol ?? option.fileType.addSheetSymbol)
                         .font(.system(size: 26, weight: .medium))
                         .foregroundStyle(option.fileType.tintColor)
                 }
@@ -145,8 +179,10 @@ struct AddItemSheetView: View {
         switch option {
         case .photo:     showPhotosPicker = true
         case .document:  showDocumentPicker = true
+        case .filesApp:  showFilesImport = true
         case .note:      showNoteComposer = true
         case .link:      showLinkComposer = true
+        case .camera:    showCameraPicker = true
         }
     }
 
@@ -166,6 +202,34 @@ struct AddItemSheetView: View {
                 fileType: fileType,
                 suggestedTitle: "Photo"
             )
+        }
+    }
+
+    // MARK: - Camera handling
+
+    private func handleCameraResult(_ result: CameraResult) async {
+        let dateStamp = Date().fullDateString
+        switch result {
+        case .photo(let image):
+            guard let data = image.jpegData(compressionQuality: 0.9) else { return }
+            await MainActor.run {
+                pendingUpload = PendingUpload(
+                    data: data,
+                    fileName: "camera_\(UUID().uuidString).jpg",
+                    fileType: .image,
+                    suggestedTitle: "Camera Photo — \(dateStamp)"
+                )
+            }
+        case .video(let url):
+            guard let data = try? Data(contentsOf: url) else { return }
+            await MainActor.run {
+                pendingUpload = PendingUpload(
+                    data: data,
+                    fileName: "camera_\(UUID().uuidString).mp4",
+                    fileType: .video,
+                    suggestedTitle: "Camera Video — \(dateStamp)"
+                )
+            }
         }
     }
 
@@ -193,23 +257,34 @@ struct AddItemSheetView: View {
 // MARK: - Add option enum
 
 enum AddOption: String, CaseIterable, Identifiable {
-    case photo, document, note, link
+    case photo, document, filesApp, note, link, camera
 
     var id: String { rawValue }
     var label: String {
         switch self {
         case .photo:    return "Photo / Video"
         case .document: return "File"
+        case .filesApp: return "Import Files"
         case .note:     return "Note"
         case .link:     return "Link"
+        case .camera:   return "Camera"
         }
     }
     var fileType: FileType {
         switch self {
         case .photo:    return .image
         case .document: return .document
+        case .filesApp: return .archive
         case .note:     return .note
         case .link:     return .link
+        case .camera:   return .image
+        }
+    }
+    var customSymbol: String? {
+        switch self {
+        case .filesApp: return "folder.badge.plus"
+        case .camera:   return "camera.fill"
+        default: return nil
         }
     }
 }

@@ -14,6 +14,7 @@ final class HomeViewModel {
     // MARK: - Results
 
     var searchResults: [Item] = []
+    var pinnedItems: [Item]   = []
     var recentItems: [Item]   = []
     var frequentItems: [Item] = []
     var recentlyAdded: [Item] = []
@@ -27,6 +28,22 @@ final class HomeViewModel {
     var isLoading: Bool  = false
     var sortOrder: SearchService.SortOrder = .modifiedAt
     var selectedTag: Tag? = nil
+
+    // MARK: - Filter state
+
+    var selectedFileTypes: Set<FileType> = []
+    var filterDateStart: Date? = nil
+    var filterDateEnd: Date? = nil
+
+    var hasActiveFilters: Bool {
+        !selectedFileTypes.isEmpty || filterDateStart != nil || filterDateEnd != nil
+    }
+
+    func resetFilters() {
+        selectedFileTypes = []
+        filterDateStart = nil
+        filterDateEnd = nil
+    }
 
     // MARK: - Context
 
@@ -52,9 +69,16 @@ final class HomeViewModel {
 
         isLoading = true
         do {
+            let dateRange: ClosedRange<Date>? = {
+                guard let start = filterDateStart else { return nil }
+                let end = filterDateEnd ?? Date()
+                return start <= end ? start...end : end...start
+            }()
             searchResults = try SearchService.search(
                 query: query,
                 tagFilter: selectedTag,
+                fileTypeFilter: selectedFileTypes.isEmpty ? nil : selectedFileTypes,
+                dateRange: dateRange,
                 sortOrder: sortOrder,
                 context: context
             )
@@ -81,6 +105,10 @@ final class HomeViewModel {
 
     func loadHomeSections() {
         guard let context else { return }
+        pinnedItems   = (try? context.fetch(FetchDescriptor<Item>(
+            predicate: #Predicate { $0.isPinned },
+            sortBy: [SortDescriptor(\.modifiedAt, order: .reverse)]
+        ))) ?? []
         recentItems   = (try? SearchService.recentItems(limit: 10, context: context))   ?? []
         frequentItems = (try? SearchService.frequentItems(limit: 6, context: context))  ?? []
         recentlyAdded = (try? SearchService.recentlyAddedItems(limit: 20, context: context)) ?? []
@@ -132,6 +160,73 @@ final class HomeViewModel {
     func openItem(_ item: Item) {
         item.markOpened()
         try? context?.save()
+        loadHomeSections()
+    }
+
+    // MARK: - Bulk select
+
+    var isSelectMode: Bool = false
+    var selectedIDs: Set<UUID> = []
+
+    func enterSelectMode() {
+        isSelectMode = true
+        selectedIDs = []
+    }
+
+    func exitSelectMode() {
+        isSelectMode = false
+        selectedIDs = []
+    }
+
+    func toggleSelection(_ item: Item) {
+        if selectedIDs.contains(item.id) {
+            selectedIDs.remove(item.id)
+        } else {
+            selectedIDs.insert(item.id)
+        }
+    }
+
+    func bulkDelete(localStorage: LocalFileService? = nil) {
+        guard let context else { return }
+        let all = (try? context.fetch(FetchDescriptor<Item>())) ?? []
+        for item in all where selectedIDs.contains(item.id) {
+            if let path = item.localFilePath, let ls = localStorage {
+                Task { try? await ls.delete(relativePath: path) }
+            }
+            context.delete(item)
+        }
+        try? context.save()
+        HapticFeedback.success()
+        exitSelectMode()
+        loadHomeSections()
+    }
+
+    func bulkTag(_ tag: Tag) {
+        guard let context else { return }
+        let all = (try? context.fetch(FetchDescriptor<Item>())) ?? []
+        for item in all where selectedIDs.contains(item.id) {
+            if !item.tags.contains(where: { $0.id == tag.id }) {
+                item.tags.append(tag)
+            }
+        }
+        try? context.save()
+        HapticFeedback.success()
+        exitSelectMode()
+        loadHomeSections()
+    }
+
+    func bulkFavorite() {
+        guard let context else { return }
+        let all = (try? context.fetch(FetchDescriptor<Item>())) ?? []
+        // Toggle: if all selected are already favorites, unfavorite; otherwise favorite all
+        let selectedItems = all.filter { selectedIDs.contains($0.id) }
+        let allFavorited = selectedItems.allSatisfy(\.isFavorite)
+        for item in selectedItems {
+            item.isFavorite = !allFavorited
+        }
+        try? context.save()
+        HapticFeedback.light()
+        exitSelectMode()
         loadHomeSections()
     }
 }

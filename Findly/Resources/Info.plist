@@ -39,6 +39,8 @@
 	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>Findly needs camera access to capture photos and videos for your vault.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Findly uses Face ID to protect your private vault.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Findly needs microphone access to record audio notes.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

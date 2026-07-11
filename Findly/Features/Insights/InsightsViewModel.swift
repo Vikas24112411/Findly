@@ -1,6 +1,14 @@
 import Foundation
 import SwiftData
 
+struct TagHeatCell: Identifiable {
+    let id = UUID()
+    let tagName: String
+    let tagColor: String
+    let month: Date
+    let count: Int
+}
+
 @Observable
 @MainActor
 final class InsightsViewModel {
@@ -35,6 +43,18 @@ final class InsightsViewModel {
     // MARK: - Activity this week (last 7 days)
 
     var weeklyActivity: [(day: String, count: Int)] = []
+
+    // MARK: - Storage growth over time
+
+    var storageGrowth: [(month: Date, cumulativeBytes: Int64)] = []
+
+    // MARK: - File type breakdown by size
+
+    var fileTypeSizeDistribution: [(type: FileType, bytes: Int64)] = []
+
+    // MARK: - Tag usage heatmap (top 6 tags × last 6 months)
+
+    var tagHeatmap: [TagHeatCell] = []
 
     // MARK: - Context
 
@@ -99,6 +119,51 @@ final class InsightsViewModel {
             let label = dayFormatter.string(from: date)
             let count = allItems.filter { calendar.isDate($0.createdAt, inSameDayAs: date) }.count
             return (label, count)
+        }
+
+        // Storage growth — cumulative vault size by month
+        var monthlySizes: [Date: Int64] = [:]
+        for item in allItems {
+            let start = calendar.dateInterval(of: .month, for: item.createdAt)!.start
+            monthlySizes[start, default: 0] += item.fileSize
+        }
+        var running: Int64 = 0
+        storageGrowth = monthlySizes.keys.sorted().map { month in
+            running += monthlySizes[month]!
+            return (month: month, cumulativeBytes: running)
+        }
+
+        // File type size distribution
+        let sizeGrouped = Dictionary(grouping: allItems, by: \.fileType)
+        fileTypeSizeDistribution = FileType.allCases.compactMap { ft in
+            let bytes = sizeGrouped[ft]?.reduce(0) { $0 + $1.fileSize } ?? 0
+            return bytes > 0 ? (ft, bytes) : nil
+        }.sorted { $0.bytes > $1.bytes }
+
+        // Tag heatmap — top 6 tags × last 6 months
+        let heatTagSet = Set(topTags.prefix(6).map { $0.tag.id })
+        let heatTags   = topTags.prefix(6).map { $0.tag }
+        let currentMonthStart = calendar.dateInterval(of: .month, for: Date())!.start
+        let heatMonths: [Date] = (0..<6).reversed().compactMap {
+            calendar.date(byAdding: .month, value: -$0, to: currentMonthStart)
+        }
+        var heatCounts: [UUID: [Date: Int]] = [:]
+        for item in allItems {
+            let monthStart = calendar.dateInterval(of: .month, for: item.createdAt)!.start
+            guard heatMonths.contains(monthStart) else { continue }
+            for tag in item.tags where heatTagSet.contains(tag.id) {
+                heatCounts[tag.id, default: [:]][monthStart, default: 0] += 1
+            }
+        }
+        tagHeatmap = heatTags.flatMap { tag in
+            heatMonths.map { month in
+                TagHeatCell(
+                    tagName: tag.name,
+                    tagColor: tag.colorHex,
+                    month: month,
+                    count: heatCounts[tag.id]?[month] ?? 0
+                )
+            }
         }
     }
 }

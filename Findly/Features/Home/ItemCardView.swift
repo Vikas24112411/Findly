@@ -5,6 +5,8 @@ struct ItemCardView: View {
 
     let item: Item
     var style: Style = .grid
+    var isSelectMode: Bool = false
+    var isSelected: Bool = false
 
     enum Style {
         case grid   // Rounded card with thumbnail
@@ -23,31 +25,45 @@ struct ItemCardView: View {
     private var gridCard: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
             // Thumbnail
-            ZStack {
-                RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous)
-                    .fill(item.fileType.tintColor.opacity(0.10))
-                    .aspectRatio(4/3, contentMode: .fit)
-
-                if let data = item.thumbnailData, let ui = UIImage(data: data) {
-                    Image(uiImage: ui)
-                        .resizable()
-                        .scaledToFill()
-                        .aspectRatio(4/3, contentMode: .fit)
-                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous))
-                } else {
-                    Image(systemName: item.fileType.sfSymbol)
-                        .font(.system(size: AppTheme.IconSize.xLarge, weight: .light))
-                        .foregroundStyle(item.fileType.tintColor)
+            RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous)
+                .fill(item.fileType.tintColor.opacity(0.10))
+                .aspectRatio(4/3, contentMode: .fit)
+                .overlay {
+                    if let data = item.thumbnailData, let ui = UIImage(data: data) {
+                        Image(uiImage: ui)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        Image(systemName: item.fileType.sfSymbol)
+                            .font(.system(size: AppTheme.IconSize.xLarge, weight: .light))
+                            .foregroundStyle(item.fileType.tintColor)
+                    }
                 }
-            }
-            .overlay(alignment: .topTrailing) {
-                if item.isFavorite {
-                    Image(systemName: "heart.fill")
-                        .font(.caption)
-                        .foregroundStyle(.pink)
-                        .padding(6)
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous))
+                .overlay(alignment: .topTrailing) {
+                    HStack(spacing: 2) {
+                        if item.isPinned {
+                            Image(systemName: "pin.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.orange)
+                        }
+                        if item.isFavorite {
+                            Image(systemName: "heart.fill")
+                                .font(.caption)
+                                .foregroundStyle(.pink)
+                        }
+                    }
+                    .padding(6)
                 }
-            }
+                .overlay(alignment: .topLeading) {
+                    if isSelectMode {
+                        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 22))
+                            .foregroundStyle(isSelected ? AppTheme.Colors.accent : .white)
+                            .shadow(radius: 1)
+                            .padding(6)
+                    }
+                }
 
             // Info
             VStack(alignment: .leading, spacing: 2) {
@@ -141,19 +157,34 @@ struct ItemCardView: View {
             // Trailing
             VStack(alignment: .trailing, spacing: 4) {
                 SyncStatusBadge(status: item.syncStatus)
-                if item.isFavorite {
-                    Image(systemName: "heart.fill")
-                        .font(.caption2)
-                        .foregroundStyle(.pink)
+                HStack(spacing: 4) {
+                    if item.isPinned {
+                        Image(systemName: "pin.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
+                    if item.isFavorite {
+                        Image(systemName: "heart.fill")
+                            .font(.caption2)
+                            .foregroundStyle(.pink)
+                    }
                 }
             }
         }
         .padding(AppTheme.Spacing.medium)
-        .background(AppTheme.Colors.secondaryBG)
+        .background(isSelected ? AppTheme.Colors.accent.opacity(0.08) : AppTheme.Colors.secondaryBG)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
         .shadow(color: AppTheme.Shadow.card.color,
                 radius: AppTheme.Shadow.card.radius,
                 x: AppTheme.Shadow.card.x,
                 y: AppTheme.Shadow.card.y)
+        .overlay(alignment: .leading) {
+            if isSelectMode {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 22))
+                    .foregroundStyle(isSelected ? AppTheme.Colors.accent : AppTheme.Colors.tertiaryLabel)
+                    .padding(.leading, AppTheme.Spacing.medium)
+            }
+        }
     }
 }

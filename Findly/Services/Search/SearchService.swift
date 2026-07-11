@@ -22,6 +22,8 @@ struct SearchService {
     static func search(
         query: String,
         tagFilter: Tag? = nil,
+        fileTypeFilter: Set<FileType>? = nil,
+        dateRange: ClosedRange<Date>? = nil,
         sortOrder: SortOrder = .modifiedAt,
         context: ModelContext
     ) throws -> [Item] {
@@ -59,6 +61,16 @@ struct SearchService {
             results = results.filter { item in
                 item.tags.contains { descendantIDs.contains($0.id) }
             }
+        }
+
+        // Phase 3: file type filter
+        if let types = fileTypeFilter, !types.isEmpty {
+            results = results.filter { types.contains($0.fileType) }
+        }
+
+        // Phase 4: date range filter (by createdAt)
+        if let range = dateRange {
+            results = results.filter { range.contains($0.createdAt) }
         }
 
         return results

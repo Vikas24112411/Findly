@@ -20,6 +20,7 @@ final class AppContainer {
     let localStorage: LocalFileService
     let sync: SyncService
     let tokenRefresher: TokenRefresher
+    let export = ExportService()
 
     // MARK: - Init
 

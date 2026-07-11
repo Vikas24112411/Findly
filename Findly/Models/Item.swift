@@ -47,6 +47,7 @@ final class Item {
 
     var viewCount: Int
     var isFavorite: Bool
+    var isPinned: Bool
 
     // MARK: - Tags (many-to-many, inverse declared on Tag.items)
 
@@ -73,6 +74,7 @@ final class Item {
         self.modifiedAt = Date()
         self.viewCount = 0
         self.isFavorite = false
+        self.isPinned = false
         self.tags = []
     }
 

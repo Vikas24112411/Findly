@@ -96,6 +96,7 @@ final class UploadFlowViewModel {
             try context.save()
             savedItem = item
             isSaving = false
+            HapticFeedback.success()
 
             // 6. Trigger Drive upload in the background (don't block success screen)
             if isAuthenticated {

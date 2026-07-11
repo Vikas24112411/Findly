@@ -11,11 +11,14 @@ struct InsightsView: View {
             ScrollView {
                 LazyVStack(spacing: AppTheme.Spacing.xLarge) {
                     summaryCards
-                    if !viewModel.weeklyActivity.isEmpty        { activitySection }
-                    if !viewModel.fileTypeDistribution.isEmpty  { fileTypeChart }
-                    if !viewModel.topTags.isEmpty               { topTagsSection }
-                    if !viewModel.mostOpenedItems.isEmpty       { mostOpenedSection }
-                    if !viewModel.largestItems.isEmpty          { largestFilesSection }
+                    if !viewModel.storageGrowth.isEmpty              { storageGrowthSection }
+                    if !viewModel.weeklyActivity.isEmpty             { activitySection }
+                    if !viewModel.fileTypeDistribution.isEmpty       { fileTypeChart }
+                    if !viewModel.fileTypeSizeDistribution.isEmpty   { fileTypeSizeChart }
+                    if !viewModel.topTags.isEmpty                    { topTagsSection }
+                    if !viewModel.tagHeatmap.isEmpty                 { tagHeatmapSection }
+                    if !viewModel.mostOpenedItems.isEmpty            { mostOpenedSection }
+                    if !viewModel.largestItems.isEmpty               { largestFilesSection }
                 }
                 .padding(.horizontal, AppTheme.Spacing.base)
                 .padding(.vertical, AppTheme.Spacing.large)
@@ -265,6 +268,115 @@ struct InsightsView: View {
                     if index < viewModel.largestItems.count - 1 {
                         Divider().padding(.leading, 46)
                     }
+                }
+            }
+        }
+    }
+
+    // MARK: - Storage growth
+
+    private var storageGrowthSection: some View {
+        insightCard(title: "Storage Growth", symbol: "chart.line.uptrend.xyaxis") {
+            Chart(viewModel.storageGrowth, id: \.month) { point in
+                AreaMark(
+                    x: .value("Month", point.month, unit: .month),
+                    y: .value("MB", Double(point.cumulativeBytes) / 1_000_000.0)
+                )
+                .foregroundStyle(AppTheme.Colors.videoTint.opacity(0.15))
+                LineMark(
+                    x: .value("Month", point.month, unit: .month),
+                    y: .value("MB", Double(point.cumulativeBytes) / 1_000_000.0)
+                )
+                .foregroundStyle(AppTheme.Colors.videoTint)
+                .lineStyle(StrokeStyle(lineWidth: 2))
+                PointMark(
+                    x: .value("Month", point.month, unit: .month),
+                    y: .value("MB", Double(point.cumulativeBytes) / 1_000_000.0)
+                )
+                .foregroundStyle(AppTheme.Colors.videoTint)
+                .symbolSize(25)
+            }
+            .frame(height: 110)
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .month)) { _ in
+                    AxisValueLabel(format: .dateTime.month(.abbreviated), centered: true)
+                        .font(.system(size: 10))
+                        .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                }
+            }
+            .chartYAxis {
+                AxisMarks { value in
+                    AxisValueLabel {
+                        if let mb = value.as(Double.self) {
+                            Text(mb >= 1000 ? "\(Int(mb / 1000))GB" : "\(Int(mb))MB")
+                                .font(.system(size: 10))
+                                .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Storage by file type (bytes)
+
+    private var fileTypeSizeChart: some View {
+        insightCard(title: "Storage by Type", symbol: "externaldrive.fill") {
+            Chart(viewModel.fileTypeSizeDistribution, id: \.type) { entry in
+                BarMark(
+                    x: .value("Bytes", Double(entry.bytes) / 1_000_000.0),
+                    y: .value("Type", entry.type.displayName)
+                )
+                .foregroundStyle(entry.type.tintColor)
+                .cornerRadius(4)
+                .annotation(position: .trailing, alignment: .leading) {
+                    Text(entry.bytes.fileSizeString)
+                        .font(.system(size: 10))
+                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                }
+            }
+            .frame(height: CGFloat(viewModel.fileTypeSizeDistribution.count) * 30 + 10)
+            .chartXAxis(.hidden)
+            .chartYAxis {
+                AxisMarks { _ in
+                    AxisValueLabel()
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppTheme.Colors.label)
+                }
+            }
+        }
+    }
+
+    // MARK: - Tag activity heatmap
+
+    private var tagHeatmapSection: some View {
+        let maxCount = viewModel.tagHeatmap.map(\.count).max() ?? 1
+        let tagCount = Set(viewModel.tagHeatmap.map(\.tagName)).count
+        return insightCard(title: "Tag Activity", symbol: "chart.bar.doc.horizontal") {
+            Chart(viewModel.tagHeatmap) { cell in
+                RectangleMark(
+                    x: .value("Month", cell.month, unit: .month),
+                    y: .value("Tag", cell.tagName)
+                )
+                .foregroundStyle(
+                    Color(hex: cell.tagColor)
+                        .opacity(cell.count == 0 ? 0.06 : 0.15 + 0.85 * Double(cell.count) / Double(maxCount))
+                )
+                .cornerRadius(3)
+            }
+            .frame(height: CGFloat(tagCount) * 28 + 20)
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .month)) { _ in
+                    AxisValueLabel(format: .dateTime.month(.abbreviated), centered: true)
+                        .font(.system(size: 10))
+                        .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                }
+            }
+            .chartYAxis {
+                AxisMarks { _ in
+                    AxisValueLabel()
+                        .font(.system(size: 11))
+                        .foregroundStyle(AppTheme.Colors.label)
                 }
             }
         }

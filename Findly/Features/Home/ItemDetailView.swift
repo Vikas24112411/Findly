@@ -16,6 +16,7 @@ struct ItemDetailView: View {
     @State private var downloadError: Error?
     @State private var showDeleteConfirm = false
     @State private var showTagPicker = false
+    @State private var shareURL: URL?
 
     var body: some View {
         ScrollView {
@@ -33,16 +34,29 @@ struct ItemDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    item.isFavorite.toggle()
-                    try? modelContext.save()
-                } label: {
-                    Image(systemName: item.isFavorite ? "heart.fill" : "heart")
-                        .foregroundStyle(item.isFavorite ? .pink : AppTheme.Colors.secondaryLabel)
+                HStack(spacing: AppTheme.Spacing.medium) {
+                    Button {
+                        item.isPinned.toggle()
+                        try? modelContext.save()
+                        HapticFeedback.light()
+                    } label: {
+                        Image(systemName: item.isPinned ? "pin.fill" : "pin")
+                            .foregroundStyle(item.isPinned ? .orange : AppTheme.Colors.secondaryLabel)
+                    }
+                    Button {
+                        item.isFavorite.toggle()
+                        try? modelContext.save()
+                    } label: {
+                        Image(systemName: item.isFavorite ? "heart.fill" : "heart")
+                            .foregroundStyle(item.isFavorite ? .pink : AppTheme.Colors.secondaryLabel)
+                    }
                 }
             }
         }
         .quickLookPreview($quickLookURL)
+        .sheet(isPresented: Binding(get: { shareURL != nil }, set: { if !$0 { shareURL = nil } })) {
+            if let url = shareURL { ShareSheet(items: [url]) }
+        }
         .sheet(isPresented: $showTagPicker) {
             TagPickerSheet(item: item) { tag in
                 addTag(tag)
@@ -191,17 +205,34 @@ struct ItemDetailView: View {
         guard !item.tags.contains(where: { $0.id == tag.id }) else { return }
         item.tags.append(tag)
         try? modelContext.save()
+        HapticFeedback.light()
     }
 
     private func removeTag(_ tag: Tag) {
         item.tags.removeAll { $0.id == tag.id }
         try? modelContext.save()
+        HapticFeedback.light()
     }
 
     // MARK: - Actions
 
     private var actionsSection: some View {
         VStack(spacing: AppTheme.Spacing.small) {
+            // Share file
+            if item.localFileAvailable {
+                Button {
+                    shareFile()
+                } label: {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, AppTheme.Spacing.medium)
+                        .background(AppTheme.Colors.secondaryBG)
+                        .foregroundStyle(AppTheme.Colors.accent)
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
+                        .font(AppTheme.Typography.headline)
+                }
+            }
+
             // Drive recovery: local file missing but Drive copy exists
             if !item.localFileAvailable && item.isUploaded {
                 Button {
@@ -262,6 +293,16 @@ struct ItemDetailView: View {
         }
     }
 
+    // MARK: - Share file
+
+    private func shareFile() {
+        guard let relativePath = item.localFilePath else { return }
+        Task {
+            let url = await appContainer.localStorage.fileURL(relativePath: relativePath)
+            shareURL = url
+        }
+    }
+
     // MARK: - Open file
 
     private func openFile() {
@@ -275,6 +316,7 @@ struct ItemDetailView: View {
     // MARK: - Delete
 
     private func deleteItem() {
+        HapticFeedback.medium()
         if let path = item.localFilePath {
             Task { try? await appContainer.localStorage.delete(relativePath: path) }
         }

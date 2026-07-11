@@ -1,6 +1,29 @@
 import Foundation
 import SwiftData
 
+// MARK: - Versioned Schema
+
+/// Current schema version. Add new VersionedSchema enums and MigrationStage entries
+/// in AppMigrationPlan when the model changes in a future release.
+enum AppSchemaV1: VersionedSchema {
+    static var versionIdentifier = Schema.Version(1, 0, 0)
+    static var models: [any PersistentModel.Type] {
+        [Item.self, Tag.self, SearchHistoryEntry.self]
+    }
+}
+
+// MARK: - Migration Plan
+
+/// Add a new VersionedSchema + MigrationStage here whenever the schema changes.
+/// Lightweight stages handle additive changes (new optional attributes, new models)
+/// without writing custom migration code.
+enum AppMigrationPlan: SchemaMigrationPlan {
+    static var schemas: [any VersionedSchema.Type] { [AppSchemaV1.self] }
+    static var stages: [MigrationStage] { [] }
+}
+
+// MARK: - Controller
+
 /// Bootstraps and vends the SwiftData `ModelContainer`.
 ///
 /// Use `PersistenceController.shared` in production and
@@ -30,23 +53,49 @@ final class PersistenceController: @unchecked Sendable {
 
     let container: ModelContainer
 
+    /// `true` when the on-disk store could not be migrated and was backed up.
+    /// The app should surface a notice to the user when this is set.
+    private(set) var storeWasRecovered = false
+
     // MARK: - Init
 
     init(inMemory: Bool = false) {
-        let schema = Schema([
-            Item.self,
-            Tag.self,
-            SearchHistoryEntry.self
-        ])
+        let schema = Schema(AppSchemaV1.models)
         let config = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: inMemory,
             allowsSave: true
         )
+
+        // Attempt normal open — migration plan handles additive schema changes automatically.
+        if let c = try? ModelContainer(for: schema, migrationPlan: AppMigrationPlan.self, configurations: [config]) {
+            container = c
+            return
+        }
+
+        guard !inMemory else {
+            fatalError("SwiftData failed to create in-memory container")
+        }
+
+        // Migration failed (incompatible schema change). Back up the existing store files
+        // so data is never permanently lost, then start fresh. The backup can be inspected
+        // or restored manually from the app's Application Support directory.
+        let storeURL = config.url
+        let timestamp = Int(Date().timeIntervalSince1970)
+        let backupBase = storeURL.deletingLastPathComponent()
+            .appendingPathComponent("\(storeURL.lastPathComponent).backup-\(timestamp)")
+        for suffix in ["", "-shm", "-wal"] {
+            let src = URL(fileURLWithPath: storeURL.path + suffix)
+            let dst = URL(fileURLWithPath: backupBase.path + suffix)
+            try? FileManager.default.copyItem(at: src, to: dst)
+            try? FileManager.default.removeItem(at: src)
+        }
+
         do {
-            container = try ModelContainer(for: schema, configurations: [config])
+            container = try ModelContainer(for: schema, migrationPlan: AppMigrationPlan.self, configurations: [config])
+            storeWasRecovered = true
         } catch {
-            fatalError("SwiftData failed to create ModelContainer: \(error)")
+            fatalError("SwiftData failed to create ModelContainer even after store reset: \(error)")
         }
     }
 }

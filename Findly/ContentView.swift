@@ -1,14 +1,49 @@
 import SwiftUI
+import LocalAuthentication
 
 /// Root view: TabView with four tabs + persistent floating action button.
 struct ContentView: View {
 
     @Environment(AppContainer.self) private var appContainer
     @AppStorage("appearanceMode") private var appearanceMode = "system"
+    @AppStorage("appLockEnabled") private var appLockEnabled = false
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: Tab = .home
     @State private var showAddSheet = false
+    @State private var lockManager = AppLockManager()
+    @State private var showStoreRecoveryAlert = false
 
     var body: some View {
+        ZStack {
+            mainContent
+            if lockManager.isLocked {
+                AppLockView {
+                    await lockManager.unlock()
+                }
+                .transition(.opacity)
+                .zIndex(999)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: lockManager.isLocked)
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background && appLockEnabled {
+                lockManager.lock()
+            } else if phase == .active && lockManager.isLocked {
+                Task { await lockManager.unlock() }
+            }
+        }
+        .preferredColorScheme(appearanceMode == "light" ? .light : appearanceMode == "dark" ? .dark : nil)
+        .onAppear {
+            showStoreRecoveryAlert = appContainer.persistence.storeWasRecovered
+        }
+        .alert("Database Recovery", isPresented: $showStoreRecoveryAlert) {
+            Button("OK") {}
+        } message: {
+            Text("The database couldn't be migrated to the latest format. A backup was saved to your device and your vault has been reset. Please contact support if you need help recovering your data.")
+        }
+    }
+
+    private var mainContent: some View {
         ZStack(alignment: .bottomTrailing) {
             TabView(selection: $selectedTab) {
                 HomeView()
@@ -38,7 +73,6 @@ struct ContentView: View {
             AddItemSheetView()
                 .environment(appContainer)
         }
-        .preferredColorScheme(appearanceMode == "light" ? .light : appearanceMode == "dark" ? .dark : nil)
     }
 }
 

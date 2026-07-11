@@ -1,10 +1,17 @@
 import SwiftUI
+import SwiftData
+import LocalAuthentication
 
 struct SettingsView: View {
 
     @Environment(AppContainer.self) private var appContainer
+    @AppStorage("appLockEnabled") private var appLockEnabled = false
+    @Environment(\.modelContext) private var modelContext
     @AppStorage("appearanceMode") private var appearanceMode = "system"
     @State private var viewModel = SettingsViewModel()
+    @State private var isExporting = false
+    @State private var exportURL: URL?
+    @State private var exportError: String?
 
     var body: some View {
         NavigationStack {
@@ -12,12 +19,31 @@ struct SettingsView: View {
                 googleDriveSection
                 syncSection
                 themeSection
+                securitySection
+                dataSection
                 aboutSection
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
             .onAppear {
                 Task { await viewModel.loadDriveStats(appContainer: appContainer) }
+            }
+            .sheet(isPresented: Binding(
+                get: { exportURL != nil },
+                set: { if !$0 {
+                    if let url = exportURL { try? FileManager.default.removeItem(at: url) }
+                    exportURL = nil
+                }}
+            )) {
+                if let url = exportURL { ShareSheet(items: [url]) }
+            }
+            .alert("Export Failed", isPresented: Binding(
+                get: { exportError != nil },
+                set: { if !$0 { exportError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(exportError ?? "")
             }
         }
     }
@@ -166,6 +192,38 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Security
+
+    private var securitySection: some View {
+        Section {
+            Toggle(isOn: $appLockEnabled) {
+                Label("App Lock", systemImage: "lock.fill")
+            }
+            .onChange(of: appLockEnabled) { _, enabled in
+                if enabled {
+                    // Immediately verify the user can authenticate before enabling
+                    Task {
+                        let ctx = LAContext()
+                        var err: NSError?
+                        guard ctx.canEvaluatePolicy(.deviceOwnerAuthentication, error: &err) else {
+                            appLockEnabled = false
+                            return
+                        }
+                        let ok = try? await ctx.evaluatePolicy(
+                            .deviceOwnerAuthentication,
+                            localizedReason: "Enable App Lock"
+                        )
+                        if ok != true { appLockEnabled = false }
+                    }
+                }
+            }
+        } header: {
+            Text("Security")
+        } footer: {
+            Text("Requires Face ID, Touch ID, or passcode to open Findly.")
+        }
+    }
+
     // MARK: - Theme
 
     private var themeSection: some View {
@@ -176,6 +234,54 @@ struct SettingsView: View {
                 Text("System").tag("system")
             }
             .pickerStyle(.segmented)
+        }
+    }
+
+    // MARK: - Data
+
+    private var dataSection: some View {
+        Section {
+            Button {
+                exportVault()
+            } label: {
+                HStack {
+                    Label("Export Vault", systemImage: "archivebox.circle.fill")
+                        .foregroundStyle(AppTheme.Colors.accent)
+                    Spacer()
+                    if isExporting {
+                        ProgressView()
+                    }
+                }
+            }
+            .disabled(isExporting)
+        } header: {
+            Text("Data")
+        } footer: {
+            Text("Exports all locally stored files as a .zip archive.")
+        }
+    }
+
+    private func exportVault() {
+        isExporting = true
+        Task {
+            do {
+                let items = (try? modelContext.fetch(FetchDescriptor<Item>())) ?? []
+                let url = try await appContainer.export.exportVault(
+                    items: items,
+                    localStorage: appContainer.localStorage
+                )
+                await MainActor.run {
+                    exportURL = url
+                    isExporting = false
+                    HapticFeedback.success()
+                }
+            } catch {
+                await MainActor.run {
+                    exportError = error.localizedDescription
+                    isExporting = false
+                    HapticFeedback.error()
+                }
+            }
         }
     }
 
