@@ -1,0 +1,301 @@
+import SwiftUI
+import Charts
+
+struct InsightsView: View {
+
+    @Environment(\.modelContext) private var modelContext
+    @State private var viewModel = InsightsViewModel()
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVStack(spacing: AppTheme.Spacing.xLarge) {
+                    summaryCards
+                    if !viewModel.weeklyActivity.isEmpty        { activitySection }
+                    if !viewModel.fileTypeDistribution.isEmpty  { fileTypeChart }
+                    if !viewModel.topTags.isEmpty               { topTagsSection }
+                    if !viewModel.mostOpenedItems.isEmpty       { mostOpenedSection }
+                    if !viewModel.largestItems.isEmpty          { largestFilesSection }
+                }
+                .padding(.horizontal, AppTheme.Spacing.base)
+                .padding(.vertical, AppTheme.Spacing.large)
+            }
+            .background(AppTheme.Colors.groupedBG)
+            .navigationTitle("Insights")
+            .navigationBarTitleDisplayMode(.large)
+            .onAppear {
+                viewModel.setup(context: modelContext)
+            }
+            .refreshable {
+                viewModel.loadAll()
+            }
+        }
+    }
+
+    // MARK: - Summary cards
+
+    private var summaryCards: some View {
+        LazyVGrid(
+            columns: [GridItem(.flexible()), GridItem(.flexible())],
+            spacing: AppTheme.Spacing.medium
+        ) {
+            statCard("Total Files",
+                     "\(viewModel.totalItems)",
+                     "doc.fill",
+                     AppTheme.Colors.accent)
+            statCard("Tags",
+                     "\(viewModel.totalTags)",
+                     "tag.fill",
+                     AppTheme.Colors.noteTint)
+            statCard("Storage",
+                     viewModel.totalStorageBytes.fileSizeString,
+                     "internaldrive.fill",
+                     AppTheme.Colors.videoTint)
+            statCard("Pending Sync",
+                     "\(viewModel.pendingSyncCount)",
+                     viewModel.pendingSyncCount > 0 ? "clock.badge.exclamationmark.fill" : "checkmark.circle.fill",
+                     viewModel.pendingSyncCount > 0 ? AppTheme.Colors.syncPending : AppTheme.Colors.syncSynced)
+        }
+    }
+
+    private func statCard(_ title: String, _ value: String, _ symbol: String, _ color: Color) -> some View {
+        HStack(spacing: AppTheme.Spacing.medium) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(color.opacity(0.14))
+                    .frame(width: 36, height: 36)
+                Image(systemName: symbol)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(color)
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(value)
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundStyle(AppTheme.Colors.label)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                Text(title)
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, AppTheme.Spacing.medium)
+        .padding(.vertical, AppTheme.Spacing.medium)
+        .background(AppTheme.Colors.secondaryBG)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
+    }
+
+    // MARK: - Activity this week
+
+    private var activitySection: some View {
+        insightCard(title: "Added This Week", symbol: "calendar") {
+            Chart(viewModel.weeklyActivity, id: \.day) { entry in
+                BarMark(
+                    x: .value("Day", entry.day),
+                    y: .value("Files", entry.count)
+                )
+                .foregroundStyle(
+                    entry.count > 0
+                        ? AppTheme.Colors.accent.gradient
+                        : Color.secondary.opacity(0.2).gradient
+                )
+                .cornerRadius(5)
+            }
+            .frame(height: 90)
+            .chartXAxis {
+                AxisMarks { _ in
+                    AxisValueLabel()
+                        .font(.system(size: 11))
+                        .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                }
+            }
+            .chartYAxis(.hidden)
+            .chartXScale(range: .plotDimension(padding: 8))
+        }
+    }
+
+    // MARK: - File type donut + legend
+
+    private var fileTypeChart: some View {
+        insightCard(title: "File Types", symbol: "square.grid.2x2.fill") {
+            HStack(alignment: .center, spacing: AppTheme.Spacing.xLarge) {
+                Chart(viewModel.fileTypeDistribution, id: \.type) { entry in
+                    SectorMark(
+                        angle: .value("Count", entry.count),
+                        innerRadius: .ratio(0.54),
+                        angularInset: 2.5
+                    )
+                    .foregroundStyle(entry.type.tintColor)
+                    .cornerRadius(5)
+                }
+                .frame(width: 110, height: 110)
+
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
+                    ForEach(viewModel.fileTypeDistribution.prefix(6), id: \.type) { entry in
+                        HStack(spacing: 8) {
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                .fill(entry.type.tintColor)
+                                .frame(width: 10, height: 10)
+                            Text(entry.type.displayName)
+                                .font(.system(size: 12, weight: .regular))
+                                .foregroundStyle(AppTheme.Colors.label)
+                            Spacer()
+                            Text("\(entry.count)")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    // MARK: - Top tags with progress bars
+
+    private var topTagsSection: some View {
+        let maxCount = max(viewModel.topTags.first?.count ?? 1, 1)
+        return insightCard(title: "Top Tags", symbol: "tag.fill") {
+            VStack(spacing: AppTheme.Spacing.medium) {
+                ForEach(viewModel.topTags.prefix(5), id: \.tag.id) { entry in
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 6) {
+                            Image(systemName: entry.tag.sfSymbol)
+                                .font(.system(size: 12))
+                                .foregroundStyle(Color(hex: entry.tag.colorHex))
+                            Text(entry.tag.name)
+                                .font(AppTheme.Typography.subheadline)
+                                .foregroundStyle(AppTheme.Colors.label)
+                                .lineLimit(1)
+                            Spacer()
+                            Text("\(entry.count) file\(entry.count == 1 ? "" : "s")")
+                                .font(.system(size: 11))
+                                .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                        }
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule()
+                                    .fill(Color(hex: entry.tag.colorHex).opacity(0.12))
+                                    .frame(height: 5)
+                                Capsule()
+                                    .fill(Color(hex: entry.tag.colorHex))
+                                    .frame(
+                                        width: geo.size.width * CGFloat(entry.count) / CGFloat(maxCount),
+                                        height: 5
+                                    )
+                            }
+                        }
+                        .frame(height: 5)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Most opened
+
+    private var mostOpenedSection: some View {
+        insightCard(title: "Most Opened", symbol: "flame.fill") {
+            VStack(spacing: 0) {
+                ForEach(Array(viewModel.mostOpenedItems.enumerated()), id: \.element.id) { index, item in
+                    NavigationLink(destination: ItemDetailView(item: item)) {
+                        HStack(spacing: AppTheme.Spacing.medium) {
+                            // Rank
+                            Text("\(index + 1)")
+                                .font(.system(size: 13, weight: .bold, design: .rounded))
+                                .foregroundStyle(index == 0 ? AppTheme.Colors.accent : AppTheme.Colors.tertiaryLabel)
+                                .frame(width: 18, alignment: .center)
+
+                            // Icon
+                            Image(systemName: item.fileType.sfSymbol)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(item.fileType.tintColor)
+                                .frame(width: 30, height: 30)
+                                .background(item.fileType.tintColor.opacity(0.12))
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                            Text(item.title)
+                                .font(AppTheme.Typography.subheadline)
+                                .foregroundStyle(AppTheme.Colors.label)
+                                .lineLimit(1)
+                            Spacer()
+                            Text("\(item.viewCount)×")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                        }
+                        .padding(.vertical, 10)
+                    }
+                    .buttonStyle(.plain)
+                    if index < viewModel.mostOpenedItems.count - 1 {
+                        Divider().padding(.leading, 62)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Largest files
+
+    private var largestFilesSection: some View {
+        insightCard(title: "Largest Files", symbol: "archivebox.fill") {
+            VStack(spacing: 0) {
+                ForEach(Array(viewModel.largestItems.enumerated()), id: \.element.id) { index, item in
+                    NavigationLink(destination: ItemDetailView(item: item)) {
+                        HStack(spacing: AppTheme.Spacing.medium) {
+                            Image(systemName: item.fileType.sfSymbol)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(item.fileType.tintColor)
+                                .frame(width: 30, height: 30)
+                                .background(item.fileType.tintColor.opacity(0.12))
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                            Text(item.title)
+                                .font(AppTheme.Typography.subheadline)
+                                .foregroundStyle(AppTheme.Colors.label)
+                                .lineLimit(1)
+                            Spacer()
+                            Text(item.fileSize.fileSizeString)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                        }
+                        .padding(.vertical, 10)
+                    }
+                    .buttonStyle(.plain)
+                    if index < viewModel.largestItems.count - 1 {
+                        Divider().padding(.leading, 46)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Card container
+
+    private func insightCard<Content: View>(
+        title: String,
+        symbol: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
+            HStack(spacing: 6) {
+                Image(systemName: symbol)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                Text(title)
+                    .font(AppTheme.Typography.headline)
+                    .foregroundStyle(AppTheme.Colors.label)
+            }
+            content()
+        }
+        .padding(AppTheme.Spacing.base)
+        .background(AppTheme.Colors.secondaryBG)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
+    }
+}
+
+#Preview {
+    InsightsView()
+        .modelContainer(PersistenceController.preview.container)
+        .environment(AppContainer())
+}
