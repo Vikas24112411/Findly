@@ -80,14 +80,24 @@ final class PersistenceController: @unchecked Sendable {
         // Migration failed (incompatible schema change). Back up the existing store files
         // so data is never permanently lost, then start fresh. The backup can be inspected
         // or restored manually from the app's Application Support directory.
+        //
+        // Safety order: copy → verify new container opens → then delete originals.
+        // This ensures the original store is never deleted unless we know the fresh container works.
         let storeURL = config.url
         let timestamp = Int(Date().timeIntervalSince1970)
         let backupBase = storeURL.deletingLastPathComponent()
             .appendingPathComponent("\(storeURL.lastPathComponent).backup-\(timestamp)")
+
+        // Pass 1: copy to backup (before any deletion).
         for suffix in ["", "-shm", "-wal"] {
             let src = URL(fileURLWithPath: storeURL.path + suffix)
             let dst = URL(fileURLWithPath: backupBase.path + suffix)
             try? FileManager.default.copyItem(at: src, to: dst)
+        }
+
+        // Pass 2: delete originals so ModelContainer can create a fresh empty store.
+        for suffix in ["", "-shm", "-wal"] {
+            let src = URL(fileURLWithPath: storeURL.path + suffix)
             try? FileManager.default.removeItem(at: src)
         }
 
@@ -95,6 +105,13 @@ final class PersistenceController: @unchecked Sendable {
             container = try ModelContainer(for: schema, migrationPlan: AppMigrationPlan.self, configurations: [config])
             storeWasRecovered = true
         } catch {
+            // Container creation failed even on a fresh store. Attempt to restore the backup
+            // so the user's data is not permanently lost before we crash.
+            for suffix in ["", "-shm", "-wal"] {
+                let backup = URL(fileURLWithPath: backupBase.path + suffix)
+                let original = URL(fileURLWithPath: storeURL.path + suffix)
+                try? FileManager.default.copyItem(at: backup, to: original)
+            }
             fatalError("SwiftData failed to create ModelContainer even after store reset: \(error)")
         }
     }

@@ -2,6 +2,9 @@ import Foundation
 
 /// Exports vault files as a ZIP archive without requiring a third-party library.
 /// Uses ZIP STORE method (no compression — focus is on archiving, not size reduction).
+///
+/// Files are written directly to a temp file via FileHandle so the entire vault
+/// is never held in memory simultaneously.
 actor ExportService {
 
     // MARK: - Public interface
@@ -9,23 +12,28 @@ actor ExportService {
     /// Creates a ZIP archive of all locally available vault items and returns its URL.
     /// The caller is responsible for deleting the temp file when done.
     func exportVault(items: [Item], localStorage: LocalFileService) async throws -> URL {
-        var writer = ZipWriter()
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Findly_Export_\(Int(Date().timeIntervalSince1970)).zip")
+
+        // Create the file so FileHandle can open it for writing.
+        FileManager.default.createFile(atPath: tempURL.path, contents: nil)
+        let fileHandle = try FileHandle(forWritingTo: tempURL)
+        defer { try? fileHandle.close() }
+
+        var writer = ZipWriter(fileHandle: fileHandle)
 
         for item in items {
             guard let relativePath = item.localFilePath else { continue }
             let url = await localStorage.fileURL(relativePath: relativePath)
             guard FileManager.default.fileExists(atPath: url.path),
                   let data = try? Data(contentsOf: url) else { continue }
-            // Use the item's title as the filename in the archive, preserving the original extension
+            // Use the item's title as the filename in the archive, preserving the original extension.
             let ext = url.pathExtension.isEmpty ? item.fileType.fileExtension : url.pathExtension
             let safeName = sanitize(item.title) + "." + ext
-            writer.addFile(name: safeName, data: data)
+            try writer.addFile(name: safeName, data: data)
         }
 
-        let zipData = writer.finalize()
-        let tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("Findly_Export_\(Int(Date().timeIntervalSince1970)).zip")
-        try zipData.write(to: tempURL)
+        try writer.finalize()
         return tempURL
     }
 
@@ -42,96 +50,124 @@ actor ExportService {
     }
 }
 
-// MARK: - Minimal ZIP writer (STORE, no compression)
+// MARK: - Errors
+
+enum ZipError: Error, LocalizedError {
+    case tooManyFiles
+
+    var errorDescription: String? {
+        "ZIP export supports at most 65,535 files. Please export a smaller selection."
+    }
+}
+
+// MARK: - Streaming ZIP writer (STORE, no compression)
+//
+// Writes local file headers and data directly to a FileHandle so peak memory usage
+// is one file at a time. The central directory entries are tracked in memory but are
+// tiny (metadata only).
 
 private struct ZipWriter {
 
-    private var buffer = Data()
+    private let fileHandle: FileHandle
     private var entries: [EntryMeta] = []
+    private var currentOffset: UInt32 = 0
 
     private struct EntryMeta {
         let name: Data       // UTF-8 encoded filename
         let dataSize: UInt32
         let crc32: UInt32
-        let offset: UInt32   // byte offset of local file header in buffer
+        let offset: UInt32   // byte offset of local file header in the output file
+    }
+
+    init(fileHandle: FileHandle) {
+        self.fileHandle = fileHandle
     }
 
     // MARK: - Add file
 
-    mutating func addFile(name: String, data: Data) {
+    mutating func addFile(name: String, data: Data) throws {
         let nameData = name.data(using: .utf8) ?? Data()
         let crc = crc32(data)
-        let offset = UInt32(buffer.count)
+        let offset = currentOffset
 
-        // Local file header
-        append(uint32: 0x04034b50)            // PK\x03\x04
-        append(uint16: 20)                     // version needed
-        append(uint16: 0x0800)                 // UTF-8 flag (bit 11)
-        append(uint16: 0)                      // compression: STORE
-        append(uint16: dosTime())
-        append(uint16: dosDate())
-        append(uint32: crc)
-        append(uint32: UInt32(data.count))     // compressed size = uncompressed (STORE)
-        append(uint32: UInt32(data.count))
-        append(uint16: UInt16(nameData.count))
-        append(uint16: 0)                      // extra field length
-        buffer.append(nameData)
-        buffer.append(data)
+        // Build local file header (30 bytes fixed + filename).
+        var header = Data()
+        appendUInt32(0x04034b50, to: &header)            // PK\x03\x04
+        appendUInt16(20, to: &header)                     // version needed
+        appendUInt16(0x0800, to: &header)                 // UTF-8 flag (bit 11)
+        appendUInt16(0, to: &header)                      // compression: STORE
+        appendUInt16(dosTime(), to: &header)
+        appendUInt16(dosDate(), to: &header)
+        appendUInt32(crc, to: &header)
+        appendUInt32(UInt32(data.count), to: &header)     // compressed size = uncompressed (STORE)
+        appendUInt32(UInt32(data.count), to: &header)     // uncompressed size
+        appendUInt16(UInt16(nameData.count), to: &header)
+        appendUInt16(0, to: &header)                      // extra field length
 
+        try fileHandle.write(contentsOf: header)
+        try fileHandle.write(contentsOf: nameData)
+        try fileHandle.write(contentsOf: data)
+
+        currentOffset += UInt32(header.count) + UInt32(nameData.count) + UInt32(data.count)
         entries.append(EntryMeta(name: nameData, dataSize: UInt32(data.count), crc32: crc, offset: offset))
     }
 
-    // MARK: - Finalize
+    // MARK: - Finalize (writes central directory + EOCD)
 
-    mutating func finalize() -> Data {
-        let centralDirStart = UInt32(buffer.count)
+    mutating func finalize() throws {
+        guard entries.count <= 65_535 else { throw ZipError.tooManyFiles }
+
+        let centralDirStart = currentOffset
         var centralDirSize: UInt32 = 0
+        var centralDir = Data()
 
         for entry in entries {
-            append(uint32: 0x02014b50)         // central directory signature
-            append(uint16: 20)                  // version made by
-            append(uint16: 20)                  // version needed
-            append(uint16: 0x0800)              // UTF-8 flag
-            append(uint16: 0)                   // compression: STORE
-            append(uint16: dosTime())
-            append(uint16: dosDate())
-            append(uint32: entry.crc32)
-            append(uint32: entry.dataSize)
-            append(uint32: entry.dataSize)
-            append(uint16: UInt16(entry.name.count))
-            append(uint16: 0)                   // extra length
-            append(uint16: 0)                   // comment length
-            append(uint16: 0)                   // disk number start
-            append(uint16: 0)                   // internal attrs
-            append(uint32: 0)                   // external attrs
-            append(uint32: entry.offset)
-            buffer.append(entry.name)
+            appendUInt32(0x02014b50, to: &centralDir)     // central directory signature
+            appendUInt16(20, to: &centralDir)              // version made by
+            appendUInt16(20, to: &centralDir)              // version needed
+            appendUInt16(0x0800, to: &centralDir)          // UTF-8 flag
+            appendUInt16(0, to: &centralDir)               // compression: STORE
+            appendUInt16(dosTime(), to: &centralDir)
+            appendUInt16(dosDate(), to: &centralDir)
+            appendUInt32(entry.crc32, to: &centralDir)
+            appendUInt32(entry.dataSize, to: &centralDir)
+            appendUInt32(entry.dataSize, to: &centralDir)
+            appendUInt16(UInt16(entry.name.count), to: &centralDir)
+            appendUInt16(0, to: &centralDir)               // extra length
+            appendUInt16(0, to: &centralDir)               // comment length
+            appendUInt16(0, to: &centralDir)               // disk number start
+            appendUInt16(0, to: &centralDir)               // internal attrs
+            appendUInt32(0, to: &centralDir)               // external attrs
+            appendUInt32(entry.offset, to: &centralDir)
+            centralDir.append(entry.name)
             centralDirSize += 46 + UInt32(entry.name.count)
         }
 
-        // End of central directory record
-        append(uint32: 0x06054b50)
-        append(uint16: 0)                       // disk number
-        append(uint16: 0)                       // disk with central dir
-        append(uint16: UInt16(entries.count))
-        append(uint16: UInt16(entries.count))
-        append(uint32: centralDirSize)
-        append(uint32: centralDirStart)
-        append(uint16: 0)                       // comment length
+        // End of central directory record.
+        var eocd = Data()
+        appendUInt32(0x06054b50, to: &eocd)
+        appendUInt16(0, to: &eocd)                         // disk number
+        appendUInt16(0, to: &eocd)                         // disk with central dir
+        appendUInt16(UInt16(entries.count), to: &eocd)
+        appendUInt16(UInt16(entries.count), to: &eocd)
+        appendUInt32(centralDirSize, to: &eocd)
+        appendUInt32(centralDirStart, to: &eocd)
+        appendUInt16(0, to: &eocd)                         // comment length
 
-        return buffer
+        try fileHandle.write(contentsOf: centralDir)
+        try fileHandle.write(contentsOf: eocd)
     }
 
     // MARK: - Helpers
 
-    private mutating func append(uint16 value: UInt16) {
+    private func appendUInt16(_ value: UInt16, to data: inout Data) {
         var v = value.littleEndian
-        withUnsafeBytes(of: &v) { buffer.append(contentsOf: $0) }
+        withUnsafeBytes(of: &v) { data.append(contentsOf: $0) }
     }
 
-    private mutating func append(uint32 value: UInt32) {
+    private func appendUInt32(_ value: UInt32, to data: inout Data) {
         var v = value.littleEndian
-        withUnsafeBytes(of: &v) { buffer.append(contentsOf: $0) }
+        withUnsafeBytes(of: &v) { data.append(contentsOf: $0) }
     }
 
     private func dosTime() -> UInt16 {
@@ -152,7 +188,7 @@ private struct ZipWriter {
         return (y << 9) | (mo << 5) | d
     }
 
-    // Standard CRC-32 (ISO 3309 / ITU-T V.42) — same polynomial used by zlib
+    // Standard CRC-32 (ISO 3309 / ITU-T V.42) — same polynomial used by zlib.
     private func crc32(_ data: Data) -> UInt32 {
         var crc: UInt32 = 0xFFFF_FFFF
         for byte in data {
