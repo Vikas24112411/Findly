@@ -11,8 +11,7 @@ struct AddItemSheetView: View {
 
     // Source selection
     @State private var showPhotosPicker = false
-    @State private var showDocumentPicker = false
-    @State private var showFilesImport = false
+    @State private var fileImportMode: FileImportMode? = nil
     @State private var showNoteComposer = false
     @State private var showLinkComposer = false
     @State private var showCameraPicker = false
@@ -72,30 +71,24 @@ struct AddItemSheetView: View {
                 await handlePhotoPickerItem(item)
             }
         }
-        // Document picker (single)
+        // Unified document / files-app importer
         .fileImporter(
-            isPresented: $showDocumentPicker,
+            isPresented: Binding(
+                get: { fileImportMode != nil },
+                set: { if !$0 { fileImportMode = nil } }
+            ),
             allowedContentTypes: [.item],
-            allowsMultipleSelection: false
+            allowsMultipleSelection: fileImportMode == .multi
         ) { result in
-            switch result {
-            case .success(let urls):
-                if let url = urls.first {
+            let mode = fileImportMode
+            fileImportMode = nil
+            if case .success(let urls) = result {
+                if mode == .multi, !urls.isEmpty {
+                    importedURLs = urls
+                    showQuickImport = true
+                } else if let url = urls.first {
                     Task { await handleDocumentURL(url) }
                 }
-            case .failure:
-                break
-            }
-        }
-        // Files app import (multi)
-        .fileImporter(
-            isPresented: $showFilesImport,
-            allowedContentTypes: [.item],
-            allowsMultipleSelection: true
-        ) { result in
-            if case .success(let urls) = result, !urls.isEmpty {
-                importedURLs = urls
-                showQuickImport = true
             }
         }
         .sheet(isPresented: $showQuickImport) {
@@ -197,8 +190,8 @@ struct AddItemSheetView: View {
     private func handleOption(_ option: AddOption) {
         switch option {
         case .photo:     showPhotosPicker = true
-        case .document:  showDocumentPicker = true
-        case .filesApp:  showFilesImport = true
+        case .document:  fileImportMode = .single
+        case .filesApp:  fileImportMode = .multi
         case .note:      showNoteComposer = true
         case .link:      showLinkComposer = true
         case .camera:    showCameraPicker = true
@@ -241,13 +234,15 @@ struct AddItemSheetView: View {
                 )
             }
         case .video(let url):
-            guard let data = try? Data(contentsOf: url) else { return }
+            let videoSize = Int64((try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0)
             await MainActor.run {
                 pendingUpload = PendingUpload(
-                    data: data,
+                    data: Data(),
                     fileName: "camera_\(UUID().uuidString).mp4",
                     fileType: .video,
-                    suggestedTitle: "Camera Video — \(dateStamp)"
+                    suggestedTitle: "Camera Video — \(dateStamp)",
+                    fileSize: videoSize,
+                    sourceURL: url
                 )
             }
         }
@@ -272,6 +267,12 @@ struct AddItemSheetView: View {
             )
         }
     }
+}
+
+// MARK: - File import mode
+
+private enum FileImportMode: Equatable {
+    case single, multi
 }
 
 // MARK: - Add option enum
@@ -320,6 +321,8 @@ struct PendingUpload: Identifiable {
     let fileName: String
     let fileType: FileType
     let suggestedTitle: String
+    var fileSize: Int64? = nil   // overrides data.count when set (e.g. for video sourceURL)
+    var sourceURL: URL? = nil   // set for large files (video) to avoid loading into memory
 }
 
 // MARK: - Note composer
@@ -330,6 +333,7 @@ struct NoteComposerView: View {
     @State private var content = ""
     @Environment(\.dismiss) private var dismiss
     @Environment(AppContainer.self) private var appContainer
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -340,8 +344,12 @@ struct NoteComposerView: View {
                 Divider()
                 TextEditor(text: $content)
                     .font(AppTheme.Typography.body)
+                    .frame(minHeight: 120)
+                    .scrollContentBackground(.hidden)
+                    .focused($isFocused)
                     .padding(AppTheme.Spacing.base)
             }
+            .onAppear { isFocused = true }
             .navigationTitle("New Note")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -352,6 +360,9 @@ struct NoteComposerView: View {
                         onCreate(title, content)
                     }
                     .disabled(title.isEmpty)
+                }
+                ToolbarItem(placement: .keyboard) {
+                    Button("Done") { isFocused = false }
                 }
             }
         }
@@ -366,11 +377,28 @@ struct LinkComposerView: View {
     @State private var urlString = ""
     @Environment(\.dismiss) private var dismiss
 
+    private var isValidURL: Bool {
+        guard !urlString.isEmpty,
+              let url = URL(string: urlString),
+              let scheme = url.scheme, !scheme.isEmpty,
+              let host = url.host, !host.isEmpty else { return false }
+        return true
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section("Title") { TextField("e.g. Apple", text: $title) }
-                Section("URL")   { TextField("https://...", text: $urlString).keyboardType(.URL).autocorrectionDisabled() }
+                Section {
+                    TextField("https://...", text: $urlString).keyboardType(.URL).autocorrectionDisabled()
+                    if !urlString.isEmpty && !isValidURL {
+                        Text("Please enter a valid URL (e.g. https://...)")
+                            .font(AppTheme.Typography.caption1)
+                            .foregroundStyle(.red)
+                    }
+                } header: {
+                    Text("URL")
+                }
             }
             .navigationTitle("New Link")
             .navigationBarTitleDisplayMode(.inline)
@@ -378,10 +406,10 @@ struct LinkComposerView: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Next") {
-                        guard !title.isEmpty, !urlString.isEmpty else { return }
+                        guard !title.isEmpty, isValidURL else { return }
                         onCreate(title, urlString)
                     }
-                    .disabled(title.isEmpty || urlString.isEmpty)
+                    .disabled(title.isEmpty || !isValidURL)
                 }
             }
         }

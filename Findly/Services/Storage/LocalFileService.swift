@@ -67,6 +67,16 @@ actor LocalFileService {
         return fileName
     }
 
+    /// Copies a file from `sourceURL` to the vault directory and returns the relative path.
+    /// Use this instead of `write(data:)` for large files (e.g. videos) to avoid loading
+    /// the entire file into memory.
+    func write(from sourceURL: URL, itemID: UUID, fileExtension: String) throws -> String {
+        let fileName = "\(itemID.uuidString).\(fileExtension)"
+        let destURL = baseDirectory.appending(component: fileName)
+        try FileManager.default.copyItem(at: sourceURL, to: destURL)
+        return fileName
+    }
+
     // MARK: - Read
 
     func read(relativePath: String) throws -> Data {
