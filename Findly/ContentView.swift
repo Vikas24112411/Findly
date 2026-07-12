@@ -37,7 +37,7 @@ struct ContentView: View {
         .onAppear {
             showStoreRecoveryAlert = appContainer.persistence.storeWasRecovered
         }
-        .fullScreenCover(isPresented: .constant(!hasCompletedOnboarding)) {
+        .fullScreenCover(isPresented: Binding(get: { !hasCompletedOnboarding }, set: { _ in })) {
             OnboardingStorageView()
                 .environment(appContainer)
         }

@@ -4,12 +4,10 @@ import SwiftUI
 struct FABView: View {
 
     @Binding var showSheet: Bool
-    @State private var isPressed = false
 
     var body: some View {
         Button {
-            let generator = UIImpactFeedbackGenerator(style: .medium)
-            generator.impactOccurred()
+            HapticFeedback.medium()
             showSheet = true
         } label: {
             ZStack {
@@ -27,6 +25,7 @@ struct FABView: View {
             }
         }
         .buttonStyle(FABButtonStyle())
+        .accessibilityLabel("Add item")
     }
 }
 

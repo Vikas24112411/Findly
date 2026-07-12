@@ -66,7 +66,7 @@ final class AuthService {
         guard let windowScene = UIApplication.shared.connectedScenes
             .compactMap({ $0 as? UIWindowScene })
             .first(where: { $0.activationState == .foregroundActive }),
-              let rootVC = windowScene.windows.first(where: \.isKeyWindow)?.rootViewController
+              let rootVC = windowScene.keyWindow?.rootViewController
         else {
             throw AuthError.noViewController
         }

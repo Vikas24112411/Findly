@@ -229,12 +229,6 @@ struct InlineSearchBar: View {
                 TextField(prompt, text: $text)
                     .focused(isFocused)
                     .onSubmit { onSubmit?() }
-                if !text.isEmpty {
-                    Button { text = "" } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(AppTheme.Colors.tertiaryLabel)
-                    }
-                }
             }
             .padding(.horizontal, AppTheme.Spacing.medium)
             .padding(.vertical, AppTheme.Spacing.small)
@@ -280,8 +274,11 @@ struct SyncStatusBadge: View {
                     Image(systemName: status.sfSymbol)
                         .font(.caption2)
                         .foregroundStyle(status.tintColor)
+                        .accessibilityLabel(status.displayLabel)
+                        .accessibilityHidden(false)
                 }
             }
+            .accessibilityElement(children: .combine)
         }
     }
 }

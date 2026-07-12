@@ -1,16 +1,24 @@
 import UIKit
 
 enum HapticFeedback {
+    private static let notificationGenerator = UINotificationFeedbackGenerator()
+    private static let lightGenerator        = UIImpactFeedbackGenerator(style: .light)
+    private static let mediumGenerator       = UIImpactFeedbackGenerator(style: .medium)
+
     static func success() {
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        notificationGenerator.prepare()
+        notificationGenerator.notificationOccurred(.success)
     }
     static func error() {
-        UINotificationFeedbackGenerator().notificationOccurred(.error)
+        notificationGenerator.prepare()
+        notificationGenerator.notificationOccurred(.error)
     }
     static func light() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        lightGenerator.prepare()
+        lightGenerator.impactOccurred()
     }
     static func medium() {
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        mediumGenerator.prepare()
+        mediumGenerator.impactOccurred()
     }
 }
