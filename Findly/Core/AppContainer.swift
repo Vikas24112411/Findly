@@ -30,9 +30,10 @@ final class AppContainer {
         drive          = GoogleDriveService(auth: auth)
         tokenRefresher = TokenRefresher.shared
 
-        // LocalFileService can throw if AppSupport directory creation fails.
-        // This should never happen in practice on a real device.
-        guard let localFS = try? LocalFileService() else {
+        // LocalFileService base directory is resolved from the user's saved preference.
+        // Defaults to ApplicationSupport/Findly/files/ on first launch.
+        let baseDir = StorageLocationService.shared.resolvedBaseDirectory
+        guard let localFS = try? LocalFileService(baseDirectory: baseDir) else {
             fatalError("Could not initialize local file storage.")
         }
         localStorage = localFS

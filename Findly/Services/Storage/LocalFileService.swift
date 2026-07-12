@@ -2,34 +2,59 @@ import Foundation
 
 /// Actor-isolated on-device file storage.
 ///
-/// Files are stored at: `{AppSupport}/Findly/files/{uuid}.{ext}`
+/// Files are stored at `{baseDirectory}/{uuid}.{ext}`.
+/// The base directory is supplied at init time by `StorageLocationService`
+/// and can be changed at runtime via `updateBaseDirectory(_:)` (onboarding,
+/// no existing files) or `migrateToDirectory(_:)` (Settings, copies files).
 ///
-/// Using `AppSupport` (not `Caches`) ensures files survive app updates and
-/// are not purged by the OS. Google Drive acts as the authoritative backup.
-///
-/// **iCloud exclusion:** The `Findly/files/` directory is excluded from
-/// iCloud backup on first use — Google Drive is the backup mechanism.
+/// **iCloud exclusion:** Each base directory is excluded from iCloud backup on
+/// first use — Google Drive serves as the authoritative backup mechanism.
 actor LocalFileService {
 
     // MARK: - Base directory
 
-    private let baseDirectory: URL
+    private(set) var baseDirectory: URL
 
-    init() throws {
-        let support = try FileManager.default.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true
-        )
-        baseDirectory = support.appending(components: "Findly", "files")
-        try FileManager.default.createDirectory(at: baseDirectory, withIntermediateDirectories: true)
+    init(baseDirectory: URL) throws {
+        self.baseDirectory = baseDirectory
+        try Self.setupDirectory(baseDirectory)
+    }
 
-        // Exclude from iCloud backup
-        var url = baseDirectory
-        var resourceValues = URLResourceValues()
-        resourceValues.isExcludedFromBackup = true
-        try url.setResourceValues(resourceValues)
+    // MARK: - Change base directory (no file copying)
+
+    /// Switches the base directory without moving any files.
+    /// Use this during first-launch onboarding when no files exist yet.
+    func updateBaseDirectory(_ newURL: URL) throws {
+        try Self.setupDirectory(newURL)
+        baseDirectory = newURL
+    }
+
+    // MARK: - Migrate (copy files to new directory)
+
+    /// Copies all files from the current base directory to `newURL`,
+    /// updates `baseDirectory`, and returns the old URL so the caller
+    /// can delete it after confirming success.
+    @discardableResult
+    func migrateToDirectory(_ newURL: URL) throws -> URL {
+        try Self.setupDirectory(newURL)
+
+        let fm = FileManager.default
+        let contents = (try? fm.contentsOfDirectory(
+            at: baseDirectory,
+            includingPropertiesForKeys: nil
+        )) ?? []
+
+        for file in contents {
+            let dest = newURL.appending(component: file.lastPathComponent)
+            if fm.fileExists(atPath: dest.path) {
+                try fm.removeItem(at: dest)
+            }
+            try fm.copyItem(at: file, to: dest)
+        }
+
+        let oldDirectory = baseDirectory
+        baseDirectory = newURL
+        return oldDirectory
     }
 
     // MARK: - Write
@@ -92,5 +117,15 @@ actor LocalFileService {
         let url = baseDirectory.appending(component: fileName)
         try data.write(to: url, options: .atomic)
         return fileName
+    }
+
+    // MARK: - Private helpers
+
+    private static func setupDirectory(_ url: URL) throws {
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        var dirURL = url
+        var resourceValues = URLResourceValues()
+        resourceValues.isExcludedFromBackup = true
+        try dirURL.setResourceValues(resourceValues)
     }
 }
