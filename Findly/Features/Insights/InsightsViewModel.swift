@@ -73,7 +73,7 @@ final class InsightsViewModel {
         totalItems        = allItems.count
         totalTags         = allTags.count
         totalStorageBytes = allItems.reduce(0) { $0 + $1.fileSize }
-        pendingSyncCount  = allItems.filter { $0.syncStatus.needsRetry }.count
+        pendingSyncCount  = allItems.filter { $0.syncStatus.needsUpload }.count
 
         // File type distribution
         let grouped = Dictionary(grouping: allItems, by: \.fileType)
@@ -82,9 +82,13 @@ final class InsightsViewModel {
             return count > 0 ? (ft, count) : nil
         }.sorted { $0.count > $1.count }
 
-        // Top tags by item count
+        // Top tags by item count — build a flat count map (O(I×T)) instead of recursive traversal
+        var tagItemCounts: [UUID: Int] = [:]
+        for item in allItems {
+            for tag in item.tags { tagItemCounts[tag.id, default: 0] += 1 }
+        }
         topTags = allTags
-            .map { ($0, $0.totalItemCount) }
+            .map { ($0, tagItemCounts[$0.id] ?? 0) }
             .filter { $0.1 > 0 }
             .sorted { $0.1 > $1.1 }
             .prefix(10)
@@ -114,8 +118,8 @@ final class InsightsViewModel {
         let today = Date()
         let dayFormatter = DateFormatter()
         dayFormatter.dateFormat = "EEE"
-        weeklyActivity = (0..<7).reversed().map { daysAgo -> (String, Int) in
-            let date = calendar.date(byAdding: .day, value: -daysAgo, to: today)!
+        weeklyActivity = (0..<7).reversed().compactMap { daysAgo -> (String, Int)? in
+            guard let date = calendar.date(byAdding: .day, value: -daysAgo, to: today) else { return nil }
             let label = dayFormatter.string(from: date)
             let count = allItems.filter { calendar.isDate($0.createdAt, inSameDayAs: date) }.count
             return (label, count)
@@ -124,12 +128,12 @@ final class InsightsViewModel {
         // Storage growth — cumulative vault size by month
         var monthlySizes: [Date: Int64] = [:]
         for item in allItems {
-            let start = calendar.dateInterval(of: .month, for: item.createdAt)!.start
+            guard let start = calendar.dateInterval(of: .month, for: item.createdAt)?.start else { continue }
             monthlySizes[start, default: 0] += item.fileSize
         }
         var running: Int64 = 0
         storageGrowth = monthlySizes.keys.sorted().map { month in
-            running += monthlySizes[month]!
+            running += monthlySizes[month, default: 0]
             return (month: month, cumulativeBytes: running)
         }
 
@@ -143,13 +147,13 @@ final class InsightsViewModel {
         // Tag heatmap — top 6 tags × last 6 months
         let heatTagSet = Set(topTags.prefix(6).map { $0.tag.id })
         let heatTags   = topTags.prefix(6).map { $0.tag }
-        let currentMonthStart = calendar.dateInterval(of: .month, for: Date())!.start
+        guard let currentMonthStart = calendar.dateInterval(of: .month, for: Date())?.start else { return }
         let heatMonths: [Date] = (0..<6).reversed().compactMap {
             calendar.date(byAdding: .month, value: -$0, to: currentMonthStart)
         }
         var heatCounts: [UUID: [Date: Int]] = [:]
         for item in allItems {
-            let monthStart = calendar.dateInterval(of: .month, for: item.createdAt)!.start
+            guard let monthStart = calendar.dateInterval(of: .month, for: item.createdAt)?.start else { continue }
             guard heatMonths.contains(monthStart) else { continue }
             for tag in item.tags where heatTagSet.contains(tag.id) {
                 heatCounts[tag.id, default: [:]][monthStart, default: 0] += 1

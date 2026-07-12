@@ -66,6 +66,7 @@ struct AudioRecorderView: View {
                 }
             }
         }
+        .onDisappear { stopAndCleanUp() }
     }
 
     // MARK: - Subviews

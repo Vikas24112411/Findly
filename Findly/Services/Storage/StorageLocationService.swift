@@ -92,6 +92,10 @@ final class StorageLocationService {
                 relativeTo: nil
             )
             UserDefaults.standard.set(bookmark, forKey: Keys.customBookmark)
+        } else {
+            // Stop security-scoped access when switching away from custom storage.
+            activeCustomURL?.stopAccessingSecurityScopedResource()
+            activeCustomURL = nil
         }
         currentLocation = location
     }
@@ -117,14 +121,19 @@ final class StorageLocationService {
     // MARK: - Private helpers
 
     private var appPrivateBaseURL: URL {
-        let support = try! FileManager.default.url(
+        guard let support = try? FileManager.default.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,
             appropriateFor: nil,
             create: true
-        )
+        ) else {
+            fatalError("Cannot resolve ApplicationSupportDirectory — OS-level failure")
+        }
         return support.appending(components: "Findly", "files")
     }
+
+    // Tracks the currently security-scoped URL so access can be stopped when switching locations.
+    private var activeCustomURL: URL?
 
     private var resolvedCustomURL: URL? {
         guard let data = UserDefaults.standard.data(forKey: Keys.customBookmark) else { return nil }
@@ -136,8 +145,14 @@ final class StorageLocationService {
             bookmarkDataIsStale: &stale
         ) else { return nil }
 
+        // Start security-scoped access if not already active for this path.
+        if activeCustomURL?.path != url.path {
+            activeCustomURL?.stopAccessingSecurityScopedResource()
+            _ = url.startAccessingSecurityScopedResource()
+            activeCustomURL = url
+        }
+
         if stale {
-            // Attempt to refresh bookmark
             let fresh = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
             UserDefaults.standard.set(fresh, forKey: Keys.customBookmark)
         }
