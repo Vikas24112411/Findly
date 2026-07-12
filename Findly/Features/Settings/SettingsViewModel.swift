@@ -55,6 +55,38 @@ final class SettingsViewModel {
         }
     }
 
+    // MARK: - Local storage
+
+    var localStorageSize: Int64 = 0
+    var isMigratingStorage = false
+    var storageMigrationError: String?
+
+    func loadLocalStorageSize(appContainer: AppContainer) async {
+        localStorageSize = await appContainer.localStorage.sizeOfLocalStorage()
+    }
+
+    /// Copies all files to the new location and updates the stored preference.
+    func migrateStorage(
+        to location: StorageLocationService.Location,
+        customURL: URL? = nil,
+        appContainer: AppContainer
+    ) async {
+        isMigratingStorage = true
+        defer { isMigratingStorage = false }
+
+        do {
+            guard let newBaseDir = StorageLocationService.shared.baseDirectory(for: location, customURL: customURL) else {
+                throw StorageLocationError.missingCustomURL
+            }
+            let oldDir = try await appContainer.localStorage.migrateToDirectory(newBaseDir)
+            try StorageLocationService.shared.setLocation(location, customURL: customURL)
+            try? FileManager.default.removeItem(at: oldDir)
+            await loadLocalStorageSize(appContainer: appContainer)
+        } catch {
+            storageMigrationError = error.localizedDescription
+        }
+    }
+
     // MARK: - Actions
 
     func loadDriveStats(appContainer: AppContainer) async {

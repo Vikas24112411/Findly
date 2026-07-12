@@ -98,6 +98,9 @@ final class Item {
     func markOpened() {
         viewCount += 1
         lastOpenedAt = Date()
+    }
+
+    func markModified() {
         modifiedAt = Date()
     }
 }

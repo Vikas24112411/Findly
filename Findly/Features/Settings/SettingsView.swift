@@ -6,27 +6,46 @@ struct SettingsView: View {
 
     @Environment(AppContainer.self) private var appContainer
     @AppStorage("appLockEnabled") private var appLockEnabled = false
+    @AppStorage("showRecentItems") private var showRecentItems = true
+    @AppStorage("showFrequentItems") private var showFrequentItems = true
+    @AppStorage("insightsShowStorageGrowth") private var insightsShowStorageGrowth = true
+    @AppStorage("insightsShowWeeklyActivity") private var insightsShowWeeklyActivity = true
+    @AppStorage("insightsShowFileTypes") private var insightsShowFileTypes = true
+    @AppStorage("insightsShowStorageByType") private var insightsShowStorageByType = true
+    @AppStorage("insightsShowTopTags") private var insightsShowTopTags = true
+    @AppStorage("insightsShowTagHeatmap") private var insightsShowTagHeatmap = true
+    @AppStorage("insightsShowMostOpened") private var insightsShowMostOpened = true
+    @AppStorage("insightsShowLargestFiles") private var insightsShowLargestFiles = true
     @Environment(\.modelContext) private var modelContext
     @AppStorage("appearanceMode") private var appearanceMode = "system"
     @State private var viewModel = SettingsViewModel()
     @State private var isExporting = false
     @State private var exportURL: URL?
     @State private var exportError: String?
+    @State private var scrollOffset: CGFloat = 0
+    @State private var showStoragePicker = false
 
     var body: some View {
         NavigationStack {
             Form {
                 googleDriveSection
                 syncSection
-                themeSection
-                securitySection
+                preferencesSection
+                insightsSection
+                localStorageSection
                 dataSection
                 aboutSection
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
+            .trackScrollOffset($scrollOffset)
+            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
+            .toolbarBackground(scrollOffset > 10 ? .visible : .hidden, for: .navigationBar)
             .onAppear {
-                Task { await viewModel.loadDriveStats(appContainer: appContainer) }
+                Task {
+                    await viewModel.loadDriveStats(appContainer: appContainer)
+                    await viewModel.loadLocalStorageSize(appContainer: appContainer)
+                }
             }
             .sheet(isPresented: Binding(
                 get: { exportURL != nil },
@@ -36,6 +55,18 @@ struct SettingsView: View {
                 }}
             )) {
                 if let url = exportURL { ShareSheet(items: [url]) }
+            }
+            .sheet(isPresented: $showStoragePicker) {
+                StorageLocationPickerView(viewModel: viewModel)
+                    .environment(appContainer)
+            }
+            .alert("Storage Move Failed", isPresented: Binding(
+                get: { viewModel.storageMigrationError != nil },
+                set: { if !$0 { viewModel.storageMigrationError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(viewModel.storageMigrationError ?? "")
             }
             .alert("Export Failed", isPresented: Binding(
                 get: { exportError != nil },
@@ -53,10 +84,9 @@ struct SettingsView: View {
     private var googleDriveSection: some View {
         Section {
             if appContainer.auth.isAuthenticated {
-                // User info
                 HStack(spacing: AppTheme.Spacing.medium) {
                     Image(systemName: "person.circle.fill")
-                        .font(.system(size: 36))
+                        .font(.title3)
                         .foregroundStyle(AppTheme.Colors.accent)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(appContainer.auth.userName ?? "Google User")
@@ -66,41 +96,23 @@ struct SettingsView: View {
                             .foregroundStyle(AppTheme.Colors.secondaryLabel)
                     }
                     Spacer()
-                    // Connection indicator
-                    Circle()
-                        .fill(Color.green)
-                        .frame(width: 10, height: 10)
-                }
-
-                // Storage gauge
-                if viewModel.driveTotalBytes > 0 {
-                    VStack(alignment: .leading, spacing: AppTheme.Spacing.xSmall) {
-                        HStack {
-                            Text("Drive Storage")
-                                .font(AppTheme.Typography.subheadline)
-                            Spacer()
-                            Text("\(viewModel.driveUsedBytes.fileSizeString) / \(viewModel.driveTotalBytes.fileSizeString)")
-                                .font(AppTheme.Typography.caption1)
-                                .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                        }
-                        ProgressView(value: Double(viewModel.driveUsedBytes),
-                                     total: Double(viewModel.driveTotalBytes))
-                            .tint(AppTheme.Colors.accent)
+                    if viewModel.driveTotalBytes > 0 {
+                        Text("\(viewModel.driveUsedBytes.fileSizeString) / \(viewModel.driveTotalBytes.fileSizeString)")
+                            .font(AppTheme.Typography.caption1)
+                            .foregroundStyle(AppTheme.Colors.secondaryLabel)
                     }
                 }
 
                 Button(role: .destructive) {
                     appContainer.auth.signOut()
                 } label: {
-                    Text("Disconnect Google Drive")
+                    Text("Disconnect")
                 }
             } else {
-                // Sign in button
                 Button {
                     Task {
                         try? await appContainer.auth.signIn()
                         if appContainer.auth.isAuthenticated {
-                            // Promote all local-only items and kick off sync
                             appContainer.sync.promoteLocalOnlyItems()
                             await appContainer.sync.syncPendingItems()
                             await viewModel.loadDriveStats(appContainer: appContainer)
@@ -114,39 +126,26 @@ struct SettingsView: View {
                 }
             }
         } header: {
-            Label("Google Drive (Optional)", systemImage: "externaldrive.connected.to.line.below.fill")
+            Text("Google Drive")
         } footer: {
             Text(appContainer.auth.isAuthenticated
-                 ? "Files are backed up to the Findly folder in your Google Drive."
-                 : "Google Drive is optional. Your files are stored safely on this device. Connect Drive anytime to enable cloud backup and sync.")
+                 ? "Backed up to your Google Drive."
+                 : "Optional. Connect to back up your files to Google Drive.")
         }
     }
 
     // MARK: - Sync
 
     private var syncSection: some View {
-        Section {
+        Section("Sync") {
             if appContainer.auth.isAuthenticated {
-                // Sync status row
                 HStack {
-                    Label("Status", systemImage: "arrow.triangle.2.circlepath")
+                    Text("Status")
                     Spacer()
                     syncStatusIndicator
                 }
 
-                if let lastSync = viewModel.lastSyncDate {
-                    HStack {
-                        Label("Last Synced", systemImage: "clock")
-                        Spacer()
-                        Text(lastSync.relativeString)
-                            .font(AppTheme.Typography.subheadline)
-                            .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                    }
-                }
-
-                Toggle(isOn: $viewModel.autoSyncEnabled) {
-                    Label("Auto Sync", systemImage: "bolt.fill")
-                }
+                Toggle("Auto Sync", isOn: $viewModel.autoSyncEnabled)
 
                 Button {
                     Task { await viewModel.manualSync(appContainer: appContainer) }
@@ -154,27 +153,14 @@ struct SettingsView: View {
                     HStack {
                         if appContainer.sync.isSyncing {
                             ProgressView().scaleEffect(0.8)
-                        } else {
-                            Image(systemName: "arrow.clockwise")
                         }
                         Text("Sync Now")
                     }
                 }
                 .disabled(appContainer.sync.isSyncing)
             } else {
-                HStack(spacing: AppTheme.Spacing.medium) {
-                    Image(systemName: "iphone")
-                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                    Text("Files are stored on this device only")
-                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                        .font(AppTheme.Typography.subheadline)
-                }
-            }
-        } header: {
-            Text("Synchronization")
-        } footer: {
-            if !appContainer.auth.isAuthenticated {
-                Text("Connect Google Drive above to enable automatic cloud backup.")
+                Text("Stored on this device")
+                    .foregroundStyle(.secondary)
             }
         }
     }
@@ -182,58 +168,116 @@ struct SettingsView: View {
     @ViewBuilder
     private var syncStatusIndicator: some View {
         let sync = appContainer.sync
+        let statusText = sync.isSyncing ? "Syncing…" : (sync.pendingCount == 0 ? "Up to date" : "\(sync.pendingCount) pending")
         HStack(spacing: 6) {
             Circle()
                 .fill(sync.isSyncing ? Color.yellow : (sync.pendingCount == 0 ? Color.green : Color.orange))
                 .frame(width: 8, height: 8)
-            Text(sync.isSyncing ? "Syncing…" : (sync.pendingCount == 0 ? "Up to date" : "\(sync.pendingCount) pending"))
-                .font(AppTheme.Typography.subheadline)
-                .foregroundStyle(AppTheme.Colors.secondaryLabel)
+            if let lastSync = viewModel.lastSyncDate {
+                Text("\(statusText) · \(lastSync.shortRelativeString)")
+                    .font(AppTheme.Typography.subheadline)
+                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
+            } else {
+                Text(statusText)
+                    .font(AppTheme.Typography.subheadline)
+                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
+            }
         }
     }
 
-    // MARK: - Security
+    // MARK: - Preferences
 
-    private var securitySection: some View {
+    private var preferencesSection: some View {
         Section {
-            Toggle(isOn: $appLockEnabled) {
-                Label("App Lock", systemImage: "lock.fill")
-            }
-            .onChange(of: appLockEnabled) { _, enabled in
-                if enabled {
-                    // Immediately verify the user can authenticate before enabling
-                    Task {
-                        let ctx = LAContext()
-                        var err: NSError?
-                        guard ctx.canEvaluatePolicy(.deviceOwnerAuthentication, error: &err) else {
-                            appLockEnabled = false
-                            return
-                        }
-                        let ok = try? await ctx.evaluatePolicy(
-                            .deviceOwnerAuthentication,
-                            localizedReason: "Enable App Lock"
-                        )
-                        if ok != true { appLockEnabled = false }
-                    }
-                }
-            }
-        } header: {
-            Text("Security")
-        } footer: {
-            Text("Requires Face ID, Touch ID, or passcode to open Findly.")
-        }
-    }
-
-    // MARK: - Theme
-
-    private var themeSection: some View {
-        Section("Appearance") {
-            Picker("Theme", selection: $appearanceMode) {
+            Picker("Appearance", selection: $appearanceMode) {
                 Text("Light").tag("light")
                 Text("Dark").tag("dark")
                 Text("System").tag("system")
             }
             .pickerStyle(.segmented)
+
+            Toggle("Continue Where You Left Off", isOn: $showRecentItems)
+            Toggle("Frequently Opened", isOn: $showFrequentItems)
+            Toggle("App Lock", isOn: $appLockEnabled)
+                .onChange(of: appLockEnabled) { _, enabled in
+                    if enabled {
+                        Task {
+                            let ctx = LAContext()
+                            var err: NSError?
+                            guard ctx.canEvaluatePolicy(.deviceOwnerAuthentication, error: &err) else {
+                                appLockEnabled = false
+                                return
+                            }
+                            let ok = try? await ctx.evaluatePolicy(
+                                .deviceOwnerAuthentication,
+                                localizedReason: "Enable App Lock"
+                            )
+                            if ok != true { appLockEnabled = false }
+                        }
+                    }
+                }
+        } header: {
+            Text("Preferences")
+        } footer: {
+            Text("App Lock requires Face ID, Touch ID, or passcode.")
+        }
+    }
+
+    // MARK: - Insights
+
+    private var insightsSection: some View {
+        Section {
+            Toggle("Storage Growth", isOn: $insightsShowStorageGrowth)
+            Toggle("Added This Week", isOn: $insightsShowWeeklyActivity)
+            Toggle("File Types", isOn: $insightsShowFileTypes)
+            Toggle("Storage by Type", isOn: $insightsShowStorageByType)
+            Toggle("Top Tags", isOn: $insightsShowTopTags)
+            Toggle("Tag Activity", isOn: $insightsShowTagHeatmap)
+            Toggle("Most Opened", isOn: $insightsShowMostOpened)
+            Toggle("Largest Files", isOn: $insightsShowLargestFiles)
+        } header: {
+            Text("Insights")
+        } footer: {
+            Text("Choose which sections appear on the Insights page.")
+        }
+    }
+
+    // MARK: - Local Storage
+
+    private var localStorageSection: some View {
+        let storageService = StorageLocationService.shared
+        let locationName: String = {
+            if storageService.currentLocation == .custom,
+               let folderName = storageService.customFolderDisplayName {
+                return folderName
+            }
+            return storageService.currentLocation.displayName
+        }()
+
+        return Section {
+            HStack {
+                Text("Location")
+                Spacer()
+                if viewModel.isMigratingStorage {
+                    ProgressView().scaleEffect(0.8)
+                } else {
+                    Text(locationName)
+                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { showStoragePicker = true }
+
+            HStack {
+                Text("Storage Used")
+                Spacer()
+                Text(viewModel.localStorageSize.fileSizeString)
+                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
+            }
+        } header: {
+            Text("Local Storage")
+        } footer: {
+            Text("Files are stored on this device. Changing the location will move all existing files.")
         }
     }
 
@@ -245,7 +289,7 @@ struct SettingsView: View {
                 exportVault()
             } label: {
                 HStack {
-                    Label("Export Vault", systemImage: "archivebox.circle.fill")
+                    Text("Export Vault")
                         .foregroundStyle(AppTheme.Colors.accent)
                     Spacer()
                     if isExporting {
@@ -295,9 +339,119 @@ struct SettingsView: View {
                 Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")
                     .foregroundStyle(AppTheme.Colors.secondaryLabel)
             }
-            Link(destination: URL(string: "https://github.com/google/GoogleSignIn-iOS")!) {
-                Label("Open Source Libraries", systemImage: "heart.fill")
+            Link("Open Source Libraries", destination: URL(string: "https://github.com/google/GoogleSignIn-iOS")!)
+        }
+    }
+}
+
+// MARK: - Storage location picker sheet
+
+private struct StorageLocationPickerView: View {
+
+    @Environment(AppContainer.self) private var appContainer
+    @Environment(\.dismiss) private var dismiss
+
+    var viewModel: SettingsViewModel
+
+    @State private var selectedLocation: StorageLocationService.Location =
+        StorageLocationService.shared.currentLocation
+    @State private var customURL: URL?
+    @State private var showFolderPicker = false
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(StorageLocationService.Location.allCases, id: \.self) { location in
+                        locationRow(for: location)
+                    }
+                } footer: {
+                    Text("Moving files may take a moment depending on how many files you have.")
+                }
             }
+            .navigationTitle("Storage Location")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button {
+                        if selectedLocation == .custom && customURL == nil {
+                            showFolderPicker = true
+                        } else {
+                            Task { await applyChange() }
+                        }
+                    } label: {
+                        if viewModel.isMigratingStorage {
+                            ProgressView().scaleEffect(0.8)
+                        } else {
+                            Text("Move Files")
+                        }
+                    }
+                    .disabled(viewModel.isMigratingStorage || selectedLocation == StorageLocationService.shared.currentLocation)
+                }
+            }
+        }
+        .fileImporter(
+            isPresented: $showFolderPicker,
+            allowedContentTypes: [.folder],
+            allowsMultipleSelection: false
+        ) { result in
+            if case .success(let urls) = result, let url = urls.first {
+                _ = url.startAccessingSecurityScopedResource()
+                customURL = url
+                Task { await applyChange() }
+            }
+        }
+        .interactiveDismissDisabled(viewModel.isMigratingStorage)
+    }
+
+    private func locationRow(for location: StorageLocationService.Location) -> some View {
+        let isSelected = selectedLocation == location
+        let customName: String? = location == .custom ? customURL?.lastPathComponent
+            ?? StorageLocationService.shared.customFolderDisplayName : nil
+
+        return HStack(spacing: AppTheme.Spacing.medium) {
+            Image(systemName: location.sfSymbol)
+                .foregroundStyle(isSelected ? AppTheme.Colors.accent : AppTheme.Colors.secondaryLabel)
+                .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(location.displayName)
+                    if let name = customName {
+                        Text("→ \(name)")
+                            .font(AppTheme.Typography.caption1)
+                            .foregroundStyle(AppTheme.Colors.accent)
+                    }
+                }
+                Text(location.description)
+                    .font(AppTheme.Typography.caption1)
+                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
+            }
+
+            Spacer()
+
+            Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(isSelected ? AppTheme.Colors.accent : AppTheme.Colors.tertiaryLabel)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if location == .custom {
+                selectedLocation = .custom
+                showFolderPicker = true
+            } else {
+                selectedLocation = location
+                customURL = nil
+            }
+        }
+    }
+
+    private func applyChange() async {
+        await viewModel.migrateStorage(to: selectedLocation, customURL: customURL, appContainer: appContainer)
+        if viewModel.storageMigrationError == nil {
+            dismiss()
         }
     }
 }
