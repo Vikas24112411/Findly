@@ -38,6 +38,21 @@ struct FilterSheetView: View {
     var body: some View {
         NavigationStack {
             Form {
+                // MARK: Reset (shown at top when filters are active)
+                if hasLocalFilters {
+                    Section {
+                        Button("Reset Filters", role: .destructive) {
+                            localTypes = []
+                            localSort = .modifiedAt
+                            localStart = nil
+                            localEnd = nil
+                            enableStart = false
+                            enableEnd = false
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+
                 // MARK: File type
                 Section("File Type") {
                     LazyVGrid(
@@ -94,21 +109,9 @@ struct FilterSheetView: View {
                     }
                 }
 
-                // Reset
-                Section {
-                    Button("Reset Filters", role: .destructive) {
-                        localTypes = []
-                        localSort = .modifiedAt
-                        localStart = nil
-                        localEnd = nil
-                        enableStart = false
-                        enableEnd = false
-                    }
-                    .frame(maxWidth: .infinity)
-                }
             }
             .navigationTitle("Filter & Sort")
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -125,6 +128,10 @@ struct FilterSheetView: View {
                 }
             }
         }
+    }
+
+    private var hasLocalFilters: Bool {
+        !localTypes.isEmpty || localSort != .modifiedAt || localStart != nil || localEnd != nil
     }
 
     private func typeChip(_ type: FileType) -> some View {
