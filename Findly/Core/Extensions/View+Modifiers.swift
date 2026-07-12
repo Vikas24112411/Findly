@@ -154,6 +154,29 @@ struct EmptyStateView: View {
     }
 }
 
+// MARK: - Tag symbol view (handles SF Symbols and emojis)
+
+struct TagSymbolView: View {
+    let sfSymbol: String
+    let color: Color
+    let size: CGFloat
+
+    private var isEmoji: Bool {
+        !sfSymbol.unicodeScalars.allSatisfy { $0.value < 128 }
+    }
+
+    var body: some View {
+        if isEmoji {
+            Text(sfSymbol)
+                .font(.system(size: size))
+        } else {
+            Image(systemName: sfSymbol)
+                .font(.system(size: size, weight: .medium))
+                .foregroundStyle(color)
+        }
+    }
+}
+
 // MARK: - Tag chip view
 
 struct TagChipView: View {
@@ -166,8 +189,11 @@ struct TagChipView: View {
             onTap?()
         } label: {
             HStack(spacing: AppTheme.Spacing.xSmall) {
-                Image(systemName: tag.sfSymbol)
-                    .font(.caption2.weight(.medium))
+                TagSymbolView(
+                    sfSymbol: tag.sfSymbol,
+                    color: isSelected ? .white : Color(hex: tag.colorHex),
+                    size: 11
+                )
                 Text(tag.name)
                     .font(AppTheme.Typography.caption1.weight(.medium))
             }
@@ -183,6 +209,51 @@ struct TagChipView: View {
         }
         .buttonStyle(.plain)
         .animation(AppTheme.Animation.snappy, value: isSelected)
+    }
+}
+
+// MARK: - Inline search bar
+
+struct InlineSearchBar: View {
+    @Binding var text: String
+    var prompt: String = "Search..."
+    var isFocused: FocusState<Bool>.Binding
+    var onSubmit: (() -> Void)? = nil
+
+    var body: some View {
+        HStack(spacing: AppTheme.Spacing.small) {
+            HStack(spacing: AppTheme.Spacing.small) {
+                Image(systemName: "magnifyingglass")
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                TextField(prompt, text: $text)
+                    .focused(isFocused)
+                    .onSubmit { onSubmit?() }
+                if !text.isEmpty {
+                    Button { text = "" } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                    }
+                }
+            }
+            .padding(.horizontal, AppTheme.Spacing.medium)
+            .padding(.vertical, AppTheme.Spacing.small)
+            .background(AppTheme.Colors.tertiaryBG)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+            if isFocused.wrappedValue {
+                Button("Cancel") {
+                    text = ""
+                    isFocused.wrappedValue = false
+                }
+                .foregroundStyle(AppTheme.Colors.accent)
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
+        }
+        .padding(.horizontal, AppTheme.Spacing.base)
+        .padding(.vertical, AppTheme.Spacing.small)
+        .background(AppTheme.Colors.groupedBG)
+        .animation(.easeInOut(duration: 0.2), value: isFocused.wrappedValue)
     }
 }
 
