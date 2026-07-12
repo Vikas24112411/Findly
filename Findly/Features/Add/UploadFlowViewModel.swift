@@ -5,24 +5,14 @@ import UIKit
 
 @Observable
 @MainActor
-final class UploadFlowViewModel {
-
-    // MARK: - Step enum
-
-    enum Step: Int, CaseIterable, Comparable {
-        case preview, title, tags, description, saving
-
-        static func < (lhs: Step, rhs: Step) -> Bool {
-            lhs.rawValue < rhs.rawValue
-        }
-    }
+final class ItemFormViewModel {
 
     // MARK: - State
 
-    var currentStep: Step = .preview
     var title: String = ""
     var itemDescription: String = ""
     var selectedTags: Set<Tag> = []
+    var showNotes: Bool = false
     var isSaving: Bool = false
     var saveError: Error? = nil
     var savedItem: Item? = nil
@@ -35,22 +25,6 @@ final class UploadFlowViewModel {
 
     var pendingUpload: PendingUpload?
 
-    // MARK: - Navigation
-
-    func advance() {
-        guard let next = Step(rawValue: currentStep.rawValue + 1) else { return }
-        withAnimation(AppTheme.Animation.fast) {
-            currentStep = next
-        }
-    }
-
-    func goBack() {
-        guard let prev = Step(rawValue: currentStep.rawValue - 1) else { return }
-        withAnimation(AppTheme.Animation.fast) {
-            currentStep = prev
-        }
-    }
-
     // MARK: - Save
 
     func save(
@@ -60,7 +34,6 @@ final class UploadFlowViewModel {
         isAuthenticated: Bool
     ) async {
         guard let upload = pendingUpload else { return }
-        currentStep = .saving
         isSaving = true
         saveError = nil
 
