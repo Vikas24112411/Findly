@@ -45,6 +45,81 @@ final class HomeViewModel {
         filterDateEnd = nil
     }
 
+    // MARK: - Bulk select state
+
+    var isSelectMode: Bool = false
+    var selectedItemIDs: Set<UUID> = []
+
+    var selectedItems: [Item] {
+        searchResults.filter { selectedItemIDs.contains($0.id) }
+    }
+
+    func toggleSelectMode() {
+        isSelectMode.toggle()
+        if !isSelectMode { selectedItemIDs = [] }
+    }
+
+    func exitSelectMode() {
+        isSelectMode = false
+        selectedItemIDs = []
+    }
+
+    func toggleItemSelection(_ item: Item) {
+        if selectedItemIDs.contains(item.id) {
+            selectedItemIDs.remove(item.id)
+        } else {
+            selectedItemIDs.insert(item.id)
+        }
+    }
+
+    func selectAll() {
+        selectedItemIDs = Set(searchResults.map(\.id))
+    }
+
+    func deselectAll() {
+        selectedItemIDs = []
+    }
+
+    // MARK: - Bulk operations
+
+    func bulkTogglePin() {
+        guard !selectedItems.isEmpty else { return }
+        let allPinned = selectedItems.allSatisfy(\.isPinned)
+        selectedItems.forEach { $0.isPinned = !allPinned }
+        try? context?.save()
+        loadHomeSections()
+    }
+
+    func bulkToggleFavorite() {
+        guard !selectedItems.isEmpty else { return }
+        let allFavorited = selectedItems.allSatisfy(\.isFavorite)
+        selectedItems.forEach { $0.isFavorite = !allFavorited }
+        try? context?.save()
+        loadHomeSections()
+    }
+
+    func bulkAddTag(_ tag: Tag) {
+        guard !selectedItems.isEmpty else { return }
+        selectedItems.forEach { item in
+            if !item.tags.contains(where: { $0.id == tag.id }) {
+                item.tags.append(tag)
+                item.markModified()
+            }
+        }
+        try? context?.save()
+    }
+
+    /// Removes selected items from SwiftData. The caller is responsible for
+    /// deleting local files and Drive copies (same pattern as ItemDetailView).
+    func bulkDeleteFromContext() {
+        guard let context else { return }
+        selectedItems.forEach { context.delete($0) }
+        try? context.save()
+        selectedItemIDs = []
+        isSelectMode = false
+        loadHomeSections()
+    }
+
     // MARK: - Context
 
     private var context: ModelContext?
@@ -102,6 +177,7 @@ final class HomeViewModel {
         searchText = ""
         selectedTag = nil
         searchResults = []
+        exitSelectMode()
     }
 
     // MARK: - Home sections
@@ -174,72 +250,4 @@ final class HomeViewModel {
         loadHomeSections()
     }
 
-    // MARK: - Bulk select
-
-    var isSelectMode: Bool = false
-    var selectedIDs: Set<UUID> = []
-
-    func enterSelectMode() {
-        isSelectMode = true
-        selectedIDs = []
-    }
-
-    func exitSelectMode() {
-        isSelectMode = false
-        selectedIDs = []
-    }
-
-    func toggleSelection(_ item: Item) {
-        if selectedIDs.contains(item.id) {
-            selectedIDs.remove(item.id)
-        } else {
-            selectedIDs.insert(item.id)
-        }
-    }
-
-    func bulkDelete(localStorage: LocalFileService? = nil) {
-        guard let context else { return }
-        let all = (try? context.fetch(FetchDescriptor<Item>())) ?? []
-        for item in all where selectedIDs.contains(item.id) {
-            if let path = item.localFilePath, let ls = localStorage {
-                Task { try? await ls.delete(relativePath: path) }
-            }
-            context.delete(item)
-        }
-        try? context.save()
-        HapticFeedback.success()
-        exitSelectMode()
-        loadHomeSections()
-    }
-
-    func bulkTag(_ tag: Tag) {
-        guard let context else { return }
-        let all = (try? context.fetch(FetchDescriptor<Item>())) ?? []
-        for item in all where selectedIDs.contains(item.id) {
-            if !item.tags.contains(where: { $0.id == tag.id }) {
-                item.tags.append(tag)
-                item.markModified()
-            }
-        }
-        try? context.save()
-        HapticFeedback.success()
-        exitSelectMode()
-        loadHomeSections()
-    }
-
-    func bulkFavorite() {
-        guard let context else { return }
-        let all = (try? context.fetch(FetchDescriptor<Item>())) ?? []
-        // Toggle: if all selected are already favorites, unfavorite; otherwise favorite all
-        let selectedItems = all.filter { selectedIDs.contains($0.id) }
-        let allFavorited = selectedItems.allSatisfy(\.isFavorite)
-        for item in selectedItems {
-            item.isFavorite = !allFavorited
-            item.markModified()
-        }
-        try? context.save()
-        HapticFeedback.light()
-        exitSelectMode()
-        loadHomeSections()
-    }
 }

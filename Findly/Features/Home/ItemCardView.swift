@@ -109,6 +109,14 @@ struct ItemCardView: View {
 
     private var rowCard: some View {
         HStack(spacing: AppTheme.Spacing.medium) {
+            // Checkbox in select mode
+            if isSelectMode {
+                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 22))
+                    .foregroundStyle(isSelected ? AppTheme.Colors.accent : AppTheme.Colors.tertiaryLabel)
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+            }
+
             // Icon
             ZStack {
                 RoundedRectangle(cornerRadius: AppTheme.Radius.small, style: .continuous)
@@ -173,19 +181,12 @@ struct ItemCardView: View {
             }
         }
         .padding(AppTheme.Spacing.medium)
+        .animation(.easeInOut(duration: 0.2), value: isSelectMode)
         .background(isSelected ? AppTheme.Colors.accent.opacity(0.08) : AppTheme.Colors.secondaryBG)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
         .shadow(color: AppTheme.Shadow.card.color,
                 radius: AppTheme.Shadow.card.radius,
                 x: AppTheme.Shadow.card.x,
                 y: AppTheme.Shadow.card.y)
-        .overlay(alignment: .leading) {
-            if isSelectMode {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 22))
-                    .foregroundStyle(isSelected ? AppTheme.Colors.accent : AppTheme.Colors.tertiaryLabel)
-                    .padding(.leading, AppTheme.Spacing.medium)
-            }
-        }
     }
 }
