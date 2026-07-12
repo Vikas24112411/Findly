@@ -172,6 +172,7 @@ struct OnboardingStorageView: View {
         case .success(let urls):
             guard let url = urls.first else { return }
             _ = url.startAccessingSecurityScopedResource()
+            defer { url.stopAccessingSecurityScopedResource() }
             customURL = url
         case .failure(let error):
             setupError = error.localizedDescription

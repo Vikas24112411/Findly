@@ -171,7 +171,7 @@ struct SettingsView: View {
         let statusText = sync.isSyncing ? "Syncing…" : (sync.pendingCount == 0 ? "Up to date" : "\(sync.pendingCount) pending")
         HStack(spacing: 6) {
             Circle()
-                .fill(sync.isSyncing ? Color.yellow : (sync.pendingCount == 0 ? Color.green : Color.orange))
+                .fill(sync.isSyncing ? AppTheme.Colors.syncPending : (sync.pendingCount == 0 ? AppTheme.Colors.syncSynced : AppTheme.Colors.syncFailed))
                 .frame(width: 8, height: 8)
             if let lastSync = viewModel.lastSyncDate {
                 Text("\(statusText) · \(lastSync.shortRelativeString)")
@@ -400,6 +400,7 @@ private struct StorageLocationPickerView: View {
         ) { result in
             if case .success(let urls) = result, let url = urls.first {
                 _ = url.startAccessingSecurityScopedResource()
+                defer { url.stopAccessingSecurityScopedResource() }
                 customURL = url
                 Task { await applyChange() }
             }
