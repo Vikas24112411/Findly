@@ -95,6 +95,7 @@ struct ItemCardView: View {
                 }
             }
         }
+        .frame(maxHeight: .infinity, alignment: .top)
         .padding(AppTheme.Spacing.small)
         .background(AppTheme.Colors.secondaryBG)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
