@@ -224,26 +224,50 @@ struct InlineSearchBar: View {
         HStack(spacing: AppTheme.Spacing.small) {
             HStack(spacing: AppTheme.Spacing.small) {
                 Image(systemName: "magnifyingglass")
-                    .font(.subheadline)
-                    .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(
+                        isFocused.wrappedValue
+                            ? AppTheme.Colors.accent
+                            : AppTheme.Colors.tertiaryLabel
+                    )
                 TextField(prompt, text: $text)
                     .focused(isFocused)
                     .onSubmit { onSubmit?() }
+                if !text.isEmpty {
+                    Button {
+                        text = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16))
+                            .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                    }
+                    .transition(.scale(scale: 0.7).combined(with: .opacity))
+                }
             }
             .padding(.horizontal, AppTheme.Spacing.medium)
-            .padding(.vertical, AppTheme.Spacing.small)
+            .padding(.vertical, 11)
             .background(AppTheme.Colors.tertiaryBG)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    .strokeBorder(
+                        isFocused.wrappedValue
+                            ? AppTheme.Colors.accent.opacity(0.4)
+                            : Color.clear,
+                        lineWidth: 1.5
+                    )
+            )
+            .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
+            .animation(.easeInOut(duration: 0.15), value: text.isEmpty)
 
-            if isFocused.wrappedValue || !text.isEmpty {
-                Button {
+            if isFocused.wrappedValue {
+                Button("Cancel") {
                     text = ""
                     isFocused.wrappedValue = false
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
                 }
+                .font(AppTheme.Typography.body)
+                .foregroundStyle(AppTheme.Colors.accent)
+                .fixedSize()
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
