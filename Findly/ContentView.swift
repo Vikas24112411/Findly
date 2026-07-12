@@ -59,6 +59,10 @@ struct ContentView: View {
                     .tabItem { Label("Tags", systemImage: "tag.fill") }
                     .tag(Tab.knowledge)
 
+                FilesView()
+                    .tabItem { Label("Files", systemImage: "doc.fill") }
+                    .tag(Tab.files)
+
                 InsightsView()
                     .tabItem { Label("Insights", systemImage: "chart.bar.fill") }
                     .tag(Tab.insights)
@@ -85,7 +89,7 @@ struct ContentView: View {
 
 extension ContentView {
     enum Tab: Hashable {
-        case home, knowledge, insights, settings
+        case home, knowledge, files, insights, settings
     }
 }
 
