@@ -8,29 +8,58 @@ struct HomeView: View {
     @State private var viewModel = HomeViewModel()
     @State private var showFilterSheet = false
     @State private var showBulkTagPicker = false
+    @State private var scrollOffset: CGFloat = 0
+    @FocusState private var searchFocused: Bool
+    @AppStorage("showRecentItems") private var showRecentItems = true
+    @AppStorage("showFrequentItems") private var showFrequentItems = true
+
+    private var titleProgress: CGFloat {
+        viewModel.isSelectMode ? 1.0 : scrollProgress(from: scrollOffset)
+    }
+
+    private var inlineTitle: String {
+        viewModel.isSelectMode ? "\(viewModel.selectedIDs.count) Selected" : "Findly"
+    }
 
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
                 ScrollView {
                     VStack(spacing: 0) {
-                        if viewModel.isSearching {
-                            SearchResultsView(
-                                results: viewModel.searchResults,
-                                isLoading: viewModel.isLoading,
-                                query: viewModel.searchText,
-                                activeFileTypes: viewModel.selectedFileTypes,
-                                isSelectMode: viewModel.isSelectMode,
-                                selectedIDs: viewModel.selectedIDs,
-                                onOpen: { viewModel.openItem($0) },
-                                onToggleSelect: { viewModel.toggleSelection($0) }
-                            )
-                        } else {
-                            homeContent
+                        if !viewModel.isSelectMode {
+                            LargeTitleHeader(title: "Findly", progress: scrollProgress(from: scrollOffset))
+                        }
+                        LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
+                            Section {
+                                if viewModel.isSearching {
+                                    SearchResultsView(
+                                        results: viewModel.searchResults,
+                                        isLoading: viewModel.isLoading,
+                                        query: viewModel.searchText,
+                                        activeFileTypes: viewModel.selectedFileTypes,
+                                        isSelectMode: viewModel.isSelectMode,
+                                        selectedIDs: viewModel.selectedIDs,
+                                        onOpen: { viewModel.openItem($0) },
+                                        onToggleSelect: { viewModel.toggleSelection($0) }
+                                    )
+                                } else {
+                                    homeContent
+                                }
+                            } header: {
+                                if !viewModel.isSelectMode {
+                                    InlineSearchBar(
+                                        text: $viewModel.searchText,
+                                        prompt: "Search your vault...",
+                                        isFocused: $searchFocused,
+                                        onSubmit: { viewModel.submitSearch() }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
                 .background(AppTheme.Colors.groupedBG)
+                .trackScrollOffset($scrollOffset)
 
                 if viewModel.isSelectMode {
                     BulkActionsBar(
@@ -42,18 +71,9 @@ struct HomeView: View {
                     )
                 }
             }
-            .navigationTitle(viewModel.isSelectMode ? "\(viewModel.selectedIDs.count) Selected" : "Findly")
-            .navigationBarTitleDisplayMode(.large)
-            .searchable(
-                text: $viewModel.searchText,
-                placement: .navigationBarDrawer(displayMode: .always),
-                prompt: "Search your vault..."
-            )
+            .navTransitionTitle(inlineTitle, progress: titleProgress)
             .onChange(of: viewModel.searchText) { _, _ in
                 viewModel.performSearch()
-            }
-            .onSubmit(of: .search) {
-                viewModel.submitSearch()
             }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -117,7 +137,7 @@ struct HomeView: View {
             }
 
             // Continue where you left off
-            if !viewModel.recentItems.isEmpty {
+            if showRecentItems && !viewModel.recentItems.isEmpty {
                 RecentItemsSection(
                     title: "Continue Where You Left Off",
                     items: viewModel.recentItems,
@@ -126,7 +146,7 @@ struct HomeView: View {
             }
 
             // Frequently opened
-            if !viewModel.frequentItems.isEmpty {
+            if showFrequentItems && !viewModel.frequentItems.isEmpty {
                 RecentItemsSection(
                     title: "Frequently Opened",
                     items: viewModel.frequentItems,
@@ -141,8 +161,8 @@ struct HomeView: View {
 
             // Empty state
             if viewModel.recentlyAdded.isEmpty
-                && viewModel.recentItems.isEmpty
-                && viewModel.frequentItems.isEmpty {
+                && (!showRecentItems || viewModel.recentItems.isEmpty)
+                && (!showFrequentItems || viewModel.frequentItems.isEmpty) {
                 emptyStateView
             }
         }
@@ -259,9 +279,7 @@ struct BulkTagPickerSheet: View {
                     dismiss()
                 } label: {
                     HStack(spacing: AppTheme.Spacing.medium) {
-                        Image(systemName: tag.sfSymbol)
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundStyle(Color(hex: tag.colorHex))
+                        TagSymbolView(sfSymbol: tag.sfSymbol, color: Color(hex: tag.colorHex), size: 14)
                             .frame(width: 22, height: 22)
                             .background(Color(hex: tag.colorHex).opacity(0.12))
                             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))

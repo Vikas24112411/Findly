@@ -5,27 +5,39 @@ struct InsightsView: View {
 
     @Environment(\.modelContext) private var modelContext
     @State private var viewModel = InsightsViewModel()
+    @State private var scrollOffset: CGFloat = 0
+    @AppStorage("insightsShowStorageGrowth") private var showStorageGrowth = true
+    @AppStorage("insightsShowWeeklyActivity") private var showWeeklyActivity = true
+    @AppStorage("insightsShowFileTypes") private var showFileTypes = true
+    @AppStorage("insightsShowStorageByType") private var showStorageByType = true
+    @AppStorage("insightsShowTopTags") private var showTopTags = true
+    @AppStorage("insightsShowTagHeatmap") private var showTagHeatmap = true
+    @AppStorage("insightsShowMostOpened") private var showMostOpened = true
+    @AppStorage("insightsShowLargestFiles") private var showLargestFiles = true
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(spacing: AppTheme.Spacing.xLarge) {
-                    summaryCards
-                    if !viewModel.storageGrowth.isEmpty              { storageGrowthSection }
-                    if !viewModel.weeklyActivity.isEmpty             { activitySection }
-                    if !viewModel.fileTypeDistribution.isEmpty       { fileTypeChart }
-                    if !viewModel.fileTypeSizeDistribution.isEmpty   { fileTypeSizeChart }
-                    if !viewModel.topTags.isEmpty                    { topTagsSection }
-                    if !viewModel.tagHeatmap.isEmpty                 { tagHeatmapSection }
-                    if !viewModel.mostOpenedItems.isEmpty            { mostOpenedSection }
-                    if !viewModel.largestItems.isEmpty               { largestFilesSection }
+                VStack(spacing: 0) {
+                    LargeTitleHeader(title: "Insights", progress: scrollProgress(from: scrollOffset))
+                    LazyVStack(spacing: AppTheme.Spacing.xLarge) {
+                        summaryCards
+                        if showStorageGrowth  && !viewModel.storageGrowth.isEmpty            { storageGrowthSection }
+                        if showWeeklyActivity && !viewModel.weeklyActivity.isEmpty            { activitySection }
+                        if showFileTypes      && !viewModel.fileTypeDistribution.isEmpty      { fileTypeChart }
+                        if showStorageByType  && !viewModel.fileTypeSizeDistribution.isEmpty  { fileTypeSizeChart }
+                        if showTopTags        && !viewModel.topTags.isEmpty                   { topTagsSection }
+                        if showTagHeatmap     && !viewModel.tagHeatmap.isEmpty                { tagHeatmapSection }
+                        if showMostOpened     && !viewModel.mostOpenedItems.isEmpty           { mostOpenedSection }
+                        if showLargestFiles   && !viewModel.largestItems.isEmpty              { largestFilesSection }
+                    }
+                    .padding(.horizontal, AppTheme.Spacing.base)
+                    .padding(.bottom, AppTheme.Spacing.large)
                 }
-                .padding(.horizontal, AppTheme.Spacing.base)
-                .padding(.vertical, AppTheme.Spacing.large)
             }
             .background(AppTheme.Colors.groupedBG)
-            .navigationTitle("Insights")
-            .navigationBarTitleDisplayMode(.large)
+            .trackScrollOffset($scrollOffset)
+            .navTransitionTitle("Insights", progress: scrollProgress(from: scrollOffset))
             .onAppear {
                 viewModel.setup(context: modelContext)
             }
@@ -38,55 +50,56 @@ struct InsightsView: View {
     // MARK: - Summary cards
 
     private var summaryCards: some View {
-        LazyVGrid(
-            columns: [GridItem(.flexible()), GridItem(.flexible())],
-            spacing: AppTheme.Spacing.medium
-        ) {
-            statCard("Total Files",
+        HStack(spacing: 0) {
+            statCell("Total Files",
                      "\(viewModel.totalItems)",
                      "doc.fill",
                      AppTheme.Colors.accent)
-            statCard("Tags",
+            Divider().frame(height: 48)
+            statCell("Tags",
                      "\(viewModel.totalTags)",
                      "tag.fill",
                      AppTheme.Colors.noteTint)
-            statCard("Storage",
+            Divider().frame(height: 48)
+            statCell("Storage",
                      viewModel.totalStorageBytes.fileSizeString,
                      "internaldrive.fill",
                      AppTheme.Colors.videoTint)
-            statCard("Pending Sync",
+            Divider().frame(height: 48)
+            statCell("Pending Sync",
                      "\(viewModel.pendingSyncCount)",
                      viewModel.pendingSyncCount > 0 ? "clock.badge.exclamationmark.fill" : "checkmark.circle.fill",
                      viewModel.pendingSyncCount > 0 ? AppTheme.Colors.syncPending : AppTheme.Colors.syncSynced)
         }
-    }
-
-    private func statCard(_ title: String, _ value: String, _ symbol: String, _ color: Color) -> some View {
-        HStack(spacing: AppTheme.Spacing.medium) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(color.opacity(0.14))
-                    .frame(width: 36, height: 36)
-                Image(systemName: symbol)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(color)
-            }
-            VStack(alignment: .leading, spacing: 1) {
-                Text(value)
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundStyle(AppTheme.Colors.label)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                Text(title)
-                    .font(.system(size: 11, weight: .regular))
-                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, AppTheme.Spacing.medium)
         .padding(.vertical, AppTheme.Spacing.medium)
         .background(AppTheme.Colors.secondaryBG)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
+    }
+
+    private func statCell(_ title: String, _ value: String, _ symbol: String, _ color: Color) -> some View {
+        VStack(spacing: 4) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(color.opacity(0.14))
+                    .frame(width: 30, height: 30)
+                Image(systemName: symbol)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(color)
+            }
+            Text(value)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundStyle(AppTheme.Colors.label)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+            Text(title)
+                .font(.system(size: 9, weight: .regular))
+                .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, AppTheme.Spacing.small)
+        .padding(.horizontal, 4)
     }
 
     // MARK: - Activity this week
@@ -164,9 +177,7 @@ struct InsightsView: View {
                 ForEach(viewModel.topTags.prefix(5), id: \.tag.id) { entry in
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 6) {
-                            Image(systemName: entry.tag.sfSymbol)
-                                .font(.system(size: 12))
-                                .foregroundStyle(Color(hex: entry.tag.colorHex))
+                            TagSymbolView(sfSymbol: entry.tag.sfSymbol, color: Color(hex: entry.tag.colorHex), size: 12)
                             Text(entry.tag.name)
                                 .font(AppTheme.Typography.subheadline)
                                 .foregroundStyle(AppTheme.Colors.label)
