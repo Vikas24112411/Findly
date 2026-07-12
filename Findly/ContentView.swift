@@ -7,6 +7,7 @@ struct ContentView: View {
     @Environment(AppContainer.self) private var appContainer
     @AppStorage("appearanceMode") private var appearanceMode = "system"
     @AppStorage("appLockEnabled") private var appLockEnabled = false
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: Tab = .home
     @State private var showAddSheet = false
@@ -36,6 +37,10 @@ struct ContentView: View {
         .onAppear {
             showStoreRecoveryAlert = appContainer.persistence.storeWasRecovered
         }
+        .fullScreenCover(isPresented: .constant(!hasCompletedOnboarding)) {
+            OnboardingStorageView()
+                .environment(appContainer)
+        }
         .alert("Database Recovery", isPresented: $showStoreRecoveryAlert) {
             Button("OK") {}
         } message: {
@@ -47,11 +52,11 @@ struct ContentView: View {
         ZStack(alignment: .bottomTrailing) {
             TabView(selection: $selectedTab) {
                 HomeView()
-                    .tabItem { Label("Home", systemImage: "house.fill") }
+                    .tabItem { Label("Home", systemImage: "house") }
                     .tag(Tab.home)
 
                 KnowledgeView()
-                    .tabItem { Label("Knowledge", systemImage: "tag.fill") }
+                    .tabItem { Label("Tags", systemImage: "tag.fill") }
                     .tag(Tab.knowledge)
 
                 InsightsView()
