@@ -1,9 +1,8 @@
 import SwiftUI
 import SwiftData
 
-/// Multi-step upload wizard.
-/// Steps: Preview → Title → Tags → Description → Saving
-struct UploadFlowView: View {
+/// Single-screen form for adding metadata to a pending upload.
+struct ItemFormView: View {
 
     let pendingUpload: PendingUpload
     var onComplete: () -> Void
@@ -12,25 +11,32 @@ struct UploadFlowView: View {
     @Environment(AppContainer.self) private var appContainer
     @Environment(\.dismiss) private var dismiss
 
-    @State private var viewModel = UploadFlowViewModel()
-
-    @Query private var allTags: [Tag]
+    @State private var viewModel = ItemFormViewModel()
+    @State private var showTagPicker = false
 
     var body: some View {
         NavigationStack {
-            TabView(selection: $viewModel.currentStep) {
-                previewStep.tag(UploadFlowViewModel.Step.preview)
-                titleStep.tag(UploadFlowViewModel.Step.title)
-                tagsStep.tag(UploadFlowViewModel.Step.tags)
-                descriptionStep.tag(UploadFlowViewModel.Step.description)
-                savingStep.tag(UploadFlowViewModel.Step.saving)
+            Group {
+                if viewModel.isSaving || viewModel.savedItem != nil || viewModel.saveError != nil {
+                    savingView
+                } else {
+                    formView
+                }
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .animation(AppTheme.Animation.fast, value: viewModel.currentStep)
-            .navigationTitle(stepTitle)
+            .navigationTitle("Add to Vault")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar { toolbarContent }
-            .interactiveDismissDisabled(viewModel.currentStep == .saving)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    if !viewModel.isSaving {
+                        Button("Cancel") { dismiss() }
+                    }
+                }
+            }
+            .interactiveDismissDisabled(viewModel.isSaving)
+            .sheet(isPresented: $showTagPicker) {
+                MultiTagPickerSheet(selectedTags: $viewModel.selectedTags)
+                    .environment(\.modelContext, modelContext)
+            }
         }
         .onAppear {
             viewModel.pendingUpload = pendingUpload
@@ -38,138 +44,107 @@ struct UploadFlowView: View {
         }
     }
 
-    // MARK: - Steps
+    // MARK: - Form
 
-    private var previewStep: some View {
+    private var formView: some View {
         ScrollView {
             VStack(spacing: AppTheme.Spacing.xLarge) {
-                // File preview
+                // Full-width file preview
                 filePreview
                     .frame(maxWidth: .infinity)
-                    .frame(height: 280)
+                    .frame(height: 240)
                     .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.xLarge, style: .continuous))
+                    .padding(.horizontal, AppTheme.Spacing.base)
 
-                // File info card
-                VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
-                    infoRow("File name", pendingUpload.fileName)
-                    infoRow("Type", pendingUpload.fileType.displayName)
-                    infoRow("Size", Int64(pendingUpload.data.count).fileSizeString)
-                }
-                .padding(AppTheme.Spacing.base)
-                .background(AppTheme.Colors.secondaryBG)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
-            }
-            .padding(AppTheme.Spacing.base)
-        }
-    }
+                VStack(spacing: AppTheme.Spacing.medium) {
+                    // Title
+                    formCard {
+                        TextField("Title", text: $viewModel.title)
+                            .font(AppTheme.Typography.title3)
+                    }
 
-    private var titleStep: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: AppTheme.Spacing.xLarge) {
-                Text("Give it a name")
-                    .font(AppTheme.Typography.title2)
-                    .foregroundStyle(AppTheme.Colors.label)
-
-                TextField("Title", text: $viewModel.title)
-                    .font(AppTheme.Typography.title3)
-                    .padding(AppTheme.Spacing.base)
-                    .background(AppTheme.Colors.secondaryBG)
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
-            }
-            .padding(AppTheme.Spacing.base)
-        }
-    }
-
-    private var tagsStep: some View {
-        VStack(spacing: 0) {
-            // Search bar
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                TextField("Search tags...", text: $viewModel.tagSearchText)
-            }
-            .padding(AppTheme.Spacing.medium)
-            .background(AppTheme.Colors.secondaryBG)
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
-            .padding(AppTheme.Spacing.base)
-
-            // Selected tags
-            if !viewModel.selectedTags.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: AppTheme.Spacing.small) {
-                        ForEach(Array(viewModel.selectedTags).sorted { $0.name < $1.name }) { tag in
-                            TagChipView(tag: tag, isSelected: true) {
-                                viewModel.toggleTag(tag)
+                    // Tags
+                    formCard {
+                        HStack {
+                            Text("Tags")
+                                .font(AppTheme.Typography.subheadline)
+                                .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                            Spacer()
+                            Button("Add Tag") { showTagPicker = true }
+                                .font(AppTheme.Typography.subheadline)
+                                .tint(AppTheme.Colors.accent)
+                        }
+                        if !viewModel.selectedTags.isEmpty {
+                            FlowLayout(spacing: AppTheme.Spacing.small) {
+                                ForEach(Array(viewModel.selectedTags).sorted { $0.name < $1.name }) { tag in
+                                    TagChipView(tag: tag, isSelected: true) {
+                                        viewModel.toggleTag(tag)
+                                    }
+                                }
                             }
                         }
                     }
-                    .padding(.horizontal, AppTheme.Spacing.base)
-                }
-                .padding(.bottom, AppTheme.Spacing.small)
-            }
 
-            // All tags list
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    let filtered = viewModel.filteredTags(from: allTags)
-                    let canCreate = !viewModel.tagSearchText.isEmpty &&
-                        !filtered.contains { $0.name.lowercased() == viewModel.tagSearchText.lowercased() }
-                    if filtered.isEmpty && !canCreate {
-                        EmptyStateView(
-                            symbol: "tag.slash",
-                            title: "No tags found",
-                            subtitle: "Type a name above to create a new tag."
-                        )
+                    // Notes
+                    if viewModel.showNotes {
+                        formCard {
+                            TextEditor(text: $viewModel.itemDescription)
+                                .font(AppTheme.Typography.body)
+                                .frame(minHeight: 120)
+                                .scrollContentBackground(.hidden)
+                        }
                     } else {
-                        if canCreate {
-                            createTagRow(name: viewModel.tagSearchText)
-                            Divider().padding(.leading, 56)
+                        Button {
+                            withAnimation(AppTheme.Animation.fast) {
+                                viewModel.showNotes = true
+                            }
+                        } label: {
+                            Label("Add notes", systemImage: "plus.circle")
+                                .font(AppTheme.Typography.subheadline)
+                                .tint(AppTheme.Colors.accent)
                         }
-                        ForEach(filtered.sorted { $0.name < $1.name }) { tag in
-                            tagRow(tag)
-                            Divider().padding(.leading, 56)
-                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, AppTheme.Spacing.base)
                     }
+
+                    // Save button
+                    Button {
+                        Task {
+                            await viewModel.save(
+                                context: modelContext,
+                                sync: appContainer.sync,
+                                localStorage: appContainer.localStorage,
+                                isAuthenticated: appContainer.auth.isAuthenticated
+                            )
+                        }
+                    } label: {
+                        Text("Save")
+                            .font(AppTheme.Typography.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, AppTheme.Spacing.small)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(AppTheme.Colors.accent)
+                    .disabled(viewModel.title.isEmpty)
+                    .padding(.horizontal, AppTheme.Spacing.base)
+                    .padding(.bottom, AppTheme.Spacing.base)
                 }
-                .background(AppTheme.Colors.secondaryBG)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
-                .padding(.horizontal, AppTheme.Spacing.base)
             }
         }
         .background(AppTheme.Colors.groupedBG)
     }
 
-    private var descriptionStep: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: AppTheme.Spacing.xLarge) {
-                Text("Add a description")
-                    .font(AppTheme.Typography.title2)
-                    .foregroundStyle(AppTheme.Colors.label)
-                Text("Optional — helps you find this item later.")
-                    .font(AppTheme.Typography.subheadline)
-                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                TextEditor(text: $viewModel.itemDescription)
-                    .font(AppTheme.Typography.body)
-                    .frame(minHeight: 140)
-                    .padding(AppTheme.Spacing.medium)
-                    .background(AppTheme.Colors.secondaryBG)
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
-            }
-            .padding(AppTheme.Spacing.base)
-        }
-    }
+    // MARK: - Saving / success / error
 
-    private var savingStep: some View {
+    private var savingView: some View {
         VStack(spacing: AppTheme.Spacing.xLarge) {
             if viewModel.isSaving {
-                VStack(spacing: AppTheme.Spacing.xLarge) {
-                    ProgressView()
-                        .scaleEffect(1.5)
-                        .tint(AppTheme.Colors.accent)
-                    Text("Saving to vault…")
-                        .font(AppTheme.Typography.headline)
-                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                }
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .tint(AppTheme.Colors.accent)
+                Text("Saving to vault…")
+                    .font(AppTheme.Typography.headline)
+                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
             } else if let error = viewModel.saveError {
                 EmptyStateView(
                     symbol: "exclamationmark.circle",
@@ -187,86 +162,39 @@ struct UploadFlowView: View {
                     }
                 }
             } else if viewModel.savedItem != nil {
-                VStack(spacing: AppTheme.Spacing.xLarge) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 72))
-                        .foregroundStyle(AppTheme.Colors.syncSynced)
-                    Text("Saved!")
-                        .font(AppTheme.Typography.title1)
-                    Text(appContainer.auth.isAuthenticated
-                         ? "Your file is in your vault.\nUploading to Google Drive in the background."
-                         : "Your file is saved on this device.\nConnect Google Drive in Settings to back it up.")
-                        .font(AppTheme.Typography.body)
-                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                        .multilineTextAlignment(.center)
-                    Button("Done") {
-                        dismiss()       // close UploadFlowView
-                        onComplete()    // close AddItemSheetView
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AppTheme.Colors.accent)
-                    .font(AppTheme.Typography.headline)
-                    .padding(.horizontal, AppTheme.Spacing.xxLarge)
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 72))
+                    .foregroundStyle(AppTheme.Colors.syncSynced)
+                Text("Saved!")
+                    .font(AppTheme.Typography.title1)
+                Text(appContainer.auth.isAuthenticated
+                     ? "Your file is in your vault.\nUploading to Google Drive in the background."
+                     : "Your file is saved on this device.\nConnect Google Drive in Settings to back it up.")
+                    .font(AppTheme.Typography.body)
+                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                    .multilineTextAlignment(.center)
+                Button("Done") {
+                    dismiss()
+                    onComplete()
                 }
-                .onAppear {
-                    // Auto-dismiss after 2 s so the sheet closes even if Done isn't tapped
-                    Task {
-                        try? await Task.sleep(for: .seconds(2))
-                        dismiss()
-                        onComplete()
-                    }
-                }
+                .buttonStyle(.borderedProminent)
+                .tint(AppTheme.Colors.accent)
+                .font(AppTheme.Typography.headline)
+                .padding(.horizontal, AppTheme.Spacing.xxLarge)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .task {
-            guard !viewModel.isSaving, viewModel.savedItem == nil, viewModel.saveError == nil else { return }
-            await viewModel.save(
-                context: modelContext,
-                sync: appContainer.sync,
-                localStorage: appContainer.localStorage,
-                isAuthenticated: appContainer.auth.isAuthenticated
-            )
-        }
-    }
-
-    // MARK: - Toolbar
-
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .cancellationAction) {
-            if viewModel.currentStep != .saving {
-                Button("Cancel") { dismiss() }
-            }
-        }
-        ToolbarItem(placement: .confirmationAction) {
-            if viewModel.currentStep < .description {
-                Button("Next") { viewModel.advance() }
-                    .disabled(viewModel.currentStep == .title && viewModel.title.isEmpty)
-            } else if viewModel.currentStep == .description {
-                Button("Save") { viewModel.advance() }
-            }
-        }
-        ToolbarItem(placement: .topBarLeading) {
-            if viewModel.currentStep > .preview && viewModel.currentStep != .saving {
-                Button("Back") { viewModel.goBack() }
+        .onChange(of: viewModel.savedItem) { _, item in
+            guard item != nil else { return }
+            Task {
+                try? await Task.sleep(for: .seconds(2))
+                dismiss()
+                onComplete()
             }
         }
     }
 
-    // MARK: - Step indicator helpers
-
-    private var stepTitle: String {
-        switch viewModel.currentStep {
-        case .preview:     return "Preview"
-        case .title:       return "Title"
-        case .tags:        return "Tags"
-        case .description: return "Description"
-        case .saving:      return "Saving"
-        }
-    }
-
-    // MARK: - Helpers
+    // MARK: - File preview
 
     @ViewBuilder
     private var filePreview: some View {
@@ -274,7 +202,7 @@ struct UploadFlowView: View {
         if pendingUpload.fileType == .image, let uiImage = UIImage(data: data) {
             Image(uiImage: uiImage)
                 .resizable()
-                .scaledToFit()
+                .scaledToFill()
                 .background(AppTheme.Colors.tertiaryBG)
         } else {
             ZStack {
@@ -294,17 +222,105 @@ struct UploadFlowView: View {
         }
     }
 
-    private func infoRow(_ label: String, _ value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(AppTheme.Typography.subheadline)
-                .foregroundStyle(AppTheme.Colors.secondaryLabel)
-            Spacer()
-            Text(value)
-                .font(AppTheme.Typography.subheadline)
-                .foregroundStyle(AppTheme.Colors.label)
-                .lineLimit(1)
+    // MARK: - Form card helper
+
+    @ViewBuilder
+    private func formCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
+            content()
         }
+        .padding(AppTheme.Spacing.base)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(AppTheme.Colors.secondaryBG)
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
+        .padding(.horizontal, AppTheme.Spacing.base)
+    }
+}
+
+// MARK: - Tag picker sheet
+
+struct MultiTagPickerSheet: View {
+
+    @Binding var selectedTags: Set<Tag>
+
+    @Query private var allTags: [Tag]
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var searchText = ""
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Search bar
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                    TextField("Search tags...", text: $searchText)
+                }
+                .padding(AppTheme.Spacing.medium)
+                .background(AppTheme.Colors.secondaryBG)
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
+                .padding(AppTheme.Spacing.base)
+
+                // Selected tags
+                if !selectedTags.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: AppTheme.Spacing.small) {
+                            ForEach(Array(selectedTags).sorted { $0.name < $1.name }) { tag in
+                                TagChipView(tag: tag, isSelected: true) {
+                                    selectedTags.remove(tag)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, AppTheme.Spacing.base)
+                    }
+                    .padding(.bottom, AppTheme.Spacing.small)
+                }
+
+                // Tag list
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        let filtered = filteredTags
+                        let canCreate = !searchText.isEmpty &&
+                            !filtered.contains { $0.name.lowercased() == searchText.lowercased() }
+
+                        if filtered.isEmpty && !canCreate {
+                            EmptyStateView(
+                                symbol: "tag.slash",
+                                title: "No tags found",
+                                subtitle: "Type a name above to create a new tag."
+                            )
+                        } else {
+                            if canCreate {
+                                createTagRow(name: searchText)
+                                Divider().padding(.leading, 56)
+                            }
+                            ForEach(filtered.sorted { $0.name < $1.name }) { tag in
+                                tagRow(tag)
+                                Divider().padding(.leading, 56)
+                            }
+                        }
+                    }
+                    .background(AppTheme.Colors.secondaryBG)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
+                    .padding(.horizontal, AppTheme.Spacing.base)
+                }
+            }
+            .background(AppTheme.Colors.groupedBG)
+            .navigationTitle("Tags")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private var filteredTags: [Tag] {
+        if searchText.isEmpty { return allTags }
+        return allTags.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
 
     private func createTagRow(name: String) -> some View {
@@ -329,13 +345,13 @@ struct UploadFlowView: View {
             let tag = Tag(name: name, colorHex: hex, sfSymbol: "tag.fill")
             modelContext.insert(tag)
             try? modelContext.save()
-            viewModel.toggleTag(tag)
-            viewModel.tagSearchText = ""
+            selectedTags.insert(tag)
+            searchText = ""
         }
     }
 
     private func tagRow(_ tag: Tag) -> some View {
-        let isSelected = viewModel.selectedTags.contains(tag)
+        let isSelected = selectedTags.contains(tag)
         return HStack(spacing: AppTheme.Spacing.medium) {
             TagSymbolView(sfSymbol: tag.sfSymbol, color: Color(hex: tag.colorHex), size: 16)
                 .frame(width: 28, height: 28)
@@ -353,6 +369,12 @@ struct UploadFlowView: View {
         .padding(.horizontal, AppTheme.Spacing.base)
         .padding(.vertical, AppTheme.Spacing.medium)
         .contentShape(Rectangle())
-        .onTapGesture { viewModel.toggleTag(tag) }
+        .onTapGesture {
+            if isSelected {
+                selectedTags.remove(tag)
+            } else {
+                selectedTags.insert(tag)
+            }
+        }
     }
 }

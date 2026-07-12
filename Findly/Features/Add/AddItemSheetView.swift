@@ -16,6 +16,7 @@ struct AddItemSheetView: View {
     @State private var showNoteComposer = false
     @State private var showLinkComposer = false
     @State private var showCameraPicker = false
+    @State private var showAudioRecorder = false
 
     // Multi-file import
     @State private var importedURLs: [URL] = []
@@ -103,7 +104,7 @@ struct AddItemSheetView: View {
         }
         // Upload flow sheet
         .sheet(item: $pendingUpload) { upload in
-            UploadFlowView(pendingUpload: upload) {
+            ItemFormView(pendingUpload: upload) {
                 dismiss()   // close AddItemSheetView; pendingUpload clears on sheet dismiss
             }
             .environment(appContainer)
@@ -134,6 +135,24 @@ struct AddItemSheetView: View {
                 )
                 showLinkComposer = false
             }
+        }
+        // Audio recorder
+        .sheet(isPresented: $showAudioRecorder) {
+            AudioRecorderView(
+                onResult: { data in
+                    showAudioRecorder = false
+                    let dateStamp = Date().fullDateString
+                    pendingUpload = PendingUpload(
+                        data: data,
+                        fileName: "recording_\(UUID().uuidString).m4a",
+                        fileType: .audio,
+                        suggestedTitle: "Voice Memo — \(dateStamp)"
+                    )
+                },
+                onCancel: {
+                    showAudioRecorder = false
+                }
+            )
         }
         // Camera capture
         .fullScreenCover(isPresented: $showCameraPicker) {
@@ -183,6 +202,7 @@ struct AddItemSheetView: View {
         case .note:      showNoteComposer = true
         case .link:      showLinkComposer = true
         case .camera:    showCameraPicker = true
+        case .audio:     showAudioRecorder = true
         }
     }
 
@@ -257,7 +277,7 @@ struct AddItemSheetView: View {
 // MARK: - Add option enum
 
 enum AddOption: String, CaseIterable, Identifiable {
-    case photo, document, filesApp, note, link, camera
+    case photo, document, filesApp, note, link, camera, audio
 
     var id: String { rawValue }
     var label: String {
@@ -268,6 +288,7 @@ enum AddOption: String, CaseIterable, Identifiable {
         case .note:     return "Note"
         case .link:     return "Link"
         case .camera:   return "Camera"
+        case .audio:    return "Record Audio"
         }
     }
     var fileType: FileType {
@@ -278,12 +299,14 @@ enum AddOption: String, CaseIterable, Identifiable {
         case .note:     return .note
         case .link:     return .link
         case .camera:   return .image
+        case .audio:    return .audio
         }
     }
     var customSymbol: String? {
         switch self {
         case .filesApp: return "folder.badge.plus"
         case .camera:   return "camera.fill"
+        case .audio:    return nil
         default: return nil
         }
     }
