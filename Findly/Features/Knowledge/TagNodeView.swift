@@ -72,9 +72,7 @@ struct TagNodeView: View {
             }
 
             // Tag icon
-            Image(systemName: tag.sfSymbol)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(Color(hex: tag.colorHex))
+            TagSymbolView(sfSymbol: tag.sfSymbol, color: Color(hex: tag.colorHex), size: 14)
                 .frame(width: 22, height: 22)
                 .background(Color(hex: tag.colorHex).opacity(0.12))
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
@@ -105,13 +103,6 @@ struct TagNodeView: View {
                     .clipShape(Capsule())
             }
 
-            // Always-visible add-child button
-            Button { onCreateChild(tag) } label: {
-                Image(systemName: "plus.circle")
-                    .font(.system(size: 16))
-                    .foregroundStyle(AppTheme.Colors.tertiaryLabel)
-            }
-            .buttonStyle(.plain)
         }
         .padding(.vertical, AppTheme.Spacing.medium)
         .padding(.horizontal, AppTheme.Spacing.base)

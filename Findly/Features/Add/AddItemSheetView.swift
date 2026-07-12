@@ -190,7 +190,7 @@ struct AddItemSheetView: View {
 
     private func handlePhotoPickerItem(_ item: PhotosPickerItem) async {
         guard let data = try? await item.loadTransferable(type: Data.self) else { return }
-        let isVideo = item.supportedContentTypes.contains(.movie)
+        let isVideo = item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) || $0.conforms(to: .video) })
         let fileType: FileType = isVideo ? .video : .image
         let ext = isVideo ? "mp4" : "jpg"
         let name = item.itemIdentifier ?? UUID().uuidString
@@ -200,7 +200,7 @@ struct AddItemSheetView: View {
                 data: data,
                 fileName: "\(name).\(ext)",
                 fileType: fileType,
-                suggestedTitle: "Photo"
+                suggestedTitle: isVideo ? "Video" : "Photo"
             )
         }
     }

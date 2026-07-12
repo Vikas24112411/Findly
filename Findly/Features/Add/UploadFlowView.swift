@@ -337,9 +337,7 @@ struct UploadFlowView: View {
     private func tagRow(_ tag: Tag) -> some View {
         let isSelected = viewModel.selectedTags.contains(tag)
         return HStack(spacing: AppTheme.Spacing.medium) {
-            Image(systemName: tag.sfSymbol)
-                .font(.system(size: 16))
-                .foregroundStyle(Color(hex: tag.colorHex))
+            TagSymbolView(sfSymbol: tag.sfSymbol, color: Color(hex: tag.colorHex), size: 16)
                 .frame(width: 28, height: 28)
                 .background(Color(hex: tag.colorHex).opacity(0.12))
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))

@@ -204,12 +204,14 @@ struct ItemDetailView: View {
     private func addTag(_ tag: Tag) {
         guard !item.tags.contains(where: { $0.id == tag.id }) else { return }
         item.tags.append(tag)
+        item.markModified()
         try? modelContext.save()
         HapticFeedback.light()
     }
 
     private func removeTag(_ tag: Tag) {
         item.tags.removeAll { $0.id == tag.id }
+        item.markModified()
         try? modelContext.save()
         HapticFeedback.light()
     }
@@ -218,16 +220,30 @@ struct ItemDetailView: View {
 
     private var actionsSection: some View {
         VStack(spacing: AppTheme.Spacing.small) {
-            // Share file
-            if item.localFileAvailable {
-                Button {
-                    shareFile()
+            // Share + Delete side by side
+            HStack(spacing: AppTheme.Spacing.small) {
+                if item.localFileAvailable {
+                    Button {
+                        shareFile()
+                    } label: {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, AppTheme.Spacing.medium)
+                            .background(AppTheme.Colors.secondaryBG)
+                            .foregroundStyle(AppTheme.Colors.accent)
+                            .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
+                            .font(AppTheme.Typography.headline)
+                    }
+                }
+
+                Button(role: .destructive) {
+                    showDeleteConfirm = true
                 } label: {
-                    Label("Share", systemImage: "square.and.arrow.up")
+                    Label("Delete", systemImage: "trash")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, AppTheme.Spacing.medium)
-                        .background(AppTheme.Colors.secondaryBG)
-                        .foregroundStyle(AppTheme.Colors.accent)
+                        .background(Color.red.opacity(0.08))
+                        .foregroundStyle(.red)
                         .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
                         .font(AppTheme.Typography.headline)
                 }
@@ -277,18 +293,6 @@ struct ItemDetailView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, AppTheme.Spacing.medium)
                 }
-            }
-
-            Button(role: .destructive) {
-                showDeleteConfirm = true
-            } label: {
-                Label("Delete", systemImage: "trash")
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, AppTheme.Spacing.medium)
-                    .background(Color.red.opacity(0.08))
-                    .foregroundStyle(.red)
-                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
-                    .font(AppTheme.Typography.headline)
             }
         }
     }
@@ -362,9 +366,7 @@ struct TagPickerSheet: View {
                             dismiss()
                         } label: {
                             HStack(spacing: AppTheme.Spacing.medium) {
-                                Image(systemName: tag.sfSymbol)
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundStyle(Color(hex: tag.colorHex))
+                                TagSymbolView(sfSymbol: tag.sfSymbol, color: Color(hex: tag.colorHex), size: 14)
                                     .frame(width: 22, height: 22)
                                     .background(Color(hex: tag.colorHex).opacity(0.12))
                                     .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
