@@ -56,7 +56,9 @@ final class AppContainer {
             await auth.restorePreviousSignIn()
             if auth.isAuthenticated {
                 tokenRefresher.start(authService: auth)
-                await sync.syncPendingItems()
+                if UserDefaults.standard.bool(forKey: "autoSyncEnabled") {
+                    await sync.syncPendingItems()
+                }
             }
         }
     }

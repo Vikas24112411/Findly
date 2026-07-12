@@ -75,6 +75,8 @@ final class SyncService {
 
         pendingCount = 0
         lastSyncDate = Date()
+        // Persist so SettingsView.lastSyncDate (which reads UserDefaults) reflects auto-syncs too.
+        UserDefaults.standard.set(Date(), forKey: "lastSyncDate")
     }
 
     // MARK: - Promote local-only items when Drive is first connected
@@ -116,7 +118,7 @@ final class SyncService {
             item.googleDriveFileID = driveID
             item.syncStatus = .synced
             item.modifiedAt = Date()
-            try? context.save()
+            do { try context.save() } catch { lastError = error }
         } catch AuthError.notSignedIn {
             // Drive was disconnected mid-upload; revert to localOnly (not an error)
             item.syncStatus = .localOnly
@@ -141,7 +143,7 @@ final class SyncService {
         item.localFilePath = path
         item.syncStatus = .synced
         item.modifiedAt = Date()
-        try? context.save()
+        try context.save()
     }
 
     // MARK: - Helpers
