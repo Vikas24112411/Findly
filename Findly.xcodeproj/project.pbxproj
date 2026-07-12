@@ -19,14 +19,17 @@
 		2E732A423A16BE6A1B0A5265 /* AppContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E2F1DCA17974F470F318FEF /* AppContainer.swift */; };
 		3084970460D9156777479B65 /* InsightsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 741830EF0AA17D23D8BBE055 /* InsightsViewModel.swift */; };
 		32629D97B1351AE6883CA0B5 /* AppLockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96D43844030B1974D9551BD5 /* AppLockView.swift */; };
+		34468AC14BCB22C9533B18C1 /* OnboardingStorageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4E2E1626C0B19F0385CFF50 /* OnboardingStorageView.swift */; };
 		357BBCD196D4977A8C2E8984 /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B58E0D4655102721AE63949 /* AuthService.swift */; };
 		35ED30BB1B351A269C3CDDBB /* InsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7B27FDC85D1997F4EF9B52F /* InsightsView.swift */; };
 		38AD131ED9F7786D2E470F33 /* AppLockManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1445FE314037DD04460A5C7 /* AppLockManager.swift */; };
+		39C7C0A31B2F2B1DB96E7F8D /* View+TransitionTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8227ED791D6A94606AB65749 /* View+TransitionTitle.swift */; };
 		39EBBD1388DE56462D6945BD /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A496B85633FD9FB681F38542 /* SettingsView.swift */; };
 		4740D98CD4A24CB46948BBFD /* FilterSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD6875AB5BDE31C33903E628 /* FilterSheetView.swift */; };
 		50011D9B4AA8997CA3BF47A4 /* UploadFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B24EDE8A934F2D379BA0031F /* UploadFlowView.swift */; };
 		55501229F107C962C4A8AA83 /* FABView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A16A6A6CE9BE846AB8EB5E6B /* FABView.swift */; };
 		583463D652C1A14DBAEB409D /* DriveModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F5D93F960B58A0CF637A08E /* DriveModels.swift */; };
+		5C38BA9EEC8C859FBBCC47F0 /* StorageLocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 552F7EBF8AA3BBBF50F8F37D /* StorageLocationService.swift */; };
 		5CB2879C7C48C30D3B4657D3 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0C53D0C0DBFD233E8DBB11D /* Item.swift */; };
 		5CDF8523BE3EC1A0B05A598A /* TokenRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3A355C63CFE739C7ECC7777 /* TokenRefresher.swift */; };
 		6696BBD9A071187A6C572FFC /* ExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE24AD566D9B62D8160F25AA /* ExportService.swift */; };
@@ -60,6 +63,7 @@
 		EC7315CAE35CA940D22735A5 /* Color+Hex.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3DA326EC43F95CC7C7B5BF0 /* Color+Hex.swift */; };
 		EF9B959CF041858E19B5DFAC /* QuickImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2B87EFD21DE9F4894EBAB /* QuickImportView.swift */; };
 		F6261A48B6FE50A00A4958CA /* SyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FE2353ACF03192F968F1546 /* SyncService.swift */; };
+		E6B7C8D9EA1B2C3D4E5F6789 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F7A1B2C3D4E5F60789ABCDEF /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -80,10 +84,11 @@
 		1DFB57B9E1C3291E81B70B2E /* UploadFlowViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UploadFlowViewModel.swift; sourceTree = "<group>"; };
 		20A7EC5BF4818DDA16E26C5C /* SyncStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncStatus.swift; sourceTree = "<group>"; };
 		342AE5D98D2CBD2C1523BB42 /* Date+Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Formatting.swift"; sourceTree = "<group>"; };
-		360976CF9D45F33462D845E1 /* Findly.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Findly.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		360976CF9D45F33462D845E1 /* Findly.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Findly.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		47C3B31F571E9EAD5ABA7C9C /* DriveUploadSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveUploadSession.swift; sourceTree = "<group>"; };
 		4FDE04E489AFA609C5FE58BC /* SyncQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncQueue.swift; sourceTree = "<group>"; };
 		51CD42B2A2808AB444035127 /* RecentItemsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentItemsSection.swift; sourceTree = "<group>"; };
+		552F7EBF8AA3BBBF50F8F37D /* StorageLocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageLocationService.swift; sourceTree = "<group>"; };
 		56A3B78E8EB190BC8182F75D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		57D085B025399273934A1604 /* ItemDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemDetailView.swift; sourceTree = "<group>"; };
 		580B7916AE478AE77F867CE3 /* Tag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tag.swift; sourceTree = "<group>"; };
@@ -96,6 +101,7 @@
 		741830EF0AA17D23D8BBE055 /* InsightsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsViewModel.swift; sourceTree = "<group>"; };
 		7A469252C0F62EA27A5A96C8 /* FindlyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindlyApp.swift; sourceTree = "<group>"; };
 		809745529DEA4C7DC9EEB1F1 /* ItemCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemCardView.swift; sourceTree = "<group>"; };
+		8227ED791D6A94606AB65749 /* View+TransitionTitle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "View+TransitionTitle.swift"; sourceTree = "<group>"; };
 		822DA16CF0C9BB24C15E3165 /* BulkActionsBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkActionsBar.swift; sourceTree = "<group>"; };
 		8B58E0D4655102721AE63949 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		8EDE8EF48626A40A4867E9D6 /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
@@ -107,6 +113,7 @@
 		A1B2B87EFD21DE9F4894EBAB /* QuickImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickImportView.swift; sourceTree = "<group>"; };
 		A3DA326EC43F95CC7C7B5BF0 /* Color+Hex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Color+Hex.swift"; sourceTree = "<group>"; };
 		A496B85633FD9FB681F38542 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A4E2E1626C0B19F0385CFF50 /* OnboardingStorageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingStorageView.swift; sourceTree = "<group>"; };
 		A594E6A61DED205F48816ABF /* SearchResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchResultsView.swift; sourceTree = "<group>"; };
 		ADC24A6F90C1A4AAD331B50C /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
 		AE3E8DA5DA25BA347248F225 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -128,6 +135,7 @@
 		FEF3C39112C246BAF1639541 /* KnowledgeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeViewModel.swift; sourceTree = "<group>"; };
 		FEF8F5EB02E8EB39DC99EF9E /* HapticFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticFeedback.swift; sourceTree = "<group>"; };
 		FF2A4531F3BB3058974FF772 /* CameraPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPickerView.swift; sourceTree = "<group>"; };
+		F7A1B2C3D4E5F60789ABCDEF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -189,6 +197,7 @@
 			isa = PBXGroup;
 			children = (
 				67D4DF869163427802EE8585 /* LocalFileService.swift */,
+				552F7EBF8AA3BBBF50F8F37D /* StorageLocationService.swift */,
 			);
 			path = Storage;
 			sourceTree = "<group>";
@@ -221,6 +230,7 @@
 				775E31CABB6FB494B115870A /* Home */,
 				1CE9A90AAFB03956C8885E29 /* Insights */,
 				0B491C926D61807DBAE53F10 /* Knowledge */,
+				F3E5F74B206AD045F4210F93 /* Onboarding */,
 				8A0231F1A9CA16E8E70DA548 /* Settings */,
 			);
 			path = Features;
@@ -305,6 +315,7 @@
 				342AE5D98D2CBD2C1523BB42 /* Date+Formatting.swift */,
 				D2C9FD12A2438EE561CEA26E /* ShareSheet.swift */,
 				1335C3D7F72C8F503839676C /* View+Modifiers.swift */,
+				8227ED791D6A94606AB65749 /* View+TransitionTitle.swift */,
 			);
 			path = Extensions;
 			sourceTree = "<group>";
@@ -348,6 +359,7 @@
 		C4009FC8E2EBE8098B2B94F2 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				F7A1B2C3D4E5F60789ABCDEF /* Assets.xcassets */,
 				0A0C614A1977C53D6D5E7E65 /* Findly.entitlements */,
 				56A3B78E8EB190BC8182F75D /* Info.plist */,
 			);
@@ -361,6 +373,14 @@
 				F8D9947C70BE42F994FC6033 /* FindlyTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		F3E5F74B206AD045F4210F93 /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				A4E2E1626C0B19F0385CFF50 /* OnboardingStorageView.swift */,
+			);
+			path = Onboarding;
 			sourceTree = "<group>";
 		};
 		F75131BC2D9458437F02DE28 /* Auth */ = {
@@ -381,6 +401,7 @@
 			buildPhases = (
 				0DF31DA3D7152AEC43F51E8E /* Sources */,
 				F2652F432D8956BF37BEDF20 /* Frameworks */,
+				D5C6D7E8F91A2B3C4D5E6F70 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -423,7 +444,6 @@
 				LastUpgradeCheck = 1500;
 				TargetAttributes = {
 					8A36219C4895092FB13DC80D = {
-						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
 					};
 					C27AE7D6D298EB87156C313C = {
@@ -454,6 +474,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		D5C6D7E8F91A2B3C4D5E6F70 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E6B7C8D9EA1B2C3D4E5F6789 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		0DF31DA3D7152AEC43F51E8E /* Sources */ = {
@@ -491,6 +522,7 @@
 				015D50F7F6FC410731C8DD43 /* KnowledgeView.swift in Sources */,
 				EB69F3288161014949DCFBC1 /* KnowledgeViewModel.swift in Sources */,
 				8CC762F972744F50BB608C36 /* LocalFileService.swift in Sources */,
+				34468AC14BCB22C9533B18C1 /* OnboardingStorageView.swift in Sources */,
 				945BF8F83F406130B5874577 /* PersistenceController.swift in Sources */,
 				EF9B959CF041858E19B5DFAC /* QuickImportView.swift in Sources */,
 				7867D813C591F63589424DF6 /* RecentItemsSection.swift in Sources */,
@@ -500,6 +532,7 @@
 				39EBBD1388DE56462D6945BD /* SettingsView.swift in Sources */,
 				7DCAB226042752BD9824726A /* SettingsViewModel.swift in Sources */,
 				91AA50E69A6B96CEB165259E /* ShareSheet.swift in Sources */,
+				5C38BA9EEC8C859FBBCC47F0 /* StorageLocationService.swift in Sources */,
 				78F30436167726B68AEA9B23 /* SyncQueue.swift in Sources */,
 				F6261A48B6FE50A00A4958CA /* SyncService.swift in Sources */,
 				80E20AC5054168F6AEE8A2F0 /* SyncStatus.swift in Sources */,
@@ -510,6 +543,7 @@
 				50011D9B4AA8997CA3BF47A4 /* UploadFlowView.swift in Sources */,
 				8F60C2CEA1C8CCBDE63E1537 /* UploadFlowViewModel.swift in Sources */,
 				8E667A06AF94220ECBD811FB /* View+Modifiers.swift in Sources */,
+				39C7C0A31B2F2B1DB96E7F8D /* View+TransitionTitle.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -619,13 +653,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Findly/Resources/Findly.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 746D2K3RJV;
 				INFOPLIST_FILE = Findly/Resources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.findly.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.saivikas.findly;
 				SDKROOT = iphoneos;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
