@@ -59,9 +59,7 @@ struct SearchResultsView: View {
                                 .onTapGesture { onToggleSelect(item) }
                                 .padding(.horizontal, AppTheme.Spacing.base)
                         } else {
-                            NavigationLink(destination: ItemDetailView(item: item)
-                                .onAppear { onOpen(item) }
-                            ) {
+                            NavigationLink(destination: ItemDetailView(item: item)) {
                                 ItemCardView(item: item, style: .row)
                             }
                             .buttonStyle(.plain)

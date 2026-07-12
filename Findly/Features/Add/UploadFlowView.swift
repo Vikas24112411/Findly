@@ -13,6 +13,7 @@ struct ItemFormView: View {
 
     @State private var viewModel = ItemFormViewModel()
     @State private var showTagPicker = false
+    @State private var autoDismissTask: Task<Void, Error>? = nil
 
     var body: some View {
         NavigationStack {
@@ -174,6 +175,7 @@ struct ItemFormView: View {
                     .foregroundStyle(AppTheme.Colors.secondaryLabel)
                     .multilineTextAlignment(.center)
                 Button("Done") {
+                    autoDismissTask?.cancel()
                     dismiss()
                     onComplete()
                 }
@@ -186,8 +188,8 @@ struct ItemFormView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onChange(of: viewModel.savedItem) { _, item in
             guard item != nil else { return }
-            Task {
-                try? await Task.sleep(for: .seconds(2))
+            autoDismissTask = Task {
+                try await Task.sleep(for: .seconds(2))
                 dismiss()
                 onComplete()
             }

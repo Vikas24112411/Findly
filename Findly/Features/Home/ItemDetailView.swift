@@ -14,6 +14,7 @@ struct ItemDetailView: View {
     @State private var showQuickLook = false
     @State private var isDownloading = false
     @State private var downloadError: Error?
+    @State private var deleteError: Error?
     @State private var showDeleteConfirm = false
     @State private var showTagPicker = false
     @State private var shareURL: URL?
@@ -41,14 +42,14 @@ struct ItemDetailView: View {
                         HapticFeedback.light()
                     } label: {
                         Image(systemName: item.isPinned ? "pin.fill" : "pin")
-                            .foregroundStyle(item.isPinned ? .orange : AppTheme.Colors.secondaryLabel)
+                            .foregroundStyle(item.isPinned ? AppTheme.Colors.pinnedTint : AppTheme.Colors.secondaryLabel)
                     }
                     Button {
                         item.isFavorite.toggle()
                         try? modelContext.save()
                     } label: {
                         Image(systemName: item.isFavorite ? "heart.fill" : "heart")
-                            .foregroundStyle(item.isFavorite ? .pink : AppTheme.Colors.secondaryLabel)
+                            .foregroundStyle(item.isFavorite ? AppTheme.Colors.favoriteTint : AppTheme.Colors.secondaryLabel)
                     }
                 }
             }
@@ -68,7 +69,23 @@ struct ItemDetailView: View {
         } message: {
             Text("This will remove the file from your vault and Google Drive.")
         }
-        .onAppear {
+        .alert("Download Failed", isPresented: Binding(
+            get: { downloadError != nil },
+            set: { if !$0 { downloadError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(downloadError?.localizedDescription ?? "")
+        }
+        .alert("Delete Failed", isPresented: Binding(
+            get: { deleteError != nil },
+            set: { if !$0 { deleteError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(deleteError?.localizedDescription ?? "")
+        }
+        .task(id: item.id) {
             item.markOpened()
             try? modelContext.save()
         }
@@ -252,16 +269,29 @@ struct ItemDetailView: View {
             // Drive recovery: local file missing but Drive copy exists
             if !item.localFileAvailable && item.isUploaded {
                 Button {
-                    Task { try? await appContainer.sync.recoverFromDrive(item: item) }
+                    Task {
+                        isDownloading = true
+                        defer { isDownloading = false }
+                        do {
+                            try await appContainer.sync.recoverFromDrive(item: item)
+                        } catch {
+                            downloadError = error
+                        }
+                    }
                 } label: {
-                    Label("Download from Drive", systemImage: "icloud.and.arrow.down.fill")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, AppTheme.Spacing.medium)
-                        .background(AppTheme.Colors.secondaryBG)
-                        .foregroundStyle(AppTheme.Colors.accent)
-                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
-                        .font(AppTheme.Typography.headline)
+                    ZStack {
+                        Label("Download from Drive", systemImage: "icloud.and.arrow.down.fill")
+                            .opacity(isDownloading ? 0 : 1)
+                        if isDownloading { ProgressView() }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, AppTheme.Spacing.medium)
+                    .background(AppTheme.Colors.secondaryBG)
+                    .foregroundStyle(AppTheme.Colors.accent)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
+                    .font(AppTheme.Typography.headline)
                 }
+                .disabled(isDownloading)
             }
 
             // Drive backup: file is local-only; Drive available or not
@@ -328,8 +358,13 @@ struct ItemDetailView: View {
             Task { try? await appContainer.drive.deleteFile(driveFileID: driveID) }
         }
         modelContext.delete(item)
-        try? modelContext.save()
-        dismiss()
+        do {
+            try modelContext.save()
+            dismiss()
+        } catch {
+            deleteError = error
+            HapticFeedback.error()
+        }
     }
 }
 
