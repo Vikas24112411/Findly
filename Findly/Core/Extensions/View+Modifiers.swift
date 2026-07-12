@@ -241,12 +241,15 @@ struct InlineSearchBar: View {
             .background(AppTheme.Colors.tertiaryBG)
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
-            if isFocused.wrappedValue {
-                Button("Cancel") {
+            if isFocused.wrappedValue || !text.isEmpty {
+                Button {
                     text = ""
                     isFocused.wrappedValue = false
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
                 }
-                .foregroundStyle(AppTheme.Colors.accent)
                 .transition(.move(edge: .trailing).combined(with: .opacity))
             }
         }
