@@ -68,24 +68,27 @@ final class HomeViewModel {
         }
 
         isLoading = true
-        do {
+        Task { @MainActor in
+            await Task.yield()  // yield so SwiftUI can render the loading indicator
             let dateRange: ClosedRange<Date>? = {
-                guard let start = filterDateStart else { return nil }
-                let end = filterDateEnd ?? Date()
+                guard let start = self.filterDateStart else { return nil }
+                let end = self.filterDateEnd ?? Date()
                 return start <= end ? start...end : end...start
             }()
-            searchResults = try SearchService.search(
-                query: query,
-                tagFilter: selectedTag,
-                fileTypeFilter: selectedFileTypes.isEmpty ? nil : selectedFileTypes,
-                dateRange: dateRange,
-                sortOrder: sortOrder,
-                context: context
-            )
-        } catch {
-            searchResults = []
+            do {
+                self.searchResults = try SearchService.search(
+                    query: query,
+                    tagFilter: self.selectedTag,
+                    fileTypeFilter: self.selectedFileTypes.isEmpty ? nil : self.selectedFileTypes,
+                    dateRange: dateRange,
+                    sortOrder: self.sortOrder,
+                    context: context
+                )
+            } catch {
+                self.searchResults = []
+            }
+            self.isLoading = false
         }
-        isLoading = false
     }
 
     func submitSearch() {
@@ -152,6 +155,14 @@ final class HomeViewModel {
             context.insert(entry)
         }
         try? context.save()
+        // Prune to the most recent 50 entries
+        let all = (try? context.fetch(FetchDescriptor<SearchHistoryEntry>(
+            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+        ))) ?? []
+        if all.count > 50 {
+            all.dropFirst(50).forEach { context.delete($0) }
+            try? context.save()
+        }
         loadSearchHistory()
     }
 
@@ -207,6 +218,7 @@ final class HomeViewModel {
         for item in all where selectedIDs.contains(item.id) {
             if !item.tags.contains(where: { $0.id == tag.id }) {
                 item.tags.append(tag)
+                item.markModified()
             }
         }
         try? context.save()
@@ -223,6 +235,7 @@ final class HomeViewModel {
         let allFavorited = selectedItems.allSatisfy(\.isFavorite)
         for item in selectedItems {
             item.isFavorite = !allFavorited
+            item.markModified()
         }
         try? context.save()
         HapticFeedback.light()

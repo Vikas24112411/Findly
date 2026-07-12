@@ -27,11 +27,15 @@ extension Color {
     }
 
     /// Returns a CSS hex string representation (e.g. `"#4A90E2"`).
+    /// Forces sRGB conversion so wide-gamut (P3) colors don't produce all-zero channels.
     var hexString: String {
         let uiColor = UIColor(self)
+        let srgbColor = uiColor.resolvedColor(with: UITraitCollection(displayGamut: .SRGB))
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        uiColor.getRed(&r, green: &g, blue: &b, alpha: &a)
+        srgbColor.getRed(&r, green: &g, blue: &b, alpha: &a)
         return String(format: "#%02X%02X%02X",
-                      Int(r * 255), Int(g * 255), Int(b * 255))
+                      Int((r * 255).rounded()),
+                      Int((g * 255).rounded()),
+                      Int((b * 255).rounded()))
     }
 }

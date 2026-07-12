@@ -96,24 +96,50 @@ actor DriveUploadSession {
             request.setValue(range, forHTTPHeaderField: "Content-Range")
             request.httpBody = Data(chunk)
 
-            let (responseData, response) = try await urlSession.data(for: request)
-            guard let http = response as? HTTPURLResponse else {
-                throw DriveAPIError.uploadFailed("No HTTP response during chunk upload.")
+            // Retry up to 3 times for transient network errors and 5xx responses
+            var lastError: Error = DriveAPIError.uploadFailed("Upload chunk failed after retries.")
+            var responseData = Data()
+            var http: HTTPURLResponse?
+
+            for attempt in 0..<3 {
+                do {
+                    let (rd, response) = try await urlSession.data(for: request)
+                    responseData = rd
+                    http = response as? HTTPURLResponse
+                    if let code = http?.statusCode, code >= 500 {
+                        lastError = DriveAPIError.httpError(code, HTTPURLResponse.localizedString(forStatusCode: code))
+                        if attempt < 2 { try await Task.sleep(for: .seconds(Double(attempt + 1))) }
+                        continue
+                    }
+                    lastError = DriveAPIError.uploadFailed("unreachable")
+                    break
+                } catch let urlError as URLError {
+                    lastError = urlError
+                    if attempt < 2 { try await Task.sleep(for: .seconds(Double(attempt + 1))) }
+                }
             }
+            guard let httpResponse = http else { throw lastError }
 
             // 308 Resume Incomplete — chunk accepted, continue
             // 200/201 — upload complete
-            switch http.statusCode {
+            switch httpResponse.statusCode {
             case 200, 201:
                 let file = try JSONDecoder().decode(DriveUploadResponse.self, from: responseData)
                 onProgress(1.0)
                 return file.id
             case 308:
-                offset = end
-                onProgress(Double(end) / Double(total))
+                // Parse confirmed offset from Range header (e.g. "bytes=0-262143")
+                if let rangeHeader = httpResponse.value(forHTTPHeaderField: "Range"),
+                   let dashIdx = rangeHeader.lastIndex(of: "-"),
+                   let confirmed = Int(rangeHeader[rangeHeader.index(after: dashIdx)...]) {
+                    offset = confirmed + 1
+                } else {
+                    offset = end
+                }
+                onProgress(Double(offset) / Double(total))
             default:
-                throw DriveAPIError.httpError(http.statusCode,
-                    HTTPURLResponse.localizedString(forStatusCode: http.statusCode))
+                throw DriveAPIError.httpError(httpResponse.statusCode,
+                    HTTPURLResponse.localizedString(forStatusCode: httpResponse.statusCode))
             }
         }
         throw DriveAPIError.uploadFailed("Upload ended without a completion response.")

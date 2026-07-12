@@ -204,6 +204,9 @@ actor GoogleDriveService {
     private func validate(_ response: URLResponse) throws {
         guard let http = response as? HTTPURLResponse else { return }
         guard (200..<300).contains(http.statusCode) else {
+            if http.statusCode == 404 {
+                appFolderID = nil   // folder was deleted on Drive; force re-create on next upload
+            }
             throw DriveAPIError.httpError(http.statusCode, HTTPURLResponse.localizedString(forStatusCode: http.statusCode))
         }
     }
