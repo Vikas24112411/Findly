@@ -93,12 +93,10 @@ struct FilterSheetView: View {
                         .labelsHidden()
                     }
                 }
-            }
-            .navigationTitle("Filter & Sort")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Reset") {
+
+                // Reset
+                Section {
+                    Button("Reset Filters", role: .destructive) {
                         localTypes = []
                         localSort = .modifiedAt
                         localStart = nil
@@ -106,7 +104,14 @@ struct FilterSheetView: View {
                         enableStart = false
                         enableEnd = false
                     }
-                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .navigationTitle("Filter & Sort")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Apply") {

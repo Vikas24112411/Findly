@@ -111,7 +111,6 @@ struct TagNodeView: View {
         // Canvas receives the exact row bounds and draws lines at precise x positions.
         .background {
             if depth > 0 {
-                let hex = tag.colorHex
                 let d = depth
                 let step = stepWidth
                 Canvas { ctx, size in
@@ -121,9 +120,10 @@ struct TagNodeView: View {
                         var path = Path()
                         path.move(to: CGPoint(x: x, y: 0))
                         path.addLine(to: CGPoint(x: x, y: size.height))
-                        ctx.stroke(path, with: .color(Color(hex: hex).opacity(0.45)), lineWidth: 2)
+                        ctx.stroke(path, with: .color(Color(UIColor.separator).opacity(0.5)), lineWidth: 2)
                     }
                 }
+                .accessibilityHidden(true)
             }
         }
         .contentShape(Rectangle())

@@ -111,7 +111,6 @@ final class KnowledgeViewModel {
         context.insert(tag)
         if let parent {
             tag.parents.append(parent)
-            parent.children.append(tag)
         }
         try? context.save()
         loadRootTags()
@@ -136,9 +135,6 @@ final class KnowledgeViewModel {
         // self-referential relationships).
         if !parent.children.contains(where: { $0.id == child.id }) {
             parent.children.append(child)
-            if !child.parents.contains(where: { $0.id == parent.id }) {
-                child.parents.append(parent)
-            }
             try? context.save()
             loadRootTags()
         }

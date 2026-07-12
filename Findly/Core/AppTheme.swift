@@ -37,6 +37,10 @@ enum AppTheme {
         static let syncSyncing   = Color(hex: "#3498DB")
         static let syncSynced    = Color(hex: "#2ECC71")
         static let syncFailed    = Color(hex: "#E74C3C")
+
+        // Item state tints
+        static let pinnedTint    = Color(hex: "#F39C12")
+        static let favoriteTint  = Color(hex: "#E84393")
     }
 
     // MARK: - Typography

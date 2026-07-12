@@ -272,7 +272,7 @@ struct TagDetailSheet: View {
             }
             .background(AppTheme.Colors.groupedBG)
             .navigationTitle(tag.name)
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") { dismiss() }

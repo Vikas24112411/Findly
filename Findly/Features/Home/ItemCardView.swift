@@ -45,12 +45,12 @@ struct ItemCardView: View {
                         if item.isPinned {
                             Image(systemName: "pin.fill")
                                 .font(.caption2)
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(AppTheme.Colors.pinnedTint)
                         }
                         if item.isFavorite {
                             Image(systemName: "heart.fill")
                                 .font(.caption)
-                                .foregroundStyle(.pink)
+                                .foregroundStyle(AppTheme.Colors.favoriteTint)
                         }
                     }
                     .padding(6)
@@ -162,12 +162,12 @@ struct ItemCardView: View {
                     if item.isPinned {
                         Image(systemName: "pin.fill")
                             .font(.caption2)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(AppTheme.Colors.pinnedTint)
                     }
                     if item.isFavorite {
                         Image(systemName: "heart.fill")
                             .font(.caption2)
-                            .foregroundStyle(.pink)
+                            .foregroundStyle(AppTheme.Colors.favoriteTint)
                     }
                 }
             }
