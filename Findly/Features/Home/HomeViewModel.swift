@@ -137,7 +137,7 @@ final class HomeViewModel {
     func performSearch() {
         guard let context else { return }
         let query = searchText.trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty || selectedTag != nil else {
+        guard !query.isEmpty || selectedTag != nil || !selectedFileTypes.isEmpty else {
             searchResults = []
             return
         }
