@@ -31,7 +31,7 @@ struct FABView: View {
 
 // MARK: - Button style with spring press feedback
 
-private struct FABButtonStyle: ButtonStyle {
+struct FABButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.92 : 1.0)

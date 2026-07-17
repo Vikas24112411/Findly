@@ -11,6 +11,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: Tab = .home
     @State private var showAddSheet = false
+    @State private var showSearch = false
     @State private var lockManager = AppLockManager()
     @State private var showStoreRecoveryAlert = false
 
@@ -49,7 +50,7 @@ struct ContentView: View {
     }
 
     private var mainContent: some View {
-        ZStack(alignment: .bottomTrailing) {
+        ZStack(alignment: .bottom) {
             TabView(selection: $selectedTab) {
                 HomeView()
                     .tabItem { Label("Home", systemImage: "house") }
@@ -73,14 +74,46 @@ struct ContentView: View {
             }
             .tint(AppTheme.Colors.accent)
 
-            // Floating action button — overlaid above the tab bar
-            FABView(showSheet: $showAddSheet)
-                .padding(.trailing, AppTheme.Spacing.large)
-                .padding(.bottom, 90) // clear the tab bar
+            // Floating buttons — overlaid above the tab bar
+            HStack {
+                // Search FAB — left side
+                Button {
+                    HapticFeedback.medium()
+                    showSearch = true
+                } label: {
+                    ZStack {
+                        Circle()
+                            .fill(AppTheme.Colors.accent)
+                            .frame(width: 56, height: 56)
+                            .shadow(color: AppTheme.Shadow.fab.color,
+                                    radius: AppTheme.Shadow.fab.radius,
+                                    x: AppTheme.Shadow.fab.x,
+                                    y: AppTheme.Shadow.fab.y)
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
+                }
+                .buttonStyle(FABButtonStyle())
+                .accessibilityLabel("Search vault")
+                .padding(.leading, AppTheme.Spacing.large)
+
+                Spacer()
+
+                // Add FAB — right side
+                FABView(showSheet: $showAddSheet)
+                    .padding(.trailing, AppTheme.Spacing.large)
+            }
+            .padding(.bottom, 90)
         }
         .sheet(isPresented: $showAddSheet) {
             AddItemSheetView()
                 .environment(appContainer)
+        }
+        .fullScreenCover(isPresented: $showSearch) {
+            NavigationStack {
+                HomeSearchView()
+            }
         }
     }
 }
