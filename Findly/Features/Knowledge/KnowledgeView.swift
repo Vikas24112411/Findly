@@ -13,23 +13,24 @@ struct KnowledgeView: View {
     @State private var selectedTagForDetail: Tag? = nil
     @State private var tagToSetParentFor: Tag? = nil
     @State private var scrollOffset: CGFloat = 0
-    @FocusState private var searchFocused: Bool
+    @State private var showSearch = false
 
     var body: some View {
         NavigationStack {
             Group {
-                if viewModel.rootTags.isEmpty && viewModel.searchText.isEmpty {
+                if viewModel.rootTags.isEmpty {
                     emptyState
                 } else {
                     tagTree
                 }
             }
             .navTransitionTitle("Tags", progress: scrollProgress(from: scrollOffset))
-            .onChange(of: viewModel.searchText) { _, newValue in
-                viewModel.expandMatchingTags(query: newValue)
-            }
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button { showSearch = true } label: {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                    }
                     Button {
                         createChildFor = nil
                         showCreateSheet = true
@@ -37,6 +38,11 @@ struct KnowledgeView: View {
                         Image(systemName: "plus.circle.fill")
                             .foregroundStyle(AppTheme.Colors.accent)
                     }
+                }
+            }
+            .fullScreenCover(isPresented: $showSearch) {
+                NavigationStack {
+                    TagSearchView(viewModel: viewModel)
                 }
             }
             .onAppear {
@@ -83,53 +89,43 @@ struct KnowledgeView: View {
         ScrollView {
             VStack(spacing: 0) {
                 LargeTitleHeader(title: "Tags", progress: scrollProgress(from: scrollOffset))
-                LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
-                    Section {
-                        LazyVStack(spacing: 0) {
-                            let allTags = allNestedTags(from: viewModel.rootTags)
-                            ForEach(viewModel.filteredRootTags) { tag in
-                                TagNodeView(
-                                    tag: tag,
-                                    depth: 0,
-                                    allTags: allTags,
-                                    expandedIDs: $viewModel.expandedTagIDs,
-                                    onSelect: { selected in
-                                        viewModel.selectTag(selected)
-                                        selectedTagForDetail = selected
-                                    },
-                                    onCreateChild: { parent in
-                                        createChildFor = parent
-                                        newTagName = ""
-                                        showCreateSheet = true
-                                    },
-                                    onRename: { tag in
-                                        renameTag = tag
-                                        newTagName = tag.name
-                                    },
-                                    onDelete: { tag in
-                                        viewModel.deleteTag(tag)
-                                    },
-                                    onSetParent: { tag in
-                                        tagToSetParentFor = tag
-                                    },
-                                    onMakeTopLevel: { tag in
-                                        viewModel.makeTopLevel(tag)
-                                    }
-                                )
-                                Divider().padding(.leading, AppTheme.Spacing.base)
+                LazyVStack(spacing: 0) {
+                    let allTags = allNestedTags(from: viewModel.rootTags)
+                    ForEach(viewModel.rootTags) { tag in
+                        TagNodeView(
+                            tag: tag,
+                            depth: 0,
+                            allTags: allTags,
+                            expandedIDs: $viewModel.expandedTagIDs,
+                            onSelect: { selected in
+                                viewModel.selectTag(selected)
+                                selectedTagForDetail = selected
+                            },
+                            onCreateChild: { parent in
+                                createChildFor = parent
+                                newTagName = ""
+                                showCreateSheet = true
+                            },
+                            onRename: { tag in
+                                renameTag = tag
+                                newTagName = tag.name
+                            },
+                            onDelete: { tag in
+                                viewModel.deleteTag(tag)
+                            },
+                            onSetParent: { tag in
+                                tagToSetParentFor = tag
+                            },
+                            onMakeTopLevel: { tag in
+                                viewModel.makeTopLevel(tag)
                             }
-                        }
-                        .background(AppTheme.Colors.secondaryBG)
-                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
-                        .padding(AppTheme.Spacing.base)
-                    } header: {
-                        InlineSearchBar(
-                            text: $viewModel.searchText,
-                            prompt: "Search tags...",
-                            isFocused: $searchFocused
                         )
+                        Divider().padding(.leading, AppTheme.Spacing.base)
                     }
                 }
+                .background(AppTheme.Colors.secondaryBG)
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
+                .padding(AppTheme.Spacing.base)
             }
         }
         .background(AppTheme.Colors.groupedBG)
