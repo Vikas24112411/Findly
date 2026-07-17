@@ -12,8 +12,11 @@ struct ContentView: View {
     @State private var selectedTab: Tab = .home
     @State private var showAddSheet = false
     @State private var showSearch = false
+    @State private var showRadialMenu = false
     @State private var lockManager = AppLockManager()
     @State private var showStoreRecoveryAlert = false
+    @State private var fabDragPoint: CGPoint? = nil
+    @State private var fabDragEndTrigger: Int = 0
 
     var body: some View {
         ZStack {
@@ -51,6 +54,18 @@ struct ContentView: View {
 
     private var mainContent: some View {
         ZStack(alignment: .bottom) {
+            // Radial long-press menu overlay
+            if showRadialMenu {
+                RadialMenuView(
+                    isVisible: $showRadialMenu,
+                    dragPoint: fabDragPoint,
+                    dragEndTrigger: fabDragEndTrigger
+                )
+                .environment(appContainer)
+                .transition(.opacity)
+                .zIndex(10)
+            }
+
             TabView(selection: $selectedTab) {
                 HomeView()
                     .tabItem { Label("Home", systemImage: "house") }
@@ -101,8 +116,25 @@ struct ContentView: View {
                 Spacer()
 
                 // Add FAB — right side
-                FABView(showSheet: $showAddSheet)
-                    .padding(.trailing, AppTheme.Spacing.large)
+                FABView(
+                    showSheet: $showAddSheet,
+                    isRadialOpen: showRadialMenu,
+                    onLongPress: {
+                        withAnimation(AppTheme.Animation.fast) {
+                            showRadialMenu = true
+                        }
+                    },
+                    onDragChanged: { pt in
+                        guard showRadialMenu else { return }
+                        fabDragPoint = pt
+                    },
+                    onDragEnded: { pt in
+                        guard showRadialMenu else { return }
+                        fabDragPoint = pt
+                        fabDragEndTrigger += 1
+                    }
+                )
+                .padding(.trailing, AppTheme.Spacing.large)
             }
             .padding(.bottom, 90)
         }
