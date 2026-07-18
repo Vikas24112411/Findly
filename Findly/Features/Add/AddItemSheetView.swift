@@ -63,7 +63,8 @@ struct AddItemSheetView: View {
         .photosPicker(
             isPresented: $showPhotosPicker,
             selection: $selectedPhotoItem,
-            matching: .any(of: [.images, .videos])
+            matching: .any(of: [.images, .videos]),
+            preferredItemEncoding: .current
         )
         .onChange(of: selectedPhotoItem) { _, item in
             guard let item else { return }
@@ -205,7 +206,16 @@ struct AddItemSheetView: View {
         guard let data = try? await item.loadTransferable(type: Data.self) else { return }
         let isVideo = item.supportedContentTypes.contains(where: { $0.conforms(to: .movie) || $0.conforms(to: .video) })
         let fileType: FileType = isVideo ? .video : .image
-        let ext = isVideo ? "mp4" : "jpg"
+        // Detect the actual stored format so HEIC photos are not transcoded to JPEG.
+        // preferredItemEncoding: .current on the picker preserves the original format.
+        let ext: String
+        if isVideo {
+            ext = "mp4"
+        } else if item.supportedContentTypes.contains(where: { $0.identifier == "public.heic" }) {
+            ext = "heic"
+        } else {
+            ext = "jpg"
+        }
         let name = item.itemIdentifier ?? UUID().uuidString
 
         await MainActor.run {

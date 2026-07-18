@@ -194,7 +194,7 @@ struct AudioRecorderView: View {
                 .foregroundStyle(AppTheme.Colors.tertiaryLabel)
             Text("Microphone Access Required")
                 .font(AppTheme.Typography.headline)
-            Text("Findly needs microphone access to record audio. Please enable it in Settings.")
+            Text("Microphone access required. Enable in Settings.")
                 .font(AppTheme.Typography.body)
                 .foregroundStyle(AppTheme.Colors.secondaryLabel)
                 .multilineTextAlignment(.center)
