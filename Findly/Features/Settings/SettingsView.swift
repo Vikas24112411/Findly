@@ -42,12 +42,10 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 googleDriveSection
-                syncSection
                 preferencesSection
                 insightsSection
                 localStorageSection
                 dataSection
-                dangerZoneSection
                 aboutSection
             }
             .navigationTitle("Settings")
@@ -198,10 +196,28 @@ struct SettingsView: View {
                     }
                 }
 
-                Button(role: .destructive) {
-                    appContainer.auth.signOut()
+                HStack {
+                    Text("Status")
+                    Spacer()
+                    syncStatusIndicator
+                }
+
+                Toggle("Auto Sync", isOn: $viewModel.autoSyncEnabled)
+
+                Button {
+                    Task { await viewModel.manualSync(appContainer: appContainer) }
                 } label: {
-                    Text("Disconnect")
+                    HStack {
+                        if appContainer.sync.isSyncing {
+                            ProgressView().scaleEffect(0.8)
+                        }
+                        Text("Sync Now")
+                    }
+                }
+                .disabled(appContainer.sync.isSyncing)
+
+                Button("Disconnect", role: .destructive) {
+                    appContainer.auth.signOut()
                 }
             } else {
                 Button {
@@ -226,37 +242,6 @@ struct SettingsView: View {
             Text(appContainer.auth.isAuthenticated
                  ? "Backed up to your Google Drive."
                  : "Optional. Back up your files to Google Drive.")
-        }
-    }
-
-    // MARK: - Sync
-
-    private var syncSection: some View {
-        Section("Sync") {
-            if appContainer.auth.isAuthenticated {
-                HStack {
-                    Text("Status")
-                    Spacer()
-                    syncStatusIndicator
-                }
-
-                Toggle("Auto Sync", isOn: $viewModel.autoSyncEnabled)
-
-                Button {
-                    Task { await viewModel.manualSync(appContainer: appContainer) }
-                } label: {
-                    HStack {
-                        if appContainer.sync.isSyncing {
-                            ProgressView().scaleEffect(0.8)
-                        }
-                        Text("Sync Now")
-                    }
-                }
-                .disabled(appContainer.sync.isSyncing)
-            } else {
-                Text("Stored on this device")
-                    .foregroundStyle(.secondary)
-            }
         }
     }
 
