@@ -10,6 +10,7 @@ struct ItemDetailView: View {
 
     let item: Item
 
+    @State private var thumbnail: UIImage?
     @State private var quickLookURL: URL?
     @State private var showQuickLook = false
     @State private var isDownloading = false
@@ -88,6 +89,12 @@ struct ItemDetailView: View {
         .task(id: item.id) {
             item.markOpened()
             try? modelContext.save()
+            if let data = item.thumbnailData {
+                let id = item.id
+                thumbnail = await Task.detached(priority: .userInitiated) {
+                    ThumbnailCache.shared.image(for: id, data: data, targetSize: CGSize(width: 400, height: 300))
+                }.value
+            }
         }
     }
 
@@ -100,7 +107,7 @@ struct ItemDetailView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 220)
 
-            if let data = item.thumbnailData, let ui = UIImage(data: data) {
+            if let ui = thumbnail {
                 Image(uiImage: ui)
                     .resizable()
                     .scaledToFill()
@@ -387,10 +394,29 @@ struct TagPickerSheet: View {
         return unassigned.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
     }
 
+    private var canCreate: Bool {
+        !searchText.isEmpty &&
+        !allTags.contains { $0.name.lowercased() == searchText.lowercased() }
+    }
+
     var body: some View {
         NavigationStack {
             List {
-                if availableTags.isEmpty {
+                if canCreate {
+                    Button {
+                        let colors = ["#3498DB", "#E74C3C", "#2ECC71", "#F39C12", "#9B59B6", "#1ABC9C"]
+                        let hex = colors.randomElement() ?? "#3498DB"
+                        let tag = Tag(name: searchText, colorHex: hex, sfSymbol: "tag.fill")
+                        modelContext.insert(tag)
+                        try? modelContext.save()
+                        onAdd(tag)
+                        dismiss()
+                    } label: {
+                        Label("Create \"\(searchText)\"", systemImage: "plus.circle.fill")
+                            .foregroundStyle(AppTheme.Colors.accent)
+                    }
+                }
+                if availableTags.isEmpty && !canCreate {
                     Text(allTags.isEmpty ? "No tags created yet." : "All tags are already assigned.")
                         .foregroundStyle(AppTheme.Colors.secondaryLabel)
                         .listRowBackground(Color.clear)
@@ -412,7 +438,7 @@ struct TagPickerSheet: View {
                     }
                 }
             }
-            .searchable(text: $searchText, prompt: "Search tags...")
+            .searchable(text: $searchText, prompt: "Search or create tag...")
             .navigationTitle("Add Tag")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

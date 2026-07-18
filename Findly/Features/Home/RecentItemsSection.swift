@@ -11,10 +11,10 @@ struct RecentItemsSection: View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
             SectionHeader(title: title)
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: AppTheme.Spacing.medium) {
+                LazyHStack(spacing: AppTheme.Spacing.medium) {
                     ForEach(items) { item in
                         NavigationLink(destination: ItemDetailView(item: item)) {
-                            compactCard(for: item)
+                            RecentItemCard(item: item)
                         }
                         .buttonStyle(.plain)
                     }
@@ -23,8 +23,16 @@ struct RecentItemsSection: View {
             }
         }
     }
+}
 
-    private func compactCard(for item: Item) -> some View {
+// MARK: - Card
+
+private struct RecentItemCard: View {
+
+    let item: Item
+    @State private var thumbnail: UIImage?
+
+    var body: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
             // Thumbnail or type icon
             ZStack {
@@ -32,8 +40,7 @@ struct RecentItemsSection: View {
                     .fill(item.fileType.tintColor.opacity(0.12))
                     .frame(width: 140, height: 100)
 
-                if let thumbData = item.thumbnailData,
-                   let uiImage = UIImage(data: thumbData) {
+                if let uiImage = thumbnail {
                     Image(uiImage: uiImage)
                         .resizable()
                         .scaledToFill()
@@ -62,6 +69,13 @@ struct RecentItemsSection: View {
                 SyncStatusBadge(status: item.syncStatus)
             }
             .frame(width: 140)
+        }
+        .task(id: item.id) {
+            guard thumbnail == nil, let data = item.thumbnailData else { return }
+            let id = item.id
+            thumbnail = await Task.detached(priority: .userInitiated) {
+                ThumbnailCache.shared.image(for: id, data: data, targetSize: CGSize(width: 140, height: 100))
+            }.value
         }
     }
 }

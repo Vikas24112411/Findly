@@ -51,19 +51,25 @@ final class ItemFormViewModel {
             item.itemDescription = itemDescription
             item.tags = Array(selectedTags)
 
-            // 2. Generate thumbnail for images and PDFs (before storage write)
-            if upload.fileType == .image, let uiImage = UIImage(data: upload.data) {
-                item.thumbnailData = uiImage.jpegData(compressionQuality: 0.5)
-            } else if upload.fileType == .pdf,
-                      let doc = PDFDocument(data: upload.data),
-                      let page = doc.page(at: 0) {
-                let bounds = page.bounds(for: .mediaBox)
-                let scale = 200.0 / bounds.width
-                let renderer = UIGraphicsImageRenderer(
-                    size: CGSize(width: 200, height: bounds.height * scale)
-                )
-                let image = renderer.image { ctx in page.draw(with: .mediaBox, to: ctx.cgContext) }
-                item.thumbnailData = image.jpegData(compressionQuality: 0.5)
+            // 2. Generate thumbnail off the main actor so we don't block the UI,
+            //    and so the full-res UIImage is released before the storage await.
+            if upload.fileType == .image {
+                let data = upload.data
+                item.thumbnailData = await Task.detached(priority: .userInitiated) {
+                    ThumbnailCache.makeThumbnailData(data)
+                }.value
+            } else if upload.fileType == .pdf {
+                let data = upload.data
+                item.thumbnailData = await Task.detached(priority: .userInitiated) {
+                    guard let doc = PDFDocument(data: data), let page = doc.page(at: 0) else { return nil }
+                    let bounds = page.bounds(for: .mediaBox)
+                    let scale = 200.0 / bounds.width
+                    let renderer = UIGraphicsImageRenderer(
+                        size: CGSize(width: 200, height: bounds.height * scale)
+                    )
+                    let image = renderer.image { ctx in page.draw(with: .mediaBox, to: ctx.cgContext) }
+                    return image.jpegData(compressionQuality: 0.5)
+                }.value
             }
 
             // 3. Save to local storage first (always)
@@ -83,16 +89,18 @@ final class ItemFormViewModel {
             }
             item.localFilePath = relativePath
 
-            // 3b. Generate video thumbnail from written file
+            // 3b. Generate video thumbnail from written file (off main actor —
+            //     copyCGImage is synchronous and can be slow on large files).
             if upload.fileType == .video {
                 let fileURL = await localStorage.fileURL(relativePath: relativePath)
-                let asset = AVURLAsset(url: fileURL)
-                let generator = AVAssetImageGenerator(asset: asset)
-                generator.appliesPreferredTrackTransform = true
-                generator.maximumSize = CGSize(width: 400, height: 400)
-                if let cgImage = try? generator.copyCGImage(at: .zero, actualTime: nil) {
-                    item.thumbnailData = UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.5)
-                }
+                item.thumbnailData = await Task.detached(priority: .userInitiated) {
+                    let asset = AVURLAsset(url: fileURL)
+                    let generator = AVAssetImageGenerator(asset: asset)
+                    generator.appliesPreferredTrackTransform = true
+                    generator.maximumSize = CGSize(width: 400, height: 400)
+                    guard let cgImage = try? generator.copyCGImage(at: .zero, actualTime: nil) else { return nil }
+                    return UIImage(cgImage: cgImage).jpegData(compressionQuality: 0.5)
+                }.value
             }
 
             // 4. Set sync status based on Drive connection
@@ -101,6 +109,7 @@ final class ItemFormViewModel {
             // 5. Persist to SwiftData
             context.insert(item)
             try context.save()
+            NotificationCenter.default.post(name: .itemSaved, object: nil)
             savedItem = item
             isSaving = false
             HapticFeedback.success()

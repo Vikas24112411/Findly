@@ -8,15 +8,29 @@ struct ItemCardView: View {
     var isSelectMode: Bool = false
     var isSelected: Bool = false
 
+    @State private var thumbnail: UIImage?
+
     enum Style {
         case grid   // Rounded card with thumbnail
         case row    // Horizontal list row
     }
 
     var body: some View {
-        switch style {
-        case .grid:  gridCard
-        case .row:   rowCard
+        Group {
+            switch style {
+            case .grid:  gridCard
+            case .row:   rowCard
+            }
+        }
+        .task(id: item.id) {
+            guard thumbnail == nil, let data = item.thumbnailData else { return }
+            let id = item.id
+            let targetSize: CGSize = style == .grid
+                ? CGSize(width: 200, height: 150)
+                : CGSize(width: 48, height: 48)
+            thumbnail = await Task.detached(priority: .userInitiated) {
+                ThumbnailCache.shared.image(for: id, data: data, targetSize: targetSize)
+            }.value
         }
     }
 
@@ -29,7 +43,7 @@ struct ItemCardView: View {
                 .fill(item.fileType.tintColor.opacity(0.10))
                 .aspectRatio(4/3, contentMode: .fit)
                 .overlay {
-                    if let data = item.thumbnailData, let ui = UIImage(data: data) {
+                    if let ui = thumbnail {
                         Image(uiImage: ui)
                             .resizable()
                             .scaledToFill()
@@ -123,7 +137,7 @@ struct ItemCardView: View {
                     .fill(item.fileType.tintColor.opacity(0.12))
                     .frame(width: 48, height: 48)
 
-                if let data = item.thumbnailData, let ui = UIImage(data: data) {
+                if let ui = thumbnail {
                     Image(uiImage: ui)
                         .resizable()
                         .scaledToFill()

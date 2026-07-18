@@ -136,8 +136,8 @@ struct QuickImportView: View {
                 )
 
                 // Generate thumbnail for images
-                if ft == .image, let ui = UIImage(data: data) {
-                    item.thumbnailData = ui.jpegData(compressionQuality: 0.5)
+                if ft == .image {
+                    item.thumbnailData = ThumbnailCache.makeThumbnailData(data)
                 }
 
                 if let relativePath = try? await appContainer.localStorage.write(
