@@ -12,6 +12,9 @@ struct RadialMenuView: View {
     var dragPoint: CGPoint? = nil
     /// Increments each time a drag gesture ends; triggers option selection and menu close.
     var dragEndTrigger: Int = 0
+    /// Called immediately when the user commits to an option (before the picker opens),
+    /// so the parent can reset the FAB icon without waiting for the full picker flow to finish.
+    var onOptionCommitted: (() -> Void)? = nil
 
     @Environment(AppContainer.self) private var appContainer
     @Environment(\.modelContext) private var modelContext
@@ -78,6 +81,7 @@ struct RadialMenuView: View {
             if let idx = hoverState.confirmedIndex {
                 // Past dead zone — commit the selection
                 HapticFeedback.light()
+                onOptionCommitted?()
                 dismissMenuVisual()
                 handleOption(options[idx])
             } else {
@@ -145,7 +149,11 @@ struct RadialMenuView: View {
                 showLinkComposer = false
             }
         }
-        .fullScreenCover(isPresented: $showCameraPicker) {
+        .fullScreenCover(isPresented: $showCameraPicker, onDismiss: {
+            // Safety net: if the cover is dismissed without going through onCancel
+            // (e.g. by a system gesture), ensure the menu is closed.
+            if pendingUpload == nil { isVisible = false }
+        }) {
             CameraPickerView(
                 onResult: { result in
                     showCameraPicker = false
@@ -177,6 +185,7 @@ struct RadialMenuView: View {
             .ignoresSafeArea()
             .onTapGesture { dismissAndClose() }
             .opacity(isDismissing ? 0 : 1)
+            .allowsHitTesting(!isDismissing)
             .animation(.easeOut(duration: 0.15), value: isDismissing)
     }
 
@@ -224,6 +233,7 @@ struct RadialMenuView: View {
         let labelWeight: Font.Weight = isConfirmed ? .semibold : .medium
 
         Button {
+            onOptionCommitted?()
             dismissMenuVisual()
             handleOption(option)
         } label: {

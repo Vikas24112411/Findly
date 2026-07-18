@@ -13,6 +13,7 @@ struct ContentView: View {
     @State private var showAddSheet = false
     @State private var showSearch = false
     @State private var showRadialMenu = false
+    @State private var fabIconRotated = false
     @State private var lockManager = AppLockManager()
     @State private var showStoreRecoveryAlert = false
     @State private var fabDragPoint: CGPoint? = nil
@@ -30,6 +31,9 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: lockManager.isLocked)
+        .onChange(of: showRadialMenu) { _, newValue in
+            if !newValue { fabIconRotated = false }
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background && appLockEnabled {
                 lockManager.lock()
@@ -48,7 +52,7 @@ struct ContentView: View {
         .alert("Database Recovery", isPresented: $showStoreRecoveryAlert) {
             Button("OK") {}
         } message: {
-            Text("The database couldn't be migrated to the latest format. A backup was saved to your device and your vault has been reset. Please contact support if you need help recovering your data.")
+            Text("The database couldn't be migrated. A backup was saved and your vault has been reset. Contact support to recover your data.")
         }
     }
 
@@ -59,7 +63,12 @@ struct ContentView: View {
                 RadialMenuView(
                     isVisible: $showRadialMenu,
                     dragPoint: fabDragPoint,
-                    dragEndTrigger: fabDragEndTrigger
+                    dragEndTrigger: fabDragEndTrigger,
+                    onOptionCommitted: {
+                        withAnimation(AppTheme.Animation.snappy) {
+                            fabIconRotated = false
+                        }
+                    }
                 )
                 .environment(appContainer)
                 .transition(.opacity)
@@ -118,10 +127,11 @@ struct ContentView: View {
                 // Add FAB — right side
                 FABView(
                     showSheet: $showAddSheet,
-                    isRadialOpen: showRadialMenu,
+                    isRadialOpen: fabIconRotated,
                     onLongPress: {
                         withAnimation(AppTheme.Animation.fast) {
                             showRadialMenu = true
+                            fabIconRotated = true
                         }
                     },
                     onDragChanged: { pt in

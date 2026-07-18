@@ -77,6 +77,12 @@ struct FABView: View {
                     }
                 }
         )
+        .onDisappear {
+            longPressTimer?.invalidate()
+            longPressTimer = nil
+            longPressConsumed = false
+            isPressed = false
+        }
         .accessibilityLabel("Add item")
     }
 }
