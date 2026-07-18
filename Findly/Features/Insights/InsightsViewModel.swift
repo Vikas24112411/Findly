@@ -60,12 +60,19 @@ final class InsightsViewModel {
 
     private var context: ModelContext?
 
+    // Shared DateFormatter — allocated once instead of on every loadAll() call.
+    private static let dayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE"
+        return f
+    }()
+
     func setup(context: ModelContext) {
         self.context = context
-        loadAll()
+        Task { await loadAll() }
     }
 
-    func loadAll() {
+    func loadAll() async {
         guard let context else { return }
         let allItems = (try? context.fetch(FetchDescriptor<Item>())) ?? []
         let allTags  = (try? context.fetch(FetchDescriptor<Tag>())) ?? []
@@ -81,6 +88,9 @@ final class InsightsViewModel {
             let count = grouped[ft]?.count ?? 0
             return count > 0 ? (ft, count) : nil
         }.sorted { $0.count > $1.count }
+
+        // Yield so other UI updates can run before the next batch of computation.
+        await Task.yield()
 
         // Top tags by item count — build a flat count map (O(I×T)) instead of recursive traversal
         var tagItemCounts: [UUID: Int] = [:]
@@ -113,16 +123,17 @@ final class InsightsViewModel {
             .prefix(20)
             .map { $0 }
 
-        // Activity: files added per day over the last 7 days
+        await Task.yield()
+
+        // Activity: files added per day over the last 7 days.
+        // Single O(n) grouping pass replaces the previous 7 × O(n) filter loop.
         let calendar = Calendar.current
         let today = Date()
-        let dayFormatter = DateFormatter()
-        dayFormatter.dateFormat = "EEE"
+        let itemsByDay = Dictionary(grouping: allItems) { calendar.startOfDay(for: $0.createdAt) }
         weeklyActivity = (0..<7).reversed().compactMap { daysAgo -> (String, Int)? in
             guard let date = calendar.date(byAdding: .day, value: -daysAgo, to: today) else { return nil }
-            let label = dayFormatter.string(from: date)
-            let count = allItems.filter { calendar.isDate($0.createdAt, inSameDayAs: date) }.count
-            return (label, count)
+            let day = calendar.startOfDay(for: date)
+            return (Self.dayFormatter.string(from: date), itemsByDay[day]?.count ?? 0)
         }
 
         // Storage growth — cumulative vault size by month
@@ -143,6 +154,8 @@ final class InsightsViewModel {
             let bytes = sizeGrouped[ft]?.reduce(0) { $0 + $1.fileSize } ?? 0
             return bytes > 0 ? (ft, bytes) : nil
         }.sorted { $0.bytes > $1.bytes }
+
+        await Task.yield()
 
         // Tag heatmap — top 6 tags × last 6 months
         let heatTagSet = Set(topTags.prefix(6).map { $0.tag.id })

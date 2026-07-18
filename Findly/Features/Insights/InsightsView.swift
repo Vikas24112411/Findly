@@ -42,7 +42,7 @@ struct InsightsView: View {
                 viewModel.setup(context: modelContext)
             }
             .refreshable {
-                viewModel.loadAll()
+                await viewModel.loadAll()
             }
         }
     }

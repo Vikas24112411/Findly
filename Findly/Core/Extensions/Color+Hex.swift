@@ -1,9 +1,18 @@
 import SwiftUI
 
 extension Color {
+    // Cache parsed UIColors by their normalized hex string to avoid allocating a Scanner on every render.
+    private static var hexCache: [String: UIColor] = [:]
+
     /// Creates a `Color` from a CSS-style hex string (e.g. `"#4A90E2"` or `"4A90E2"`).
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+
+        if let cached = Color.hexCache[hex] {
+            self = Color(cached)
+            return
+        }
+
         var int: UInt64 = 0
         Scanner(string: hex).scanHexInt64(&int)
         let a, r, g, b: UInt64
@@ -17,6 +26,13 @@ extension Color {
         default:
             (a, r, g, b) = (255, 0, 0, 0)
         }
+        let uiColor = UIColor(
+            red:   CGFloat(r) / 255,
+            green: CGFloat(g) / 255,
+            blue:  CGFloat(b) / 255,
+            alpha: CGFloat(a) / 255
+        )
+        Color.hexCache[hex] = uiColor
         self.init(
             .sRGB,
             red:   Double(r) / 255,
