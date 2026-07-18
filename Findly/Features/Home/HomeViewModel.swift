@@ -124,9 +124,23 @@ final class HomeViewModel {
 
     private var context: ModelContext?
 
+    // MARK: - In-flight search task (for debounce)
+
+    private var searchTask: Task<Void, Never>?
+
     // MARK: - Init
 
-    private var vaultWipedObserver: NSObjectProtocol?
+    private nonisolated(unsafe) var vaultWipedObserver: NSObjectProtocol?
+    private nonisolated(unsafe) var itemSavedObserver: NSObjectProtocol?
+
+    deinit {
+        if let observer = vaultWipedObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = itemSavedObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
 
     func setup(context: ModelContext) {
         self.context = context
@@ -149,22 +163,37 @@ final class HomeViewModel {
                 self?.searchResults = []
             }
         }
+        itemSavedObserver = NotificationCenter.default.addObserver(
+            forName: .itemSaved,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.loadHomeSections()
+            }
+        }
     }
 
 
     // MARK: - Search
 
     func performSearch() {
+        searchTask?.cancel()
         guard let context else { return }
         let query = searchText.trimmingCharacters(in: .whitespaces)
         guard !query.isEmpty || selectedTag != nil || !selectedFileTypes.isEmpty else {
             searchResults = []
             return
         }
-
         isLoading = true
-        Task { @MainActor in
-            await Task.yield()  // yield so SwiftUI can render the loading indicator
+        searchTask = Task { @MainActor in
+            // 250 ms debounce — cancel and restart on each keystroke so we only
+            // hit the DB after the user pauses, not on every character typed.
+            try? await Task.sleep(for: .milliseconds(250))
+            guard !Task.isCancelled else {
+                self.isLoading = false
+                return
+            }
             let dateRange: ClosedRange<Date>? = {
                 guard let start = self.filterDateStart else { return nil }
                 let end = self.filterDateEnd ?? Date()
@@ -251,12 +280,16 @@ final class HomeViewModel {
             context.insert(entry)
         }
         try? context.save()
-        // Prune to the most recent 50 entries
-        let all = (try? context.fetch(FetchDescriptor<SearchHistoryEntry>(
-            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
-        ))) ?? []
-        if all.count > 50 {
-            all.dropFirst(50).forEach { context.delete($0) }
+        // Prune to the most recent 50 entries — use fetchCount first to avoid
+        // loading all entries when no pruning is needed.
+        let count = (try? context.fetchCount(FetchDescriptor<SearchHistoryEntry>())) ?? 0
+        if count > 50 {
+            var pruneDesc = FetchDescriptor<SearchHistoryEntry>(
+                sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+            )
+            pruneDesc.fetchOffset = 50
+            let toDelete = (try? context.fetch(pruneDesc)) ?? []
+            toDelete.forEach { context.delete($0) }
             try? context.save()
         }
         loadSearchHistory()
@@ -267,7 +300,12 @@ final class HomeViewModel {
     func openItem(_ item: Item) {
         item.markOpened()
         try? context?.save()
-        loadHomeSections()
+        // Defer the 4-fetch home section reload to after the navigation push
+        // completes so it doesn't block the transition animation.
+        Task { @MainActor in
+            await Task.yield()
+            self.loadHomeSections()
+        }
     }
 
 }

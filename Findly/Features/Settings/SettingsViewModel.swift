@@ -8,6 +8,7 @@ import SwiftData
 // with stale references that would crash on deleted-object attribute access.
 extension Notification.Name {
     static let vaultDataWiped = Notification.Name("FindlyVaultDataWiped")
+    static let itemSaved = Notification.Name("FindlyItemSaved")
 }
 
 @Observable

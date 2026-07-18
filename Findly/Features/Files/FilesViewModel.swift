@@ -42,7 +42,17 @@ final class FilesViewModel {
 
     // MARK: - Setup
 
-    private var vaultWipedObserver: NSObjectProtocol?
+    private nonisolated(unsafe) var vaultWipedObserver: NSObjectProtocol?
+    private nonisolated(unsafe) var itemSavedObserver: NSObjectProtocol?
+
+    deinit {
+        if let observer = vaultWipedObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = itemSavedObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
 
     func setup(context: ModelContext) {
         self.context = context
@@ -57,6 +67,15 @@ final class FilesViewModel {
                 self?.items = []
                 self?.currentOffset = 0
                 self?.hasMorePages = true
+            }
+        }
+        itemSavedObserver = NotificationCenter.default.addObserver(
+            forName: .itemSaved,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.resetAndReload()
             }
         }
     }
