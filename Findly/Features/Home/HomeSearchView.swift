@@ -156,35 +156,35 @@ struct HomeSearchView: View {
     private var suggestionsSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
             SectionHeader(title: "Browse by Type")
-            LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: AppTheme.Spacing.xSmall), count: 5),
-                spacing: AppTheme.Spacing.small
-            ) {
-                ForEach(FileType.allCases.filter { $0 != .other }, id: \.self) { type in
-                    Button {
-                        viewModel.resetFilters()
-                        viewModel.selectedFileTypes = [type]
-                        viewModel.performSearch()
-                    } label: {
-                        VStack(spacing: 4) {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous)
-                                    .fill(type.tintColor.opacity(0.15))
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: AppTheme.Spacing.small) {
+                    ForEach(FileType.allCases.filter { $0 != .other }, id: \.self) { type in
+                        Button {
+                            viewModel.resetFilters()
+                            viewModel.selectedFileTypes = [type]
+                            viewModel.performSearch()
+                        } label: {
+                            HStack(spacing: 6) {
                                 Image(systemName: type.sfSymbol)
-                                    .font(.system(size: 14, weight: .medium))
+                                    .font(.system(size: 13, weight: .medium))
                                     .foregroundStyle(type.tintColor)
+                                    .frame(width: 26, height: 26)
+                                    .background(type.tintColor.opacity(0.12),
+                                                in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+                                Text(type.displayName)
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(AppTheme.Colors.label)
                             }
-                            .aspectRatio(1, contentMode: .fit)
-                            Text(type.displayName)
-                                .font(.system(size: 9, weight: .medium))
-                                .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                                .lineLimit(1)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(type.tintColor.opacity(0.08),
+                                        in: RoundedRectangle(cornerRadius: AppTheme.Radius.full, style: .continuous))
                         }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
+                .padding(.horizontal, AppTheme.Spacing.base)
             }
-            .padding(.horizontal, AppTheme.Spacing.base)
         }
     }
 
@@ -212,7 +212,7 @@ struct HomeSearchView: View {
             }
             .padding(.horizontal, AppTheme.Spacing.medium)
             .padding(.vertical, 10)
-            .background(Color(.systemBackground),
+            .background(Color(.tertiarySystemBackground),
                         in: RoundedRectangle(cornerRadius: AppTheme.Radius.full, style: .continuous))
             .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 2)
             .animation(.easeInOut(duration: 0.15), value: viewModel.searchText.isEmpty)
@@ -222,7 +222,7 @@ struct HomeSearchView: View {
             } label: {
                 ZStack {
                     Circle()
-                        .fill(Color(.systemBackground))
+                        .fill(Color(.tertiarySystemBackground))
                         .frame(width: 36, height: 36)
                     Image(systemName: "xmark")
                         .font(.system(size: 13, weight: .semibold))

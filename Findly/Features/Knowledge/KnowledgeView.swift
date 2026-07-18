@@ -138,7 +138,7 @@ struct KnowledgeView: View {
         EmptyStateView(
             symbol: "tag.slash",
             title: "No tags yet",
-            subtitle: "Create tags to organize your knowledge into a searchable hierarchy.",
+            subtitle: "Use tags to organize and find your files.",
             actionLabel: "Create First Tag"
         ) {
             showCreateSheet = true

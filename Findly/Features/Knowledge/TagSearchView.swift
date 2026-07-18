@@ -28,17 +28,6 @@ struct TagSearchView: View {
         .background(AppTheme.Colors.groupedBG)
         .navigationTitle("Search Tags")
         .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    viewModel.searchText = ""
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                }
-            }
-        }
         .onChange(of: viewModel.searchText) { _, newValue in
             viewModel.expandMatchingTags(query: newValue)
         }
@@ -179,42 +168,46 @@ struct TagSearchView: View {
     // MARK: - Bottom search bar
 
     private var bottomSearchBar: some View {
-        VStack(spacing: 0) {
-            Divider()
+        HStack(spacing: AppTheme.Spacing.small) {
             HStack(spacing: AppTheme.Spacing.small) {
-                HStack(spacing: AppTheme.Spacing.small) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(searchFocused ? AppTheme.Colors.accent : AppTheme.Colors.tertiaryLabel)
-                    TextField("Search tags...", text: $viewModel.searchText)
-                        .focused($searchFocused)
-                        .submitLabel(.search)
-                    if !viewModel.searchText.isEmpty {
-                        Button {
-                            viewModel.searchText = ""
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(AppTheme.Colors.tertiaryLabel)
-                        }
-                        .transition(.scale(scale: 0.7).combined(with: .opacity))
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                TextField("Search tags...", text: $viewModel.searchText)
+                    .focused($searchFocused)
+                    .submitLabel(.search)
+                if !viewModel.searchText.isEmpty {
+                    Button {
+                        viewModel.searchText = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(AppTheme.Colors.tertiaryLabel)
                     }
+                    .transition(.scale(scale: 0.7).combined(with: .opacity))
                 }
-                .padding(AppTheme.Spacing.small)
-                .background(AppTheme.Colors.tertiaryBG)
-                .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 13, style: .continuous)
-                        .strokeBorder(
-                            searchFocused ? AppTheme.Colors.accent : Color.clear,
-                            lineWidth: 1.5
-                        )
-                )
-                .animation(.easeInOut(duration: 0.2), value: searchFocused)
-                .animation(.easeInOut(duration: 0.15), value: viewModel.searchText.isEmpty)
             }
-            .padding(.horizontal, AppTheme.Spacing.base)
-            .padding(.vertical, AppTheme.Spacing.small)
-            .background(.regularMaterial)
+            .padding(.horizontal, AppTheme.Spacing.medium)
+            .padding(.vertical, 10)
+            .background(Color(.tertiarySystemBackground),
+                        in: RoundedRectangle(cornerRadius: AppTheme.Radius.full, style: .continuous))
+            .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 2)
+            .animation(.easeInOut(duration: 0.15), value: viewModel.searchText.isEmpty)
+
+            Button {
+                viewModel.searchText = ""
+                dismiss()
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(Color(.tertiarySystemBackground))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                }
+            }
         }
+        .padding(.horizontal, AppTheme.Spacing.base)
+        .padding(.vertical, AppTheme.Spacing.small)
     }
 
     // MARK: - Create tag sheet
