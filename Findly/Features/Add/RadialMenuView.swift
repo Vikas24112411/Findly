@@ -23,8 +23,8 @@ struct RadialMenuView: View {
     /// Three-level hover state for drag-to-select feedback.
     private enum HoverState: Equatable {
         case none
-        case pending(Int)    // inside dead zone (0–60 pt) — soft preview, does NOT commit on release
-        case confirmed(Int)  // past dead zone (≥60 pt) — full highlight, commits on release
+        case pending(Int)    // inside dead zone (0–52 pt) — soft preview, does NOT commit on release
+        case confirmed(Int)  // past dead zone (≥52 pt) — full highlight, commits on release
 
         var confirmedIndex: Int? {
             if case .confirmed(let i) = self { return i }
@@ -57,7 +57,7 @@ struct RadialMenuView: View {
     // 270° (up) is easiest to reach; 90° (down, toward screen edge) is hardest.
     private let options: [AddOption] = [.link, .note, .document, .camera, .photo]
     private let angles: [Double] = [90, 135, 180, 225, 270]
-    private let radius: CGFloat = 105
+    private let radius: CGFloat = 118
     private let fabTrailingPad: CGFloat = AppTheme.Spacing.large
     private let fabBottomOffset: CGFloat = 90 + 28
 
@@ -248,7 +248,7 @@ struct RadialMenuView: View {
                 }
 
                 Text(option.radialLabel)
-                    .font(.system(size: 11, weight: labelWeight))
+                    .font(.system(size: 12, weight: labelWeight))
                     .foregroundStyle(.primary)
                     .shadow(color: .black.opacity(0.25), radius: 3, x: 0, y: 1)
             }
@@ -328,8 +328,8 @@ struct RadialMenuView: View {
 
     /// Computes hover state from a global touch point using angle-sector selection.
     ///
-    /// - Dead zone (0–60 pt from anchor): returns `.pending` — soft preview, no commit on release.
-    /// - Past dead zone (≥60 pt): returns `.confirmed` — full highlight, commits on release.
+    /// - Dead zone (0–52 pt from anchor): returns `.pending` — soft preview, no commit on release.
+    /// - Past dead zone (≥52 pt): returns `.confirmed` — full highlight, commits on release.
     /// - Outside the 90°–270° arc: returns `.none`.
     private func computeHoverState(for point: CGPoint) -> HoverState {
         guard let anchor = anchorPosition else { return .none }
@@ -341,7 +341,7 @@ struct RadialMenuView: View {
         if angleDeg < 0 { angleDeg += 360 }
 
         guard let sector = sectorIndex(for: angleDeg) else { return .none }
-        return distance < 60 ? .pending(sector) : .confirmed(sector)
+        return distance < 52 ? .pending(sector) : .confirmed(sector)
     }
 
     /// Maps an angle (degrees, 0–360) to an option index using arc-sector midpoint boundaries.
