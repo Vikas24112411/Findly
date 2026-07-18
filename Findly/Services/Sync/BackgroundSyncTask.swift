@@ -7,12 +7,12 @@ import BackgroundTasks
 /// ```xml
 /// <key>BGTaskSchedulerPermittedIdentifiers</key>
 /// <array>
-///     <string>com.findly.app.sync</string>
+///     <string>com.findlyvikas.app.sync</string>
 /// </array>
 /// ```
 enum BackgroundSyncTask {
 
-    static let identifier = "com.findly.app.sync"
+    static let identifier = "com.findlyvikas.app.sync"
 
     // MARK: - Registration (call once at app launch)
 

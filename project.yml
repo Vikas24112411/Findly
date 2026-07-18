@@ -31,15 +31,12 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: Findly
-        excludes:
-          - Resources/Assets.xcassets
-    resources:
-      - Findly/Resources/Assets.xcassets
     info:
       path: Findly/Resources/Info.plist
       properties:
         CFBundleDisplayName: Findly
-        CFBundleIdentifier: com.findly.app
+        CFBundleIconName: AppIcon
+        CFBundleIdentifier: com.findlyvikas.app
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         UILaunchScreen:
@@ -52,7 +49,7 @@ targets:
             CFBundleURLSchemes:
               - com.googleusercontent.apps.REPLACE_WITH_REVERSED_CLIENT_ID
         BGTaskSchedulerPermittedIdentifiers:
-          - com.findly.app.sync
+          - com.findlyvikas.app.sync
         NSPhotoLibraryUsageDescription: "Findly needs access to your photo library to add images and videos to your vault."
         NSCameraUsageDescription: "Findly needs camera access to capture photos and videos for your vault."
         NSMicrophoneUsageDescription: "Findly needs microphone access to record audio notes."
@@ -68,10 +65,11 @@ targets:
         product: GoogleSignInSwift
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.findly.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.findlyvikas.app
         INFOPLIST_FILE: Findly/Resources/Info.plist
         CODE_SIGN_ENTITLEMENTS: Findly/Resources/Findly.entitlements
         SWIFT_EMIT_LOC_STRINGS: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
   FindlyTests:
     type: bundle.unit-test
@@ -83,6 +81,6 @@ targets:
       - target: Findly
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.findly.appTests
+        PRODUCT_BUNDLE_IDENTIFIER: com.findlyvikas.appTests
         SWIFT_VERSION: "5.9"
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
