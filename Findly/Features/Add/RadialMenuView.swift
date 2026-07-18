@@ -20,11 +20,22 @@ struct RadialMenuView: View {
 
     @State private var isDismissing = false
     @State private var animationProgress: [Bool] = Array(repeating: false, count: 5)
-    /// Index of the icon currently under the user's finger during a drag.
-    @State private var hoveredIndex: Int? = nil
+    /// Three-level hover state for drag-to-select feedback.
+    private enum HoverState: Equatable {
+        case none
+        case pending(Int)    // inside dead zone (0–60 pt) — soft preview, does NOT commit on release
+        case confirmed(Int)  // past dead zone (≥60 pt) — full highlight, commits on release
+
+        var confirmedIndex: Int? {
+            if case .confirmed(let i) = self { return i }
+            return nil
+        }
+    }
+
+    @State private var hoverState: HoverState = .none
     /// Actual global center of the FAB placeholder — captured via GeometryReader on appear.
     /// Used for accurate icon hit-testing regardless of safe area insets.
-    @State private var anchorPosition: CGPoint = .zero
+    @State private var anchorPosition: CGPoint? = nil
 
     // MARK: - Picker state
 
@@ -42,7 +53,9 @@ struct RadialMenuView: View {
 
     // MARK: - Layout constants
 
-    private let options: [AddOption] = [.photo, .camera, .document, .note, .link]
+    // Options ordered by thumb ergonomics for a bottom-right FAB.
+    // 270° (up) is easiest to reach; 90° (down, toward screen edge) is hardest.
+    private let options: [AddOption] = [.link, .note, .document, .camera, .photo]
     private let angles: [Double] = [90, 135, 180, 225, 270]
     private let radius: CGFloat = 105
     private let fabTrailingPad: CGFloat = AppTheme.Spacing.large
@@ -57,19 +70,21 @@ struct RadialMenuView: View {
         }
         .onAppear { animateIn() }
         .onChange(of: dragPoint) { _, pt in
-            // Update hovered icon as finger moves
-            hoveredIndex = pt.flatMap { closestIconIndex(to: $0) }
+            let newState = pt.map { computeHoverState(for: $0) } ?? .none
+            fireHapticIfNeeded(from: hoverState, to: newState)
+            hoverState = newState
         }
         .onChange(of: dragEndTrigger) { _, _ in
-            // Touch lifted — select hovered option or just close
-            if let idx = hoveredIndex {
+            if let idx = hoverState.confirmedIndex {
+                // Past dead zone — commit the selection
                 HapticFeedback.light()
                 dismissMenuVisual()
                 handleOption(options[idx])
             } else {
+                // Dead zone or outside arc — cancel
                 dismissAndClose()
             }
-            hoveredIndex = nil
+            hoverState = .none
         }
         // MARK: Pickers & sheets
         .photosPicker(
@@ -199,7 +214,15 @@ struct RadialMenuView: View {
 
     @ViewBuilder
     private func glassButton(option: AddOption, index: Int) -> some View {
-        let isHovered = hoveredIndex == index
+        let isConfirmed = hoverState == .confirmed(index)
+        let isPending   = hoverState == .pending(index)
+
+        let ringOpacity: Double  = isConfirmed ? 0.7  : isPending ? 0.5  : 0.35
+        let ringWidth: CGFloat   = isConfirmed ? 1.5  : isPending ? 1.0  : 0.5
+        let fillOpacity: Double  = isConfirmed ? 0.15 : isPending ? 0.07 : 0.0
+        let scale: CGFloat       = isConfirmed ? 1.15 : isPending ? 1.08 : 1.0
+        let labelWeight: Font.Weight = isConfirmed ? .semibold : .medium
+
         Button {
             dismissMenuVisual()
             handleOption(option)
@@ -211,12 +234,11 @@ struct RadialMenuView: View {
                         .frame(width: 52, height: 52)
                         .overlay(
                             Circle()
-                                .stroke(isHovered ? Color.white.opacity(0.7) : Color.white.opacity(0.35),
-                                        lineWidth: isHovered ? 1.5 : 0.5)
+                                .stroke(Color.white.opacity(ringOpacity), lineWidth: ringWidth)
                         )
                         .overlay(
                             Circle()
-                                .fill(isHovered ? Color.white.opacity(0.15) : Color.clear)
+                                .fill(Color.white.opacity(fillOpacity))
                         )
                         .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 4)
 
@@ -226,25 +248,28 @@ struct RadialMenuView: View {
                 }
 
                 Text(option.radialLabel)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 11, weight: labelWeight))
                     .foregroundStyle(.primary)
+                    .shadow(color: .black.opacity(0.25), radius: 3, x: 0, y: 1)
             }
         }
         .buttonStyle(.plain)
-        .scaleEffect(animationProgress[index] ? (isHovered ? 1.15 : 1.0) : 0.3)
+        .accessibilityLabel(option.radialLabel)
+        .scaleEffect(animationProgress[index] ? scale : 0.3)
         .opacity(animationProgress[index] ? 1.0 : 0.0)
         // No built-in delay here — all staggering is driven via asyncAfter in animateIn/dismissMenuVisual
         // so open and close can use different orderings without fighting each other.
         .animation(.spring(response: 0.4, dampingFraction: 0.65), value: animationProgress[index])
-        .animation(.spring(response: 0.2, dampingFraction: 0.7), value: isHovered)
+        .animation(.spring(response: 0.2, dampingFraction: 0.7), value: hoverState)
     }
 
     // MARK: - Animation helpers
 
     private func animateIn() {
         // Stagger icons in forward order (0 → last).
+        // 35 ms per icon → ~175 ms total (vs 60 ms / 300 ms before).
         for i in options.indices {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.06) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.035) {
                 animationProgress[i] = true
             }
         }
@@ -281,31 +306,62 @@ struct RadialMenuView: View {
 
     // MARK: - Drag hit-test helpers
 
-    /// Returns the global center of the icon at `index`, derived from the captured FAB anchor position.
-    private func iconCenter(at index: Int) -> CGPoint {
-        let rad = angles[index] * .pi / 180
-        return CGPoint(
-            x: anchorPosition.x + radius * CGFloat(cos(rad)),
-            y: anchorPosition.y + radius * CGFloat(sin(rad))
-        )
+    /// Fires haptic feedback for notable hover-state transitions:
+    /// - `.pending → .confirmed` (same sector): soft tap — "you can release now"
+    /// - `.none → .confirmed`: soft tap — fast drag skipped the dead zone
+    /// - `.confirmed(i) → .confirmed(j)`: rigid tick — sector boundary crossed while committed
+    /// - `.pending(i) → .pending(j)`: light tick — sector boundary crossed while uncommitted
+    private func fireHapticIfNeeded(from old: HoverState, to new: HoverState) {
+        switch (old, new) {
+        case (.pending(let i), .confirmed(let j)) where i == j:
+            HapticFeedback.soft()
+        case (.none, .confirmed):
+            HapticFeedback.soft()
+        case (.confirmed(let i), .confirmed(let j)) where i != j:
+            HapticFeedback.rigid()
+        case (.pending(let i), .pending(let j)) where i != j:
+            HapticFeedback.light()
+        default:
+            break
+        }
     }
 
-    /// Returns the index of the icon whose center is closest to `point` within 55 pt, or nil.
-    private func closestIconIndex(to point: CGPoint) -> Int? {
-        // Wait until anchor is captured (non-zero means it's been set)
-        guard anchorPosition != .zero else { return nil }
-        let threshold: CGFloat = 55
-        var bestIndex: Int? = nil
-        var bestDist: CGFloat = threshold
-        for i in options.indices {
-            let center = iconCenter(at: i)
-            let dist = hypot(point.x - center.x, point.y - center.y)
-            if dist < bestDist {
-                bestDist = dist
-                bestIndex = i
-            }
+    /// Computes hover state from a global touch point using angle-sector selection.
+    ///
+    /// - Dead zone (0–60 pt from anchor): returns `.pending` — soft preview, no commit on release.
+    /// - Past dead zone (≥60 pt): returns `.confirmed` — full highlight, commits on release.
+    /// - Outside the 90°–270° arc: returns `.none`.
+    private func computeHoverState(for point: CGPoint) -> HoverState {
+        guard let anchor = anchorPosition else { return .none }
+        let dx = point.x - anchor.x
+        let dy = point.y - anchor.y
+        let distance = hypot(dx, dy)
+
+        var angleDeg = atan2(dy, dx) * 180 / .pi
+        if angleDeg < 0 { angleDeg += 360 }
+
+        guard let sector = sectorIndex(for: angleDeg) else { return .none }
+        return distance < 60 ? .pending(sector) : .confirmed(sector)
+    }
+
+    /// Maps an angle (degrees, 0–360) to an option index using arc-sector midpoint boundaries.
+    ///
+    /// Options sit at 90°, 135°, 180°, 225°, 270° (45° spacing).
+    /// Sector boundaries are midpoints between adjacent options: 112.5°, 157.5°, 202.5°, 247.5°.
+    /// Edge options are extended outward by 22.5° (half a sector) so all 5 options have equal 45° arcs:
+    ///   Option 0 (Link):      67.5° – 112.5°
+    ///   Option 1 (Note):     112.5° – 157.5°
+    ///   Option 2 (Document): 157.5° – 202.5°
+    ///   Option 3 (Camera):   202.5° – 247.5°
+    ///   Option 4 (Photo):    247.5° – 292.5°
+    /// Angles outside [67.5°, 292.5°] are rightward drags — no option lives there.
+    private func sectorIndex(for angleDeg: Double) -> Int? {
+        guard angleDeg >= 67.5, angleDeg <= 292.5 else { return nil }
+        let boundaries: [Double] = [112.5, 157.5, 202.5, 247.5]
+        for (i, boundary) in boundaries.enumerated() {
+            if angleDeg < boundary { return i }
         }
-        return bestIndex
+        return 4
     }
 
     // MARK: - Option routing
