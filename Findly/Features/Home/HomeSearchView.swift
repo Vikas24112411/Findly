@@ -103,14 +103,14 @@ struct HomeSearchView: View {
         }
     }
 
-    // MARK: - Empty state content (recents + suggestions)
+    // MARK: - Empty state content (suggestions + recents)
 
     private var emptyContent: some View {
         VStack(spacing: AppTheme.Spacing.xLarge) {
+            suggestionsSection
             if !viewModel.recentSearches.isEmpty {
                 recentsSection
             }
-            suggestionsSection
         }
         .padding(.vertical, AppTheme.Spacing.large)
     }
@@ -124,50 +124,40 @@ struct HomeSearchView: View {
                 action: { viewModel.clearAllSearchHistory() },
                 actionLabel: "Clear"
             )
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: AppTheme.Spacing.medium) {
-                    ForEach(viewModel.recentSearches) { entry in
-                        recentCard(for: entry)
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.xSmall) {
+                ForEach(viewModel.recentSearches.prefix(6)) { entry in
+                    Button {
+                        viewModel.searchText = entry.query
+                        viewModel.performSearch()
+                    } label: {
+                        HStack(spacing: AppTheme.Spacing.small) {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.system(size: 12))
+                                .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                            Text(entry.query)
+                                .font(.system(size: 15))
+                                .foregroundStyle(AppTheme.Colors.label)
+                                .lineLimit(1)
+                        }
+                        .padding(.horizontal, AppTheme.Spacing.medium)
+                        .padding(.vertical, AppTheme.Spacing.small)
+                        .background(AppTheme.Colors.secondaryBG)
+                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.full, style: .continuous))
                     }
+                    .buttonStyle(.plain)
                 }
-                .padding(.horizontal, AppTheme.Spacing.base)
             }
+            .padding(.horizontal, AppTheme.Spacing.base)
         }
     }
 
-    private func recentCard(for entry: SearchHistoryEntry) -> some View {
-        Button {
-            viewModel.searchText = entry.query
-            viewModel.performSearch()
-        } label: {
-            VStack(spacing: AppTheme.Spacing.small) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous)
-                        .fill(cardColor(for: entry.query).gradient)
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 28, weight: .medium))
-                        .foregroundStyle(.white)
-                }
-                .frame(width: 100, height: 100)
-                Text(entry.query)
-                    .font(AppTheme.Typography.caption1)
-                    .fontWeight(.medium)
-                    .foregroundStyle(AppTheme.Colors.label)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .frame(width: 100)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Suggestions (file type pills)
+    // MARK: - Suggestions (file type icon grid)
 
     private var suggestionsSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
             SectionHeader(title: "Browse by Type")
             LazyVGrid(
-                columns: [GridItem(.flexible()), GridItem(.flexible())],
+                columns: Array(repeating: GridItem(.flexible(), spacing: AppTheme.Spacing.xSmall), count: 5),
                 spacing: AppTheme.Spacing.small
             ) {
                 ForEach(FileType.allCases.filter { $0 != .other }, id: \.self) { type in
@@ -176,25 +166,20 @@ struct HomeSearchView: View {
                         viewModel.selectedFileTypes = [type]
                         viewModel.performSearch()
                     } label: {
-                        HStack(spacing: AppTheme.Spacing.small) {
+                        VStack(spacing: 4) {
                             ZStack {
-                                RoundedRectangle(cornerRadius: AppTheme.Radius.small, style: .continuous)
-                                    .fill(type.tintColor)
-                                    .frame(width: 28, height: 28)
+                                RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous)
+                                    .fill(type.tintColor.opacity(0.15))
                                 Image(systemName: type.sfSymbol)
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(.white)
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(type.tintColor)
                             }
-                            Text(type.displayName + "s")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(AppTheme.Colors.label)
+                            .aspectRatio(1, contentMode: .fit)
+                            Text(type.displayName)
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundStyle(AppTheme.Colors.secondaryLabel)
                                 .lineLimit(1)
-                            Spacer()
                         }
-                        .padding(.horizontal, AppTheme.Spacing.small)
-                        .padding(.vertical, AppTheme.Spacing.small)
-                        .background(AppTheme.Colors.secondaryBG)
-                        .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous))
                     }
                     .buttonStyle(.plain)
                 }
@@ -227,7 +212,9 @@ struct HomeSearchView: View {
             }
             .padding(.horizontal, AppTheme.Spacing.medium)
             .padding(.vertical, 10)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: AppTheme.Radius.full, style: .continuous))
+            .background(Color(.systemBackground),
+                        in: RoundedRectangle(cornerRadius: AppTheme.Radius.full, style: .continuous))
+            .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 2)
             .animation(.easeInOut(duration: 0.15), value: viewModel.searchText.isEmpty)
 
             Button {
@@ -235,7 +222,7 @@ struct HomeSearchView: View {
             } label: {
                 ZStack {
                     Circle()
-                        .fill(.thinMaterial)
+                        .fill(Color(.systemBackground))
                         .frame(width: 36, height: 36)
                     Image(systemName: "xmark")
                         .font(.system(size: 13, weight: .semibold))
@@ -325,10 +312,4 @@ struct HomeSearchView: View {
         HapticFeedback.medium()
     }
 
-    // MARK: - Helpers
-
-    private func cardColor(for query: String) -> Color {
-        let palette: [Color] = [.blue, .purple, .pink, .orange, .green, .teal, .indigo, .mint]
-        return palette[abs(query.hashValue) % palette.count]
-    }
 }
