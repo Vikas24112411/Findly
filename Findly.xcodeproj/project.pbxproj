@@ -35,6 +35,7 @@
 		5CB2879C7C48C30D3B4657D3 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0C53D0C0DBFD233E8DBB11D /* Item.swift */; };
 		5CDF8523BE3EC1A0B05A598A /* TokenRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3A355C63CFE739C7ECC7777 /* TokenRefresher.swift */; };
 		6696BBD9A071187A6C572FFC /* ExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE24AD566D9B62D8160F25AA /* ExportService.swift */; };
+		7F3E9A2B5C8D1E4FA0B3C7D1 /* ImportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E4F0B3C6D9A2E5F1C4B7D8A /* ImportService.swift */; };
 		6D20DFACAF076FD9F915B4F5 /* GoogleDriveService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9223EFC9A92B3D1299320A1B /* GoogleDriveService.swift */; };
 		6DD4214CFE7AF57239FDD873 /* Date+Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 342AE5D98D2CBD2C1523BB42 /* Date+Formatting.swift */; };
 		708ABE50111A778F99CF4027 /* DriveUploadSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47C3B31F571E9EAD5ABA7C9C /* DriveUploadSession.swift */; };
@@ -143,6 +144,7 @@
 		F6D62DF85787877BFF85B5B5 /* BackgroundSyncTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundSyncTask.swift; sourceTree = "<group>"; };
 		F8D9947C70BE42F994FC6033 /* FindlyTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = FindlyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		FE24AD566D9B62D8160F25AA /* ExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportService.swift; sourceTree = "<group>"; };
+		8E4F0B3C6D9A2E5F1C4B7D8A /* ImportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImportService.swift; sourceTree = "<group>"; };
 		FEF3C39112C246BAF1639541 /* KnowledgeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeViewModel.swift; sourceTree = "<group>"; };
 		FEF8F5EB02E8EB39DC99EF9E /* HapticFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticFeedback.swift; sourceTree = "<group>"; };
 		FF2A4531F3BB3058974FF772 /* CameraPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPickerView.swift; sourceTree = "<group>"; };
@@ -165,6 +167,7 @@
 			isa = PBXGroup;
 			children = (
 				FE24AD566D9B62D8160F25AA /* ExportService.swift */,
+				8E4F0B3C6D9A2E5F1C4B7D8A /* ImportService.swift */,
 				F75131BC2D9458437F02DE28 /* Auth */,
 				B69721E99F4B202C935727E8 /* Drive */,
 				8CB85CAE534ADC01EC9241E2 /* Persistence */,
@@ -518,6 +521,7 @@
 				583463D652C1A14DBAEB409D /* DriveModels.swift in Sources */,
 				708ABE50111A778F99CF4027 /* DriveUploadSession.swift in Sources */,
 				6696BBD9A071187A6C572FFC /* ExportService.swift in Sources */,
+				7F3E9A2B5C8D1E4FA0B3C7D1 /* ImportService.swift in Sources */,
 				55501229F107C962C4A8AA83 /* FABView.swift in Sources */,
 				B8F24AA1F14E6CEBFCF0BF48 /* FileType.swift in Sources */,
 				C8AEC0BB37A052004C26F6CD /* FilesView.swift in Sources */,

@@ -21,6 +21,7 @@ final class AppContainer {
     let sync: SyncService
     let tokenRefresher: TokenRefresher
     let export = ExportService()
+    let importService = ImportService()
 
     // MARK: - Init
 
