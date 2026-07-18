@@ -13,22 +13,35 @@ struct ItemFormView: View {
 
     @State private var viewModel = ItemFormViewModel()
     @State private var showTagPicker = false
-    @State private var autoDismissTask: Task<Void, Error>? = nil
 
     var body: some View {
         NavigationStack {
             Group {
-                if viewModel.isSaving || viewModel.savedItem != nil || viewModel.saveError != nil {
+                if viewModel.saveError != nil {
                     savingView
                 } else {
                     formView
+                        .overlay {
+                            if viewModel.isSaving {
+                                savingOverlay
+                            }
+                        }
+                        .overlay {
+                            if viewModel.savedItem != nil {
+                                successToast
+                                    .transition(.scale(scale: 0.85).combined(with: .opacity))
+                            }
+                        }
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7),
+                                   value: viewModel.savedItem != nil)
+                        .animation(.easeInOut(duration: 0.15), value: viewModel.isSaving)
                 }
             }
             .navigationTitle("Add to Vault")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    if !viewModel.isSaving {
+                    if !viewModel.isSaving && viewModel.savedItem == nil {
                         Button("Cancel") { dismiss() }
                     }
                 }
@@ -42,6 +55,14 @@ struct ItemFormView: View {
         .onAppear {
             viewModel.pendingUpload = pendingUpload
             viewModel.title = pendingUpload.suggestedTitle
+        }
+        .onChange(of: viewModel.savedItem) { _, item in
+            guard item != nil else { return }
+            Task {
+                try? await Task.sleep(for: .seconds(1.0))
+                dismiss()
+                onComplete()
+            }
         }
     }
 
@@ -107,93 +128,91 @@ struct ItemFormView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, AppTheme.Spacing.base)
                     }
-
-                    // Save button
-                    Button {
-                        Task {
-                            await viewModel.save(
-                                context: modelContext,
-                                sync: appContainer.sync,
-                                localStorage: appContainer.localStorage,
-                                isAuthenticated: appContainer.auth.isAuthenticated
-                            )
-                        }
-                    } label: {
-                        Text("Save")
-                            .font(AppTheme.Typography.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, AppTheme.Spacing.small)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(AppTheme.Colors.accent)
-                    .disabled(viewModel.title.isEmpty)
-                    .padding(.horizontal, AppTheme.Spacing.base)
-                    .padding(.bottom, AppTheme.Spacing.base)
                 }
+                .padding(.bottom, AppTheme.Spacing.base)
             }
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .safeAreaInset(edge: .bottom) {
+            Button {
+                Task {
+                    await viewModel.save(
+                        context: modelContext,
+                        sync: appContainer.sync,
+                        localStorage: appContainer.localStorage,
+                        isAuthenticated: appContainer.auth.isAuthenticated
+                    )
+                }
+            } label: {
+                Text("Save")
+                    .font(AppTheme.Typography.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, AppTheme.Spacing.small)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(AppTheme.Colors.accent)
+            .disabled(viewModel.title.isEmpty)
+            .padding(.horizontal, AppTheme.Spacing.base)
+            .padding(.vertical, AppTheme.Spacing.small)
+            .background(AppTheme.Colors.groupedBG)
         }
         .background(AppTheme.Colors.groupedBG)
     }
 
-    // MARK: - Saving / success / error
+    // MARK: - Saving overlay (spinner while isSaving)
 
-    private var savingView: some View {
-        VStack(spacing: AppTheme.Spacing.xLarge) {
-            if viewModel.isSaving {
+    private var savingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.3)
+                .ignoresSafeArea()
+            VStack(spacing: AppTheme.Spacing.medium) {
                 ProgressView()
                     .scaleEffect(1.5)
                     .tint(AppTheme.Colors.accent)
                 Text("Saving to vault…")
                     .font(AppTheme.Typography.headline)
                     .foregroundStyle(AppTheme.Colors.secondaryLabel)
-            } else if let error = viewModel.saveError {
-                EmptyStateView(
-                    symbol: "exclamationmark.circle",
-                    title: "Save Failed",
-                    subtitle: error.localizedDescription,
-                    actionLabel: "Try Again"
-                ) {
-                    Task {
-                        await viewModel.save(
-                            context: modelContext,
-                            sync: appContainer.sync,
-                            localStorage: appContainer.localStorage,
-                            isAuthenticated: appContainer.auth.isAuthenticated
-                        )
-                    }
-                }
-            } else if viewModel.savedItem != nil {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 72))
-                    .foregroundStyle(AppTheme.Colors.syncSynced)
-                Text("Saved!")
-                    .font(AppTheme.Typography.title1)
-                Text(appContainer.auth.isAuthenticated
-                     ? "Your file is in your vault.\nUploading to Google Drive in the background."
-                     : "Your file is saved on this device.\nConnect Google Drive in Settings to back it up.")
-                    .font(AppTheme.Typography.body)
-                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                    .multilineTextAlignment(.center)
-                Button("Done") {
-                    autoDismissTask?.cancel()
-                    dismiss()
-                    onComplete()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(AppTheme.Colors.accent)
-                .font(AppTheme.Typography.headline)
-                .padding(.horizontal, AppTheme.Spacing.xxLarge)
+            }
+        }
+    }
+
+    // MARK: - Success toast
+
+    private var successToast: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 22))
+                .foregroundStyle(AppTheme.Colors.syncSynced)
+            Text("Saved!")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(AppTheme.Colors.label)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(AppTheme.Colors.secondaryBG,
+                    in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 4)
+    }
+
+    // MARK: - Error view (full-screen, for retry flow)
+
+    private var savingView: some View {
+        EmptyStateView(
+            symbol: "exclamationmark.circle",
+            title: "Save Failed",
+            subtitle: viewModel.saveError?.localizedDescription ?? "Something went wrong.",
+            actionLabel: "Try Again"
+        ) {
+            Task {
+                await viewModel.save(
+                    context: modelContext,
+                    sync: appContainer.sync,
+                    localStorage: appContainer.localStorage,
+                    isAuthenticated: appContainer.auth.isAuthenticated
+                )
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onChange(of: viewModel.savedItem) { _, item in
-            guard item != nil else { return }
-            autoDismissTask = Task {
-                try await Task.sleep(for: .seconds(2))
-                dismiss()
-                onComplete()
-            }
-        }
     }
 
     // MARK: - File preview
