@@ -307,18 +307,34 @@ struct SettingsView: View {
 
     private var insightsSection: some View {
         Section {
-            Toggle("Storage Growth", isOn: $insightsShowStorageGrowth)
-            Toggle("Added This Week", isOn: $insightsShowWeeklyActivity)
-            Toggle("File Types", isOn: $insightsShowFileTypes)
-            Toggle("Storage by Type", isOn: $insightsShowStorageByType)
-            Toggle("Top Tags", isOn: $insightsShowTopTags)
-            Toggle("Tag Activity", isOn: $insightsShowTagHeatmap)
-            Toggle("Most Opened", isOn: $insightsShowMostOpened)
-            Toggle("Largest Files", isOn: $insightsShowLargestFiles)
+            NavigationLink {
+                InsightsCustomizationView(
+                    showStorageGrowth: $insightsShowStorageGrowth,
+                    showWeeklyActivity: $insightsShowWeeklyActivity,
+                    showFileTypes: $insightsShowFileTypes,
+                    showStorageByType: $insightsShowStorageByType,
+                    showTopTags: $insightsShowTopTags,
+                    showTagHeatmap: $insightsShowTagHeatmap,
+                    showMostOpened: $insightsShowMostOpened,
+                    showLargestFiles: $insightsShowLargestFiles
+                )
+            } label: {
+                let activeCount = [insightsShowStorageGrowth, insightsShowWeeklyActivity,
+                                   insightsShowFileTypes, insightsShowStorageByType,
+                                   insightsShowTopTags, insightsShowTagHeatmap,
+                                   insightsShowMostOpened, insightsShowLargestFiles].filter { $0 }.count
+                HStack {
+                    Text("Customize Insights")
+                    Spacer()
+                    Text("\(activeCount) of 8")
+                        .font(AppTheme.Typography.subheadline)
+                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                }
+            }
         } header: {
             Text("Insights")
         } footer: {
-            Text("Choose which sections appear in Insights.")
+            Text("Choose which sections appear in the Insights tab.")
         }
     }
 
@@ -624,6 +640,41 @@ private struct StorageLocationPickerView: View {
         if viewModel.storageMigrationError == nil {
             dismiss()
         }
+    }
+}
+
+// MARK: - Insights customization sub-view
+
+private struct InsightsCustomizationView: View {
+
+    @Binding var showStorageGrowth: Bool
+    @Binding var showWeeklyActivity: Bool
+    @Binding var showFileTypes: Bool
+    @Binding var showStorageByType: Bool
+    @Binding var showTopTags: Bool
+    @Binding var showTagHeatmap: Bool
+    @Binding var showMostOpened: Bool
+    @Binding var showLargestFiles: Bool
+
+    var body: some View {
+        Form {
+            Section("Storage") {
+                Toggle("Storage Growth",  isOn: $showStorageGrowth)
+                Toggle("Added This Week", isOn: $showWeeklyActivity)
+                Toggle("File Types",      isOn: $showFileTypes)
+                Toggle("Storage by Type", isOn: $showStorageByType)
+            }
+            Section("Tags") {
+                Toggle("Top Tags",     isOn: $showTopTags)
+                Toggle("Tag Activity", isOn: $showTagHeatmap)
+            }
+            Section("Files") {
+                Toggle("Most Opened",   isOn: $showMostOpened)
+                Toggle("Largest Files", isOn: $showLargestFiles)
+            }
+        }
+        .navigationTitle("Insights")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
