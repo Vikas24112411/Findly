@@ -33,9 +33,9 @@ final class StorageLocationService {
         var description: String {
             switch self {
             case .appPrivate:
-                return "Stored securely in the app's private container. Not accessible from the Files app."
+                return "Private to Findly. Not visible in the Files app."
             case .custom:
-                return "You choose the folder. Accessible from any app that can see that location."
+                return "You choose the folder. Visible to other apps."
             }
         }
     }

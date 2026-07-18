@@ -83,7 +83,7 @@ struct SettingsView: View {
             .alert("Data Deleted", isPresented: $deleteSuccess) {
                 Button("OK") {}
             } message: {
-                Text("All files, tags, and search history have been permanently deleted from this device.")
+                Text("All local data has been deleted.")
             }
             .sheet(isPresented: $showStoragePicker) {
                 StorageLocationPickerView(viewModel: viewModel)
@@ -132,7 +132,7 @@ struct SettingsView: View {
                 }
                 Button("Cancel", role: .cancel) { pendingImportURL = nil }
             } message: {
-                Text("This will permanently replace all existing files, tags, and history with the contents of the imported vault.")
+                Text("Replaces all current data with the imported vault.")
             }
             .alert("Delete All Data", isPresented: $showDeleteConfirmation) {
                 Button("Delete Everything", role: .destructive) {
@@ -148,7 +148,7 @@ struct SettingsView: View {
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("All local files, tags, and search history will be permanently deleted from this device. Files already synced to Google Drive will not be affected. This cannot be undone.")
+                Text("Deletes all local data. Synced files on Google Drive are unaffected.")
             }
             .alert("Delete Failed", isPresented: Binding(
                 get: { viewModel.deleteError != nil },
@@ -225,7 +225,7 @@ struct SettingsView: View {
         } footer: {
             Text(appContainer.auth.isAuthenticated
                  ? "Backed up to your Google Drive."
-                 : "Optional. Connect to back up your files to Google Drive.")
+                 : "Optional. Back up your files to Google Drive.")
         }
     }
 
@@ -333,7 +333,7 @@ struct SettingsView: View {
         } header: {
             Text("Insights")
         } footer: {
-            Text("Choose which sections appear on the Insights page.")
+            Text("Choose which sections appear in Insights.")
         }
     }
 
@@ -372,7 +372,7 @@ struct SettingsView: View {
         } header: {
             Text("Local Storage")
         } footer: {
-            Text("Files are stored on this device. Changing the location will move all existing files.")
+            Text("Changing the location will move all existing files.")
         }
     }
 
@@ -430,7 +430,7 @@ struct SettingsView: View {
         } header: {
             Text("Data")
         } footer: {
-            Text("Export saves all files and metadata as a .zip. Import restores from a previously exported vault, replacing all current data.")
+            Text("Export creates a .zip backup. Import replaces all data from a backup.")
         }
     }
 
@@ -454,7 +454,7 @@ struct SettingsView: View {
         } header: {
             Text("Danger Zone")
         } footer: {
-            Text("Permanently deletes all files, tags, and search history from this device. This cannot be undone.")
+            Text("Permanently deletes all local data. Cannot be undone.")
         }
     }
 
@@ -551,7 +551,7 @@ private struct StorageLocationPickerView: View {
                         locationRow(for: location)
                     }
                 } footer: {
-                    Text("Moving files may take a moment depending on how many files you have.")
+                    Text("Moving files may take a moment.")
                 }
             }
             .navigationTitle("Storage Location")
