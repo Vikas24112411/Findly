@@ -260,16 +260,16 @@ struct RadialMenuView: View {
         // No built-in delay here — all staggering is driven via asyncAfter in animateIn/dismissMenuVisual
         // so open and close can use different orderings without fighting each other.
         .animation(.spring(response: 0.4, dampingFraction: 0.65), value: animationProgress[index])
-        .animation(.spring(response: 0.2, dampingFraction: 0.7), value: hoverState)
+        .animation(.spring(response: 0.15, dampingFraction: 0.7), value: hoverState)
     }
 
     // MARK: - Animation helpers
 
     private func animateIn() {
         // Stagger icons in forward order (0 → last).
-        // 35 ms per icon → ~175 ms total (vs 60 ms / 300 ms before).
+        // 25 ms per icon → ~125 ms total.
         for i in options.indices {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.035) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.025) {
                 animationProgress[i] = true
             }
         }
@@ -280,14 +280,15 @@ struct RadialMenuView: View {
     /// while the icons are still animating out.
     private func dismissMenuVisual() {
         // Stagger icons out in reverse order (last → 0).
+        // 35 ms per icon — matches open stagger speed.
         for i in options.indices.reversed() {
-            let delay = Double(options.count - 1 - i) * 0.05
+            let delay = Double(options.count - 1 - i) * 0.035
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 animationProgress[i] = false
             }
         }
         // Fade the background after the last icon starts collapsing.
-        let bgDelay = Double(options.count - 1) * 0.05 + 0.18
+        let bgDelay = Double(options.count - 1) * 0.035 + 0.18
         DispatchQueue.main.asyncAfter(deadline: .now() + bgDelay) {
             withAnimation(.easeOut(duration: 0.15)) {
                 isDismissing = true
