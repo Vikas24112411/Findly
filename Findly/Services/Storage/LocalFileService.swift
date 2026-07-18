@@ -120,6 +120,35 @@ actor LocalFileService {
         return total
     }
 
+    // MARK: - Bulk operations
+
+    /// Deletes all files in the base directory.
+    func deleteAllFiles() throws {
+        let fm = FileManager.default
+        let contents = (try? fm.contentsOfDirectory(at: baseDirectory, includingPropertiesForKeys: nil)) ?? []
+        for file in contents {
+            try fm.removeItem(at: file)
+        }
+    }
+
+    /// Deletes every file in the base directory whose filename is NOT in `keepNames`.
+    /// Individual failures are silenced — orphans are storage waste, not data loss.
+    func deleteFilesExcept(_ keepNames: Set<String>) {
+        let fm = FileManager.default
+        let contents = (try? fm.contentsOfDirectory(at: baseDirectory, includingPropertiesForKeys: nil)) ?? []
+        for file in contents {
+            guard !keepNames.contains(file.lastPathComponent) else { continue }
+            try? fm.removeItem(at: file)
+        }
+    }
+
+    /// Writes `data` to `baseDirectory/fileName` atomically.
+    /// Use this during import to restore files with their original UUID-based names.
+    func writeFile(named fileName: String, data: Data) throws {
+        let url = baseDirectory.appending(component: fileName)
+        try data.write(to: url, options: .atomic)
+    }
+
     // MARK: - Thumbnail write / read
 
     func writeThumbnail(data: Data, itemID: UUID) throws -> String {

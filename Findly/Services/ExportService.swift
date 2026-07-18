@@ -3,60 +3,201 @@ import Foundation
 /// Exports vault files as a ZIP archive without requiring a third-party library.
 /// Uses ZIP STORE method (no compression — focus is on archiving, not size reduction).
 ///
-/// Files are written directly to a temp file via FileHandle so the entire vault
-/// is never held in memory simultaneously.
+/// The archive contains a `manifest.json` (all item/tag/search-history metadata) plus
+/// one entry per file named `<UUID>.<ext>` and an optional `<UUID>_thumb.jpg` sidecar.
+/// This layout is understood by `ImportService` for full-fidelity restore.
 actor ExportService {
 
     // MARK: - Public interface
 
-    /// Creates a ZIP archive of all locally available vault items and returns its URL.
+    /// Creates a ZIP archive of the full vault (files + metadata manifest) and returns its URL.
     /// The caller is responsible for deleting the temp file when done.
-    func exportVault(items: [Item], localStorage: LocalFileService) async throws -> URL {
+    func exportVault(
+        items: [Item],
+        tags: [Tag],
+        searchHistory: [SearchHistoryEntry],
+        localStorage: LocalFileService,
+        onProgress: (@MainActor @Sendable (Double) -> Void)? = nil
+    ) async throws -> URL {
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("Findly_Export_\(Int(Date().timeIntervalSince1970)).zip")
 
-        // Create the file so FileHandle can open it for writing.
         FileManager.default.createFile(atPath: tempURL.path, contents: nil)
+
+        // Clean up the temp file if anything throws before we successfully return.
+        var succeeded = false
+        defer {
+            if !succeeded { try? FileManager.default.removeItem(at: tempURL) }
+        }
+
         let fileHandle = try FileHandle(forWritingTo: tempURL)
         defer { try? fileHandle.close() }
 
         var writer = ZipWriter(fileHandle: fileHandle)
 
+        // Pass 1: determine which items have files that actually exist on disk.
+        // This is done upfront so the manifest accurately reflects what will be in the ZIP.
+        var exportedPaths: Set<String> = []
         for item in items {
             guard let relativePath = item.localFilePath else { continue }
             let url = await localStorage.fileURL(relativePath: relativePath)
-            guard FileManager.default.fileExists(atPath: url.path),
-                  let data = try? Data(contentsOf: url) else { continue }
-            // Use the item's title as the filename in the archive, preserving the original extension.
-            let ext = url.pathExtension.isEmpty ? item.fileType.fileExtension : url.pathExtension
-            let safeName = sanitize(item.title) + "." + ext
-            try writer.addFile(name: safeName, data: data)
+            if FileManager.default.fileExists(atPath: url.path) {
+                exportedPaths.insert(relativePath)
+            }
+        }
+
+        // Write manifest first so it is easy to locate during import.
+        // localFilePath is set only for items whose file was confirmed to exist.
+        let manifest = buildManifest(items: items, tags: tags, searchHistory: searchHistory,
+                                     exportedPaths: exportedPaths)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let manifestData = try encoder.encode(manifest)
+        try writer.addFile(name: "manifest.json", data: manifestData)
+
+        // Pass 2: write each item's primary file and thumbnail sidecar.
+        let total = max(1, exportedPaths.count)
+        var done = 0
+
+        for item in items {
+            guard let relativePath = item.localFilePath,
+                  exportedPaths.contains(relativePath) else { continue }
+            let url = await localStorage.fileURL(relativePath: relativePath)
+            guard let data = try? Data(contentsOf: url) else { continue }
+            // Archive entry name == localFilePath so import can restore by path directly.
+            try writer.addFile(name: relativePath, data: data)
+
+            // Thumbnail lives only in SwiftData (@Attribute(.externalStorage)),
+            // not as a sidecar file on disk — write it directly from the model.
+            if let thumbData = item.thumbnailData {
+                let thumbName = "\(item.id.uuidString)_thumb.jpg"
+                try writer.addFile(name: thumbName, data: thumbData)
+            }
+
+            done += 1
+            if let onProgress { await onProgress(Double(done) / Double(total)) }
         }
 
         try writer.finalize()
+        succeeded = true
         return tempURL
     }
 
-    // MARK: - Filename sanitization
+    // MARK: - Manifest builder
 
-    private func sanitize(_ name: String) -> String {
-        let invalid = CharacterSet(charactersIn: "/\\:*?\"<>|")
-        return name
-            .components(separatedBy: invalid)
-            .joined(separator: "_")
-            .trimmingCharacters(in: .whitespaces)
-            .prefix(60)
-            .description
+    private func buildManifest(
+        items: [Item],
+        tags: [Tag],
+        searchHistory: [SearchHistoryEntry],
+        exportedPaths: Set<String>
+    ) -> ExportManifest {
+        let exportTags = tags.map { tag in
+            ExportTag(
+                id: tag.id,
+                name: tag.name,
+                colorHex: tag.colorHex,
+                sfSymbol: tag.sfSymbol,
+                createdAt: tag.createdAt,
+                parentIDs: tag.parents.map { $0.id }
+            )
+        }
+        let exportItems = items.map { item in
+            ExportItem(
+                id: item.id,
+                title: item.title,
+                itemDescription: item.itemDescription,
+                fileType: item.fileType,
+                fileSize: item.fileSize,
+                originalFileName: item.originalFileName,
+                // Only reference the path if the file was actually written to the ZIP.
+                localFilePath: exportedPaths.contains(item.localFilePath ?? "") ? item.localFilePath : nil,
+                googleDriveFileID: item.googleDriveFileID,
+                syncStatus: item.syncStatus,
+                createdAt: item.createdAt,
+                modifiedAt: item.modifiedAt,
+                lastOpenedAt: item.lastOpenedAt,
+                viewCount: item.viewCount,
+                isFavorite: item.isFavorite,
+                isPinned: item.isPinned,
+                tagIDs: item.tags.map { $0.id }
+            )
+        }
+        let exportHistory = searchHistory.map { entry in
+            ExportSearchHistoryEntry(
+                id: entry.id,
+                query: entry.query,
+                timestamp: entry.timestamp,
+                useCount: entry.useCount
+            )
+        }
+        return ExportManifest(
+            version: 1,
+            exportedAt: Date(),
+            items: exportItems,
+            tags: exportTags,
+            searchHistory: exportHistory
+        )
     }
+}
+
+// MARK: - Manifest types
+
+struct ExportManifest: Codable {
+    let version: Int
+    let exportedAt: Date
+    let items: [ExportItem]
+    let tags: [ExportTag]
+    let searchHistory: [ExportSearchHistoryEntry]
+}
+
+struct ExportItem: Codable {
+    let id: UUID
+    let title: String
+    let itemDescription: String
+    let fileType: FileType
+    let fileSize: Int64
+    let originalFileName: String
+    let localFilePath: String?
+    let googleDriveFileID: String?
+    let syncStatus: SyncStatus
+    let createdAt: Date
+    let modifiedAt: Date
+    let lastOpenedAt: Date?
+    let viewCount: Int
+    let isFavorite: Bool
+    let isPinned: Bool
+    let tagIDs: [UUID]
+}
+
+struct ExportTag: Codable {
+    let id: UUID
+    let name: String
+    let colorHex: String
+    let sfSymbol: String
+    let createdAt: Date
+    let parentIDs: [UUID]
+}
+
+struct ExportSearchHistoryEntry: Codable {
+    let id: UUID
+    let query: String
+    let timestamp: Date
+    let useCount: Int
 }
 
 // MARK: - Errors
 
 enum ZipError: Error, LocalizedError {
     case tooManyFiles
+    case archiveTooLarge
 
     var errorDescription: String? {
-        "ZIP export supports at most 65,535 files. Please export a smaller selection."
+        switch self {
+        case .tooManyFiles:
+            return "ZIP export supports at most 65,535 files. Please export a smaller selection."
+        case .archiveTooLarge:
+            return "The vault exceeds the 4 GB ZIP limit. Please remove some large files before exporting."
+        }
     }
 }
 
@@ -70,7 +211,8 @@ private struct ZipWriter {
 
     private let fileHandle: FileHandle
     private var entries: [EntryMeta] = []
-    private var currentOffset: UInt32 = 0
+    // Int (64-bit on all Apple platforms) to detect 4 GB overflow before it corrupts the archive.
+    private var currentOffset: Int = 0
 
     private struct EntryMeta {
         let name: Data       // UTF-8 encoded filename
@@ -86,9 +228,12 @@ private struct ZipWriter {
     // MARK: - Add file
 
     mutating func addFile(name: String, data: Data) throws {
+        // Guard against 4 GB overflow before writing anything.
+        guard currentOffset <= Int(UInt32.max) else { throw ZipError.archiveTooLarge }
+
         let nameData = name.data(using: .utf8) ?? Data()
         let crc = crc32(data)
-        let offset = currentOffset
+        let offset = UInt32(currentOffset)
 
         // Build local file header (30 bytes fixed + filename).
         var header = Data()
@@ -108,7 +253,7 @@ private struct ZipWriter {
         try fileHandle.write(contentsOf: nameData)
         try fileHandle.write(contentsOf: data)
 
-        currentOffset += UInt32(header.count) + UInt32(nameData.count) + UInt32(data.count)
+        currentOffset += header.count + nameData.count + data.count
         entries.append(EntryMeta(name: nameData, dataSize: UInt32(data.count), crc32: crc, offset: offset))
     }
 
@@ -116,8 +261,9 @@ private struct ZipWriter {
 
     mutating func finalize() throws {
         guard entries.count <= 65_535 else { throw ZipError.tooManyFiles }
+        guard currentOffset <= Int(UInt32.max) else { throw ZipError.archiveTooLarge }
 
-        let centralDirStart = currentOffset
+        let centralDirStart = UInt32(currentOffset)
         var centralDirSize: UInt32 = 0
         var centralDir = Data()
 
