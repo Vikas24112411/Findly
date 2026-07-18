@@ -308,20 +308,23 @@ struct RadialMenuView: View {
     // MARK: - Drag hit-test helpers
 
     /// Fires haptic feedback for notable hover-state transitions:
-    /// - `.pending → .confirmed` (same sector): soft tap — "you can release now"
-    /// - `.none → .confirmed`: soft tap — fast drag skipped the dead zone
+    /// - `.pending → .confirmed` (same sector): medium tap — "you can release now"
+    /// - `.none → .confirmed`: medium tap — fast drag skipped the dead zone
     /// - `.confirmed(i) → .confirmed(j)`: rigid tick — sector boundary crossed while committed
     /// - `.pending(i) → .pending(j)`: light tick — sector boundary crossed while uncommitted
+    /// - `.confirmed/_pending → .none`: rigid snap — drag left the valid arc
     private func fireHapticIfNeeded(from old: HoverState, to new: HoverState) {
         switch (old, new) {
         case (.pending(let i), .confirmed(let j)) where i == j:
-            HapticFeedback.soft()
+            HapticFeedback.medium()
         case (.none, .confirmed):
-            HapticFeedback.soft()
+            HapticFeedback.medium()
         case (.confirmed(let i), .confirmed(let j)) where i != j:
             HapticFeedback.rigid()
         case (.pending(let i), .pending(let j)) where i != j:
             HapticFeedback.light()
+        case (.confirmed, .none), (.pending, .none):
+            HapticFeedback.rigid()
         default:
             break
         }
