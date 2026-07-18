@@ -428,17 +428,7 @@ struct SettingsView: View {
                 }
             }
             .disabled(isImporting || isExporting)
-        } header: {
-            Text("Data")
-        } footer: {
-            Text("Export creates a .zip backup. Import replaces all data from a backup.")
-        }
-    }
 
-    // MARK: - Danger Zone
-
-    private var dangerZoneSection: some View {
-        Section {
             Button(role: .destructive) {
                 showDeleteConfirmation = true
             } label: {
@@ -453,9 +443,9 @@ struct SettingsView: View {
             }
             .disabled(viewModel.isDeletingAll || isImporting)
         } header: {
-            Text("Danger Zone")
+            Text("Data")
         } footer: {
-            Text("Permanently deletes all local data. Cannot be undone.")
+            Text("Export creates a .zip backup. Import replaces all data from a backup. Deleting local data cannot be undone.")
         }
     }
 
