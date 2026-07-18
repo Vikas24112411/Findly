@@ -24,6 +24,19 @@ struct SettingsView: View {
     @State private var exportError: String?
     @State private var scrollOffset: CGFloat = 0
     @State private var showStoragePicker = false
+    // Export success flow
+    @State private var exportedVaultURL: URL?
+    @State private var exportSuccess = false
+    // Import
+    @State private var showImportPicker = false
+    @State private var pendingImportURL: URL?
+    @State private var showImportConfirmation = false
+    @State private var isImporting = false
+    @State private var importError: String?
+    @State private var importSuccess = false
+    // Delete all
+    @State private var showDeleteConfirmation = false
+    @State private var deleteSuccess = false
 
     var body: some View {
         NavigationStack {
@@ -34,6 +47,7 @@ struct SettingsView: View {
                 insightsSection
                 localStorageSection
                 dataSection
+                dangerZoneSection
                 aboutSection
             }
             .navigationTitle("Settings")
@@ -52,9 +66,24 @@ struct SettingsView: View {
                 set: { if !$0 {
                     if let url = exportURL { try? FileManager.default.removeItem(at: url) }
                     exportURL = nil
+                    exportedVaultURL = nil
                 }}
             )) {
                 if let url = exportURL { ShareSheet(items: [url]) }
+            }
+            .alert("Export Complete", isPresented: $exportSuccess) {
+                Button("Share") { exportURL = exportedVaultURL }
+                Button("Done", role: .cancel) {
+                    if let url = exportedVaultURL { try? FileManager.default.removeItem(at: url) }
+                    exportedVaultURL = nil
+                }
+            } message: {
+                Text("Your vault has been exported successfully.")
+            }
+            .alert("Data Deleted", isPresented: $deleteSuccess) {
+                Button("OK") {}
+            } message: {
+                Text("All files, tags, and search history have been permanently deleted from this device.")
             }
             .sheet(isPresented: $showStoragePicker) {
                 StorageLocationPickerView(viewModel: viewModel)
@@ -75,6 +104,72 @@ struct SettingsView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(exportError ?? "")
+            }
+            .fileImporter(
+                isPresented: $showImportPicker,
+                allowedContentTypes: [.zip],
+                allowsMultipleSelection: false
+            ) { result in
+                if case .success(let urls) = result, let url = urls.first {
+                    // Copy to temp so we can read it after security-scoped access ends.
+                    _ = url.startAccessingSecurityScopedResource()
+                    defer { url.stopAccessingSecurityScopedResource() }
+                    let tempURL = FileManager.default.temporaryDirectory
+                        .appendingPathComponent(url.lastPathComponent)
+                    try? FileManager.default.removeItem(at: tempURL)
+                    do {
+                        try FileManager.default.copyItem(at: url, to: tempURL)
+                        pendingImportURL = tempURL
+                        showImportConfirmation = true
+                    } catch {
+                        importError = error.localizedDescription
+                    }
+                }
+            }
+            .alert("Import Vault", isPresented: $showImportConfirmation) {
+                Button("Replace and Import", role: .destructive) {
+                    if let url = pendingImportURL { importVault(from: url) }
+                }
+                Button("Cancel", role: .cancel) { pendingImportURL = nil }
+            } message: {
+                Text("This will permanently replace all existing files, tags, and history with the contents of the imported vault.")
+            }
+            .alert("Delete All Data", isPresented: $showDeleteConfirmation) {
+                Button("Delete Everything", role: .destructive) {
+                    Task {
+                        await viewModel.deleteAllData(
+                            localStorage: appContainer.localStorage,
+                            context: modelContext
+                        )
+                        if viewModel.deleteError == nil {
+                            deleteSuccess = true
+                        }
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("All local files, tags, and search history will be permanently deleted from this device. Files already synced to Google Drive will not be affected. This cannot be undone.")
+            }
+            .alert("Delete Failed", isPresented: Binding(
+                get: { viewModel.deleteError != nil },
+                set: { if !$0 { viewModel.deleteError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(viewModel.deleteError ?? "")
+            }
+            .alert("Import Failed", isPresented: Binding(
+                get: { importError != nil },
+                set: { if !$0 { importError = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(importError ?? "")
+            }
+            .alert("Import Complete", isPresented: $importSuccess) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Your vault has been restored successfully.")
             }
         }
     }
@@ -288,43 +383,133 @@ struct SettingsView: View {
             Button {
                 exportVault()
             } label: {
-                HStack {
-                    Text("Export Vault")
-                        .foregroundStyle(AppTheme.Colors.accent)
-                    Spacer()
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(isExporting ? "Exporting…" : "Export Vault")
+                            .foregroundStyle(AppTheme.Colors.accent)
+                        Spacer()
+                        if isExporting {
+                            Text("\(Int(viewModel.exportProgress * 100))%")
+                                .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                                .monospacedDigit()
+                                .font(AppTheme.Typography.subheadline)
+                        }
+                    }
                     if isExporting {
-                        ProgressView()
+                        ProgressView(value: viewModel.exportProgress)
+                            .progressViewStyle(.linear)
+                            .tint(AppTheme.Colors.accent)
                     }
                 }
             }
-            .disabled(isExporting)
+            .disabled(isExporting || isImporting)
+
+            Button {
+                showImportPicker = true
+            } label: {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text(isImporting ? "Importing…" : "Import Vault")
+                            .foregroundStyle(AppTheme.Colors.accent)
+                        Spacer()
+                        if isImporting {
+                            Text("\(Int(viewModel.importProgress * 100))%")
+                                .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                                .monospacedDigit()
+                                .font(AppTheme.Typography.subheadline)
+                        }
+                    }
+                    if isImporting {
+                        ProgressView(value: viewModel.importProgress)
+                            .progressViewStyle(.linear)
+                            .tint(AppTheme.Colors.accent)
+                    }
+                }
+            }
+            .disabled(isImporting || isExporting)
         } header: {
             Text("Data")
         } footer: {
-            Text("Exports all locally stored files as a .zip archive.")
+            Text("Export saves all files and metadata as a .zip. Import restores from a previously exported vault, replacing all current data.")
+        }
+    }
+
+    // MARK: - Danger Zone
+
+    private var dangerZoneSection: some View {
+        Section {
+            Button(role: .destructive) {
+                showDeleteConfirmation = true
+            } label: {
+                HStack {
+                    if viewModel.isDeletingAll {
+                        ProgressView().scaleEffect(0.8)
+                    } else {
+                        Image(systemName: "trash")
+                    }
+                    Text(viewModel.isDeletingAll ? "Deleting…" : "Delete All Data")
+                }
+            }
+            .disabled(viewModel.isDeletingAll || isImporting)
+        } header: {
+            Text("Danger Zone")
+        } footer: {
+            Text("Permanently deletes all files, tags, and search history from this device. This cannot be undone.")
         }
     }
 
     private func exportVault() {
         isExporting = true
+        viewModel.exportProgress = 0
+        let vm = viewModel
         Task {
             do {
                 let items = (try? modelContext.fetch(FetchDescriptor<Item>())) ?? []
+                let tags = (try? modelContext.fetch(FetchDescriptor<Tag>())) ?? []
+                let history = (try? modelContext.fetch(FetchDescriptor<SearchHistoryEntry>())) ?? []
                 let url = try await appContainer.export.exportVault(
                     items: items,
-                    localStorage: appContainer.localStorage
+                    tags: tags,
+                    searchHistory: history,
+                    localStorage: appContainer.localStorage,
+                    onProgress: { @MainActor progress in vm.exportProgress = progress }
                 )
-                await MainActor.run {
-                    exportURL = url
-                    isExporting = false
-                    HapticFeedback.success()
-                }
+                exportedVaultURL = url
+                isExporting = false
+                exportSuccess = true
+                HapticFeedback.success()
             } catch {
-                await MainActor.run {
-                    exportError = error.localizedDescription
-                    isExporting = false
-                    HapticFeedback.error()
-                }
+                exportError = error.localizedDescription
+                isExporting = false
+                HapticFeedback.error()
+            }
+        }
+    }
+
+    private func importVault(from url: URL) {
+        isImporting = true
+        viewModel.importProgress = 0
+        let vm = viewModel
+        Task {
+            do {
+                try await appContainer.importService.importVault(
+                    from: url,
+                    localStorage: appContainer.localStorage,
+                    context: modelContext,
+                    onProgress: { @MainActor progress in vm.importProgress = progress }
+                )
+                try? FileManager.default.removeItem(at: url)
+                isImporting = false
+                pendingImportURL = nil
+                importSuccess = true
+                await viewModel.loadLocalStorageSize(appContainer: appContainer)
+                HapticFeedback.success()
+            } catch {
+                try? FileManager.default.removeItem(at: url)
+                importError = error.localizedDescription
+                isImporting = false
+                pendingImportURL = nil
+                HapticFeedback.error()
             }
         }
     }
