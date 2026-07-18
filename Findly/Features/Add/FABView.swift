@@ -2,9 +2,9 @@ import SwiftUI
 
 /// Floating action button with two interactions:
 /// - Short tap  → opens the add-item sheet
-/// - Long press (500 ms) → opens the radial menu; the user can then drag to an option and release to select it.
+/// - Long press (400 ms) → opens the radial menu; the user can then drag to an option and release to select it.
 ///
-/// Uses a single `DragGesture(minimumDistance: 0)` + a manual 500 ms timer to detect long-press.
+/// Uses a single `DragGesture(minimumDistance: 0)` + a manual 400 ms timer to detect long-press.
 /// This is more reliable than `LongPressGesture.sequenced(before: DragGesture)`, which can fail
 /// when the finger moves slightly during the hold.
 struct FABView: View {
@@ -45,9 +45,9 @@ struct FABView: View {
                 .onChanged { value in
                     if !isPressed { isPressed = true }
 
-                    // Start the 500 ms long-press timer on first event.
+                    // Start the 400 ms long-press timer on first event.
                     if longPressTimer == nil && !longPressConsumed {
-                        longPressTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+                        longPressTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { _ in
                             DispatchQueue.main.async {
                                 longPressConsumed = true
                                 HapticFeedback.medium()
