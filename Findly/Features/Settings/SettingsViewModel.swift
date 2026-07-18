@@ -1,5 +1,14 @@
 import Foundation
 import SwiftUI
+import SwiftData
+
+// Broadcast when ALL vault data (items, tags, history) is wiped from the store.
+// Sent synchronously on the main thread BEFORE any await so that cached [Item]
+// arrays in HomeViewModel / FilesViewModel are cleared before SwiftUI can re-render
+// with stale references that would crash on deleted-object attribute access.
+extension Notification.Name {
+    static let vaultDataWiped = Notification.Name("FindlyVaultDataWiped")
+}
 
 @Observable
 @MainActor
@@ -105,5 +114,42 @@ final class SettingsViewModel {
     func manualSync(appContainer: AppContainer) async {
         await appContainer.sync.syncPendingItems()
         UserDefaults.standard.set(Date(), forKey: "lastSyncDate")
+    }
+
+    // MARK: - Operation progress (0.0 – 1.0)
+
+    var exportProgress: Double = 0
+    var importProgress: Double = 0
+
+    // MARK: - Delete all data
+
+    var isDeletingAll = false
+    var deleteError: String?
+
+    func deleteAllData(localStorage: LocalFileService, context: ModelContext) async {
+        isDeletingAll = true
+        defer { isDeletingAll = false }
+        do {
+            // Fetch + delete individually so SwiftData can nullify the Item↔Tag M2M
+            // join entries first — context.delete(model:) is a SQL batch delete that
+            // throws a "Constraint trigger violation" on that relationship.
+            let items = try context.fetch(FetchDescriptor<Item>())
+            items.forEach { context.delete($0) }
+            let tags = try context.fetch(FetchDescriptor<Tag>())
+            tags.forEach { context.delete($0) }
+            let history = try context.fetch(FetchDescriptor<SearchHistoryEntry>())
+            history.forEach { context.delete($0) }
+            try context.save()
+            // Synchronously clear any cached [Item] arrays in running view models BEFORE
+            // the next await yields the main actor. Without this, SwiftUI would re-render
+            // background views (Home, Files) whose view models still hold stale Item
+            // references; those views crash accessing attribute faults on deleted objects.
+            NotificationCenter.default.post(name: .vaultDataWiped, object: nil)
+            // Only delete files after records are confirmed gone.
+            try await localStorage.deleteAllFiles()
+            localStorageSize = 0
+        } catch {
+            deleteError = error.localizedDescription
+        }
     }
 }

@@ -126,11 +126,31 @@ final class HomeViewModel {
 
     // MARK: - Init
 
+    private var vaultWipedObserver: NSObjectProtocol?
+
     func setup(context: ModelContext) {
         self.context = context
         loadHomeSections()
         loadSearchHistory()
+        // Register once per instance to clear cached [Item] arrays when all vault data
+        // is wiped. Clearing happens synchronously on the main thread so the arrays are
+        // empty before SwiftUI re-renders with the next await yield.
+        guard vaultWipedObserver == nil else { return }
+        vaultWipedObserver = NotificationCenter.default.addObserver(
+            forName: .vaultDataWiped,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.pinnedItems   = []
+                self?.recentItems   = []
+                self?.frequentItems = []
+                self?.recentlyAdded = []
+                self?.searchResults = []
+            }
+        }
     }
+
 
     // MARK: - Search
 

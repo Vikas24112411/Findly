@@ -42,10 +42,25 @@ final class FilesViewModel {
 
     // MARK: - Setup
 
+    private var vaultWipedObserver: NSObjectProtocol?
+
     func setup(context: ModelContext) {
         self.context = context
         if items.isEmpty { loadNextPage() }
+        guard vaultWipedObserver == nil else { return }
+        vaultWipedObserver = NotificationCenter.default.addObserver(
+            forName: .vaultDataWiped,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                self?.items = []
+                self?.currentOffset = 0
+                self?.hasMorePages = true
+            }
+        }
     }
+
 
     // MARK: - Pagination
 
