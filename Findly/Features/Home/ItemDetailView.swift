@@ -19,6 +19,8 @@ struct ItemDetailView: View {
     @State private var showDeleteConfirm = false
     @State private var showTagPicker = false
     @State private var shareURL: URL?
+    @State private var isEditingTitle = false
+    @State private var editingTitleText = ""
 
     var body: some View {
         ScrollView {
@@ -131,9 +133,26 @@ struct ItemDetailView: View {
 
     private var metaSection: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
-            Text(item.title)
-                .font(AppTheme.Typography.title2)
-                .foregroundStyle(AppTheme.Colors.label)
+            if isEditingTitle {
+                TextField("File name", text: $editingTitleText)
+                    .font(AppTheme.Typography.title2)
+                    .foregroundStyle(AppTheme.Colors.label)
+                    .submitLabel(.done)
+                    .onSubmit { commitTitleEdit() }
+            } else {
+                HStack(spacing: 6) {
+                    Text(item.title)
+                        .font(AppTheme.Typography.title2)
+                        .foregroundStyle(AppTheme.Colors.label)
+                    Image(systemName: "pencil")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                }
+                .onTapGesture {
+                    editingTitleText = item.title
+                    isEditingTitle = true
+                }
+            }
 
             if !item.itemDescription.isEmpty {
                 Text(item.itemDescription)
@@ -166,6 +185,16 @@ struct ItemDetailView: View {
         .padding(AppTheme.Spacing.base)
         .background(AppTheme.Colors.secondaryBG)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
+    }
+
+    private func commitTitleEdit() {
+        let trimmed = editingTitleText.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, trimmed != item.title else { isEditingTitle = false; return }
+        item.title = trimmed
+        item.markModified()
+        try? modelContext.save()
+        isEditingTitle = false
+        HapticFeedback.light()
     }
 
     private func metaRow(label: String, value: String) -> some View {
