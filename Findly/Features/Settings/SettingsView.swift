@@ -6,8 +6,10 @@ struct SettingsView: View {
 
     @Environment(AppContainer.self) private var appContainer
     @AppStorage("appLockEnabled") private var appLockEnabled = false
-    @AppStorage("showRecentItems") private var showRecentItems = true
+    @AppStorage("showRecentItems")   private var showRecentItems   = true
     @AppStorage("showFrequentItems") private var showFrequentItems = true
+    @AppStorage("showPinnedItems")   private var showPinnedItems   = true
+    @AppStorage("showFavoriteItems") private var showFavoriteItems = false
     @AppStorage("insightsShowStorageGrowth") private var insightsShowStorageGrowth = true
     @AppStorage("insightsShowWeeklyActivity") private var insightsShowWeeklyActivity = true
     @AppStorage("insightsShowFileTypes") private var insightsShowFileTypes = true
@@ -266,7 +268,7 @@ struct SettingsView: View {
 
     // MARK: - Preferences
 
-    private var preferencesSection: some View {
+    @ViewBuilder private var preferencesSection: some View {
         Section {
             Picker("Appearance", selection: $appearanceMode) {
                 Text("Light").tag("light")
@@ -275,8 +277,6 @@ struct SettingsView: View {
             }
             .pickerStyle(.segmented)
 
-            Toggle("Continue Where You Left Off", isOn: $showRecentItems)
-            Toggle("Frequently Opened", isOn: $showFrequentItems)
             Toggle("App Lock", isOn: $appLockEnabled)
                 .onChange(of: appLockEnabled) { _, enabled in
                     if enabled {
@@ -299,6 +299,17 @@ struct SettingsView: View {
             Text("Preferences")
         } footer: {
             Text("App Lock requires Face ID, Touch ID, or passcode.")
+        }
+
+        Section {
+            Toggle("Recent", isOn: $showRecentItems)
+            Toggle("Most Used", isOn: $showFrequentItems)
+            Toggle("Pinned", isOn: $showPinnedItems)
+            Toggle("Favorites", isOn: $showFavoriteItems)
+        } header: {
+            Text("Home Shelves")
+        } footer: {
+            Text("Choose which shelves appear on the Home page.")
         }
     }
 
