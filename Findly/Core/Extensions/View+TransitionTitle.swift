@@ -60,8 +60,7 @@ struct NavTransitionTitleModifier: ViewModifier {
                         .opacity(progress)
                 }
             }
-            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
-            .toolbarBackground(progress > 0.18 ? .visible : .hidden, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .navigationBar)
     }
 }
 

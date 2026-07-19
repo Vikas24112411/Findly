@@ -51,8 +51,7 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.large)
             .trackScrollOffset($scrollOffset)
-            .toolbarBackground(.ultraThinMaterial, for: .navigationBar)
-            .toolbarBackground(scrollOffset > 10 ? .visible : .hidden, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .onAppear {
                 Task {
                     await viewModel.loadDriveStats(appContainer: appContainer)
