@@ -13,6 +13,7 @@ struct ItemFormView: View {
 
     @State private var viewModel = ItemFormViewModel()
     @State private var showTagPicker = false
+    @State private var previewImage: UIImage?
 
     var body: some View {
         NavigationStack {
@@ -77,6 +78,14 @@ struct ItemFormView: View {
                     .frame(height: 240)
                     .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.xLarge, style: .continuous))
                     .padding(.horizontal, AppTheme.Spacing.base)
+                    .task {
+                        guard pendingUpload.fileType == .image else { return }
+                        let data = pendingUpload.data
+                        previewImage = await Task.detached(priority: .userInitiated) {
+                            guard let thumbData = ThumbnailCache.makeThumbnailData(data) else { return nil }
+                            return UIImage(data: thumbData)
+                        }.value
+                    }
 
                 VStack(spacing: AppTheme.Spacing.medium) {
                     // Title
@@ -219,12 +228,15 @@ struct ItemFormView: View {
 
     @ViewBuilder
     private var filePreview: some View {
-        let data = pendingUpload.data
-        if pendingUpload.fileType == .image, let uiImage = UIImage(data: data) {
-            Image(uiImage: uiImage)
-                .resizable()
-                .scaledToFill()
-                .background(AppTheme.Colors.tertiaryBG)
+        if pendingUpload.fileType == .image {
+            ZStack {
+                AppTheme.Colors.tertiaryBG
+                if let uiImage = previewImage {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                }
+            }
         } else {
             ZStack {
                 AppTheme.Colors.secondaryBG

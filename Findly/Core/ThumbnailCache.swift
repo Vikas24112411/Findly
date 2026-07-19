@@ -24,10 +24,9 @@ final class ThumbnailCache {
     /// Returns a UIImage for `id`, decoding from `data` at `targetSize` on first access.
     /// Subsequent calls with the same `id` return the cached bitmap without re-decoding.
     func image(for id: UUID, data: Data, targetSize: CGSize) -> UIImage? {
-        let key = id.uuidString as NSString
-        if let cached = cache.object(forKey: key) { return cached }
-
         let maxPixels = Int(max(targetSize.width, targetSize.height) * UIScreen.main.scale)
+        let key = "\(id.uuidString)-\(maxPixels)" as NSString
+        if let cached = cache.object(forKey: key) { return cached }
         guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
         let opts: [CFString: Any] = [
             kCGImageSourceThumbnailMaxPixelSize: maxPixels,
