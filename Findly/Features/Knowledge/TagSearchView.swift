@@ -11,7 +11,6 @@ struct TagSearchView: View {
     @State private var showCreateSheet = false
     @State private var renameTag: Tag? = nil
     @State private var createChildFor: Tag? = nil
-    @State private var newTagName: String = ""
     @State private var selectedTagForDetail: Tag? = nil
     @State private var tagToSetParentFor: Tag? = nil
 
@@ -51,18 +50,13 @@ struct TagSearchView: View {
                 tagToSetParentFor = nil
             }
         }
-        .alert("Rename Tag", isPresented: Binding(
-            get: { renameTag != nil },
-            set: { if !$0 { renameTag = nil } }
-        )) {
-            TextField("Tag name", text: $newTagName)
-            Button("Rename") {
-                if let tag = renameTag, !newTagName.isEmpty {
-                    viewModel.renameTag(tag, to: newTagName)
+        .sheet(item: $renameTag) { tag in
+            NavigationStack {
+                TagEditorView(editingTag: tag) { name, color, symbol in
+                    viewModel.updateTag(tag, name: name, colorHex: color, sfSymbol: symbol)
+                    renameTag = nil
                 }
-                renameTag = nil
             }
-            Button("Cancel", role: .cancel) { renameTag = nil }
         }
     }
 
@@ -112,18 +106,55 @@ struct TagSearchView: View {
         .padding(.vertical, AppTheme.Spacing.large)
     }
 
+    // MARK: - Create tag row
+
+    private func createTagRow(name: String) -> some View {
+        let colors = ["#3498DB", "#E74C3C", "#2ECC71", "#F39C12", "#9B59B6", "#1ABC9C"]
+        return Button {
+            viewModel.createTag(
+                name: name,
+                colorHex: colors.randomElement() ?? "#3498DB",
+                sfSymbol: "tag.fill"
+            )
+            viewModel.searchText = ""
+        } label: {
+            HStack(spacing: AppTheme.Spacing.medium) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 16))
+                    .foregroundStyle(AppTheme.Colors.accent)
+                    .frame(width: 28, height: 28)
+                    .background(AppTheme.Colors.accent.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                Text("Create \"\(name)\"")
+                    .font(AppTheme.Typography.body)
+                    .foregroundStyle(AppTheme.Colors.accent)
+                Spacer()
+            }
+            .padding(.horizontal, AppTheme.Spacing.base)
+            .padding(.vertical, AppTheme.Spacing.medium)
+        }
+        .buttonStyle(.plain)
+    }
+
     // MARK: - Filtered tag tree
 
     private var filteredTagTree: some View {
         let allTags = allNestedTags(from: viewModel.rootTags)
         return Group {
             if viewModel.filteredRootTags.isEmpty {
-                EmptyStateView(
-                    symbol: "magnifyingglass",
-                    title: "No tags found",
-                    subtitle: "No tags match \"\(viewModel.searchText)\"."
-                )
-                .padding(.top, AppTheme.Spacing.xxxLarge)
+                VStack(spacing: 0) {
+                    createTagRow(name: viewModel.searchText)
+                    Divider().padding(.leading, 56)
+                    EmptyStateView(
+                        symbol: "magnifyingglass",
+                        title: "No matching tags",
+                        subtitle: "No tags match \"\(viewModel.searchText)\"."
+                    )
+                    .padding(.vertical, AppTheme.Spacing.xxxLarge)
+                }
+                .background(AppTheme.Colors.secondaryBG)
+                .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
+                .padding(AppTheme.Spacing.base)
             } else {
                 LazyVStack(spacing: 0) {
                     ForEach(viewModel.filteredRootTags) { tag in
@@ -138,12 +169,10 @@ struct TagSearchView: View {
                             },
                             onCreateChild: { parent in
                                 createChildFor = parent
-                                newTagName = ""
                                 showCreateSheet = true
                             },
                             onRename: { tag in
                                 renameTag = tag
-                                newTagName = tag.name
                             },
                             onDelete: { tag in
                                 viewModel.deleteTag(tag)
@@ -187,9 +216,9 @@ struct TagSearchView: View {
             }
             .padding(.horizontal, AppTheme.Spacing.medium)
             .padding(.vertical, 10)
-            .background(Color(.tertiarySystemBackground),
+            .background(.ultraThinMaterial,
                         in: RoundedRectangle(cornerRadius: AppTheme.Radius.full, style: .continuous))
-            .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 2)
+            .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
             .animation(.easeInOut(duration: 0.15), value: viewModel.searchText.isEmpty)
 
             Button {
@@ -198,7 +227,7 @@ struct TagSearchView: View {
             } label: {
                 ZStack {
                     Circle()
-                        .fill(Color(.tertiarySystemBackground))
+                        .fill(.ultraThinMaterial)
                         .frame(width: 36, height: 36)
                     Image(systemName: "xmark")
                         .font(.system(size: 13, weight: .semibold))
@@ -215,9 +244,9 @@ struct TagSearchView: View {
     @ViewBuilder
     private func createTagSheetView(parent: Tag?) -> some View {
         NavigationStack {
-            CreateTagView(
+            TagEditorView(
                 parentTag: parent,
-                onCreate: { name, color, symbol in
+                onSave: { name, color, symbol in
                     viewModel.createTag(name: name, colorHex: color, sfSymbol: symbol, parent: parent)
                     showCreateSheet = false
                 }

@@ -9,7 +9,6 @@ struct KnowledgeView: View {
     @State private var showCreateSheet = false
     @State private var renameTag: Tag? = nil
     @State private var createChildFor: Tag? = nil
-    @State private var newTagName: String = ""
     @State private var selectedTagForDetail: Tag? = nil
     @State private var tagToSetParentFor: Tag? = nil
     @State private var scrollOffset: CGFloat = 0
@@ -67,18 +66,13 @@ struct KnowledgeView: View {
                     tagToSetParentFor = nil
                 }
             }
-            .alert("Rename Tag", isPresented: Binding(
-                get: { renameTag != nil },
-                set: { if !$0 { renameTag = nil } }
-            )) {
-                TextField("Tag name", text: $newTagName)
-                Button("Rename") {
-                    if let tag = renameTag, !newTagName.isEmpty {
-                        viewModel.renameTag(tag, to: newTagName)
+            .sheet(item: $renameTag) { tag in
+                NavigationStack {
+                    TagEditorView(editingTag: tag) { name, color, symbol in
+                        viewModel.updateTag(tag, name: name, colorHex: color, sfSymbol: symbol)
+                        renameTag = nil
                     }
-                    renameTag = nil
                 }
-                Button("Cancel", role: .cancel) { renameTag = nil }
             }
         }
     }
@@ -103,12 +97,10 @@ struct KnowledgeView: View {
                             },
                             onCreateChild: { parent in
                                 createChildFor = parent
-                                newTagName = ""
                                 showCreateSheet = true
                             },
                             onRename: { tag in
                                 renameTag = tag
-                                newTagName = tag.name
                             },
                             onDelete: { tag in
                                 viewModel.deleteTag(tag)
@@ -150,9 +142,9 @@ struct KnowledgeView: View {
     @ViewBuilder
     private func createTagSheet(parent: Tag?) -> some View {
         NavigationStack {
-            CreateTagView(
+            TagEditorView(
                 parentTag: parent,
-                onCreate: { name, color, symbol in
+                onSave: { name, color, symbol in
                     viewModel.createTag(name: name, colorHex: color, sfSymbol: symbol, parent: parent)
                     showCreateSheet = false
                 }
@@ -278,18 +270,30 @@ struct TagDetailSheet: View {
     }
 }
 
-// MARK: - Create Tag View
+// MARK: - Tag Editor View (create or edit)
 
-struct CreateTagView: View {
-    var parentTag: Tag?
-    var onCreate: (String, String, String) -> Void
+struct TagEditorView: View {
+    var parentTag: Tag? = nil
+    var editingTag: Tag? = nil
+    var onSave: (String, String, String) -> Void
 
-    @State private var name: String = ""
-    @State private var colorHex: String = "#4A90E2"
-    @State private var symbol: String = "tag.fill"
+    @State private var name: String
+    @State private var colorHex: String
+    @State private var symbol: String
     @State private var showEmojis = false
-    @State private var customColor: Color = Color(hex: "#4A90E2")
+    @State private var customColor: Color
     @Environment(\.dismiss) private var dismiss
+
+    init(parentTag: Tag? = nil, editingTag: Tag? = nil, onSave: @escaping (String, String, String) -> Void) {
+        self.parentTag = parentTag
+        self.editingTag = editingTag
+        self.onSave = onSave
+        let initialColor = editingTag?.colorHex ?? "#4A90E2"
+        _name       = State(initialValue: editingTag?.name     ?? "")
+        _colorHex   = State(initialValue: initialColor)
+        _symbol     = State(initialValue: editingTag?.sfSymbol ?? "tag.fill")
+        _customColor = State(initialValue: Color(hex: initialColor))
+    }
 
     private let presetColors = [
         "#4A90E2", "#E74C3C", "#2ECC71", "#F39C12",
@@ -329,7 +333,13 @@ struct CreateTagView: View {
                 TextField("Tag name", text: $name)
                     .textInputAutocapitalization(.words)
             } header: {
-                Text(parentTag != nil ? "Child of \"\(parentTag!.name)\"" : "New Tag")
+                if let editing = editingTag {
+                    Text("Editing \"\(editing.name)\"")
+                } else if let parent = parentTag {
+                    Text("Child of \"\(parent.name)\"")
+                } else {
+                    Text("New Tag")
+                }
             }
 
             Section("Color") {
@@ -404,18 +414,18 @@ struct CreateTagView: View {
                 TagChipView(tag: previewTag)
             }
         }
-        .navigationTitle("New Tag")
+        .navigationTitle(editingTag != nil ? "Edit Tag" : "New Tag")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button("Create") {
-                    guard !name.isEmpty else { return }
-                    onCreate(name, colorHex, symbol)
+                Button(editingTag != nil ? "Save" : "Create") {
+                    guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                    onSave(name, colorHex, symbol)
                 }
-                .disabled(name.isEmpty)
+                .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
             }
         }
     }

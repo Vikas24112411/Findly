@@ -122,6 +122,14 @@ final class KnowledgeViewModel {
         loadRootTags()
     }
 
+    func updateTag(_ tag: Tag, name: String, colorHex: String, sfSymbol: String) {
+        tag.name     = name
+        tag.colorHex = colorHex
+        tag.sfSymbol = sfSymbol
+        try? context?.save()
+        loadRootTags()
+    }
+
     func deleteTag(_ tag: Tag) {
         context?.delete(tag)
         try? context?.save()
