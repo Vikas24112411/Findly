@@ -89,9 +89,6 @@ final class Item {
         var parts: [String] = []
         parts.append(fileSize.fileSizeString)
         parts.append(createdAt.shortRelativeString)
-        if !tags.isEmpty {
-            parts.append(tags.prefix(2).map(\.name).joined(separator: ", "))
-        }
         return parts.joined(separator: " · ")
     }
 

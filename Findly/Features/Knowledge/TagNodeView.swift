@@ -67,8 +67,6 @@ struct TagNodeView: View {
                         .frame(width: 16)
                 }
                 .buttonStyle(.plain)
-            } else {
-                Spacer().frame(width: 16)
             }
 
             // Tag icon
@@ -128,21 +126,6 @@ struct TagNodeView: View {
         }
         .contentShape(Rectangle())
         .onTapGesture { onSelect(tag) }
-        .swipeActions(edge: .leading, allowsFullSwipe: false) {
-            Button { onCreateChild(tag) } label: {
-                Label("Add Child", systemImage: "plus.circle.fill")
-            }
-            .tint(AppTheme.Colors.accent)
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive) { onDelete(tag) } label: {
-                Label("Delete", systemImage: "trash.fill")
-            }
-            Button { onRename(tag) } label: {
-                Label("Rename", systemImage: "pencil")
-            }
-            .tint(.orange)
-        }
         .contextMenu {
             Button { onCreateChild(tag) } label: {
                 Label("New Child Tag", systemImage: "plus.circle")
@@ -157,7 +140,7 @@ struct TagNodeView: View {
             }
             Divider()
             Button { onRename(tag) } label: {
-                Label("Rename", systemImage: "pencil")
+                Label("Edit Tag", systemImage: "pencil")
             }
             Button(role: .destructive) { onDelete(tag) } label: {
                 Label("Delete", systemImage: "trash")
