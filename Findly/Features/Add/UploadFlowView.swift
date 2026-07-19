@@ -292,8 +292,8 @@ struct MultiTagPickerSheet: View {
                     TextField("Search tags...", text: $searchText)
                 }
                 .padding(AppTheme.Spacing.medium)
-                .background(AppTheme.Colors.secondaryBG)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
+                .background(.ultraThinMaterial,
+                            in: RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
                 .padding(AppTheme.Spacing.base)
 
                 // Selected tags

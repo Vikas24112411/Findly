@@ -212,9 +212,9 @@ struct HomeSearchView: View {
             }
             .padding(.horizontal, AppTheme.Spacing.medium)
             .padding(.vertical, 10)
-            .background(Color(.tertiarySystemBackground),
+            .background(.ultraThinMaterial,
                         in: RoundedRectangle(cornerRadius: AppTheme.Radius.full, style: .continuous))
-            .shadow(color: .black.opacity(0.08), radius: 6, x: 0, y: 2)
+            .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
             .animation(.easeInOut(duration: 0.15), value: viewModel.searchText.isEmpty)
 
             Button {
@@ -222,7 +222,7 @@ struct HomeSearchView: View {
             } label: {
                 ZStack {
                     Circle()
-                        .fill(Color(.tertiarySystemBackground))
+                        .fill(.ultraThinMaterial)
                         .frame(width: 36, height: 36)
                     Image(systemName: "xmark")
                         .font(.system(size: 13, weight: .semibold))
