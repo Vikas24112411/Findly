@@ -3,6 +3,9 @@ import SwiftData
 
 struct HomeSearchView: View {
 
+    var initialFilter: Set<FileType> = []
+    var initialTag: Tag? = nil
+
     @State private var viewModel = HomeViewModel()
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -14,7 +17,7 @@ struct HomeSearchView: View {
 
     var body: some View {
         ScrollView {
-            if viewModel.isSearching || !viewModel.selectedFileTypes.isEmpty {
+            if viewModel.isSearching || !viewModel.selectedFileTypes.isEmpty || viewModel.selectedTag != nil {
                 SearchResultsView(
                     results: viewModel.searchResults,
                     isLoading: viewModel.isLoading,
@@ -52,7 +55,7 @@ struct HomeSearchView: View {
                     }
                 }
             } else {
-                if viewModel.isSearching || !viewModel.selectedFileTypes.isEmpty {
+                if viewModel.isSearching || !viewModel.selectedFileTypes.isEmpty || viewModel.selectedTag != nil {
                     ToolbarItemGroup(placement: .topBarTrailing) {
                         Button { showFilterSheet = true } label: {
                             Image(systemName: viewModel.hasActiveFilters
@@ -100,6 +103,14 @@ struct HomeSearchView: View {
             viewModel.setup(context: modelContext)
             viewModel.loadSearchHistory()
             searchFocused = true
+            if !initialFilter.isEmpty {
+                viewModel.selectedFileTypes = initialFilter
+                viewModel.performSearch()
+            }
+            if let tag = initialTag {
+                viewModel.selectedTag = tag
+                viewModel.performSearch()
+            }
         }
     }
 
@@ -195,11 +206,34 @@ struct HomeSearchView: View {
             HStack(spacing: AppTheme.Spacing.small) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+
+                // Active tag chip — shows which tag is filtering results
+                if let tag = viewModel.selectedTag {
+                    HStack(spacing: 4) {
+                        Image(systemName: tag.sfSymbol)
+                            .font(.system(size: 10, weight: .medium))
+                        Text("#\(tag.name)")
+                            .font(.system(size: 12, weight: .semibold))
+                        Button {
+                            viewModel.selectedTag = nil
+                            viewModel.performSearch()
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 9, weight: .bold))
+                        }
+                    }
+                    .foregroundStyle(Color(hex: tag.colorHex))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color(hex: tag.colorHex).opacity(0.15), in: Capsule())
+                    .transition(.scale(scale: 0.8).combined(with: .opacity))
+                }
+
                 TextField("Search your vault...", text: $viewModel.searchText)
                     .focused($searchFocused)
                     .submitLabel(.search)
                     .onSubmit { viewModel.submitSearch() }
-                if !viewModel.searchText.isEmpty || !viewModel.selectedFileTypes.isEmpty {
+                if !viewModel.searchText.isEmpty || !viewModel.selectedFileTypes.isEmpty || viewModel.selectedTag != nil {
                     Button {
                         viewModel.clearSearch()
                         viewModel.resetFilters()
@@ -216,6 +250,7 @@ struct HomeSearchView: View {
                         in: RoundedRectangle(cornerRadius: AppTheme.Radius.full, style: .continuous))
             .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
             .animation(.easeInOut(duration: 0.15), value: viewModel.searchText.isEmpty)
+            .animation(.easeInOut(duration: 0.15), value: viewModel.selectedTag == nil)
 
             Button {
                 dismiss()

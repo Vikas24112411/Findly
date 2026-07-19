@@ -18,6 +18,8 @@ final class HomeViewModel {
     var recentItems: [Item]   = []
     var frequentItems: [Item] = []
     var recentlyAdded: [Item] = []
+    var favoriteItems: [Item] = []
+    var allTags: [Tag]        = []
 
     // MARK: - Search history
 
@@ -166,6 +168,8 @@ final class HomeViewModel {
                 self?.recentItems   = []
                 self?.frequentItems = []
                 self?.recentlyAdded = []
+                self?.favoriteItems = []
+                self?.allTags       = []
                 self?.searchResults = []
             }
         }
@@ -246,6 +250,17 @@ final class HomeViewModel {
         recentItems   = (try? SearchService.recentItems(limit: 10, context: context))   ?? []
         frequentItems = (try? SearchService.frequentItems(limit: 6, context: context))  ?? []
         recentlyAdded = (try? SearchService.recentlyAddedItems(limit: 20, context: context)) ?? []
+
+        var favDescriptor = FetchDescriptor<Item>(
+            predicate: #Predicate { $0.isFavorite },
+            sortBy: [SortDescriptor(\.modifiedAt, order: .reverse)]
+        )
+        favDescriptor.fetchLimit = 10
+        favoriteItems = (try? context.fetch(favDescriptor)) ?? []
+
+        allTags = (try? context.fetch(FetchDescriptor<Tag>(
+            sortBy: [SortDescriptor(\.name)]
+        ))) ?? []
     }
 
     // MARK: - Search history

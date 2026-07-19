@@ -7,6 +7,11 @@ struct ItemCardView: View {
     var style: Style = .grid
     var isSelectMode: Bool = false
     var isSelected: Bool = false
+    var titleLines: Int = 2
+    /// When non-nil, tags are fitted dynamically to this pixel width using UIFont measurement.
+    /// When nil, falls back to showing `maxTags` tags with a +N overflow pill.
+    var availableTagWidth: CGFloat? = nil
+    var maxTags: Int = 2
 
     @State private var thumbnail: UIImage?
 
@@ -80,30 +85,33 @@ struct ItemCardView: View {
                 }
 
             // Info
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.title)
-                    .font(AppTheme.Typography.subheadline)
-                    .foregroundStyle(AppTheme.Colors.label)
-                    .lineLimit(2)
-                HStack {
-                    Text(item.fileSize.fileSizeString)
-                        .font(AppTheme.Typography.caption2)
-                        .foregroundStyle(AppTheme.Colors.tertiaryLabel)
-                    Spacer()
-                    SyncStatusBadge(status: item.syncStatus)
-                }
-            }
+            Text(item.title)
+                .font(AppTheme.Typography.subheadline)
+                .foregroundStyle(AppTheme.Colors.label)
+                .lineLimit(titleLines)
 
-            // Tags (up to 2)
+            // Tags with overflow pill — dynamic fit or fixed cap
             if !item.tags.isEmpty {
+                let shown = availableTagWidth.map { fittingTagCount(item.tags, in: $0) } ?? min(maxTags, item.tags.count)
+                let overflow = item.tags.count - shown
                 HStack(spacing: AppTheme.Spacing.xSmall) {
-                    ForEach(item.tags.prefix(2)) { tag in
+                    ForEach(item.tags.prefix(shown)) { tag in
                         Text(tag.name)
                             .font(.system(size: 9, weight: .medium))
                             .foregroundStyle(Color(hex: tag.colorHex))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(Color(hex: tag.colorHex).opacity(0.12))
+                            .clipShape(Capsule())
+                            .lineLimit(1)
+                    }
+                    if overflow > 0 {
+                        Text("+\(overflow)")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(AppTheme.Colors.secondaryFill)
                             .clipShape(Capsule())
                     }
                 }
@@ -117,6 +125,41 @@ struct ItemCardView: View {
                 radius: AppTheme.Shadow.card.radius,
                 x: AppTheme.Shadow.card.x,
                 y: AppTheme.Shadow.card.y)
+    }
+
+    // MARK: - Dynamic tag fitting
+
+    /// Returns how many tags from `tags` fit in `width` (in points), leaving room
+    /// for a "+N" overflow pill when necessary.
+    /// Uses UIFont measurement so results match what SwiftUI renders at the same size.
+    private func fittingTagCount(_ tags: [Tag], in width: CGFloat) -> Int {
+        let gap: CGFloat = AppTheme.Spacing.xSmall   // 4pt between pills
+        let hPad: CGFloat = 12                        // 6pt left + 6pt right inside each pill
+        let font = UIFont.systemFont(ofSize: 9, weight: .medium)
+
+        func pillWidth(_ text: String) -> CGFloat {
+            ceil((text as NSString).size(withAttributes: [.font: font]).width) + hPad
+        }
+
+        var used: CGFloat = 0
+        var count = 0
+
+        for i in 0..<tags.count {
+            let tagW   = pillWidth(tags[i].name)
+            let leadGap: CGFloat = count == 0 ? 0 : gap
+            // How many would still overflow after including this tag?
+            let remaining = tags.count - (count + 1)
+            // Reserve space for the "+N" pill only if there will actually be leftovers
+            let overflowW: CGFloat = remaining > 0 ? gap + pillWidth("+\(remaining)") : 0
+
+            if used + leadGap + tagW + overflowW <= width {
+                used += leadGap + tagW
+                count += 1
+            } else {
+                break
+            }
+        }
+        return count
     }
 
     // MARK: - Row card

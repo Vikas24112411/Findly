@@ -11,7 +11,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: Tab = .home
     @State private var showAddSheet = false
-    @State private var showSearch = false
+    @State private var searchConfig: SearchConfig? = nil
     @State private var showRadialMenu = false
     @State private var fabIconRotated = false
     @State private var lockManager = AppLockManager()
@@ -77,9 +77,11 @@ struct ContentView: View {
             .zIndex(showRadialMenu ? 10 : 0)
 
             TabView(selection: $selectedTab) {
-                HomeView()
-                    .tabItem { Label("Home", systemImage: "house") }
-                    .tag(Tab.home)
+                HomeView(onSearch: { fileTypes, tag in
+                    searchConfig = SearchConfig(fileTypes: fileTypes, tag: tag)
+                })
+                .tabItem { Label("Home", systemImage: "house") }
+                .tag(Tab.home)
 
                 KnowledgeView()
                     .tabItem { Label("Tags", systemImage: "tag.fill") }
@@ -99,33 +101,17 @@ struct ContentView: View {
             }
             .tint(AppTheme.Colors.accent)
 
-            // Floating buttons — overlaid above the tab bar
-            HStack {
-                // Search FAB — left side
-                Button {
-                    HapticFeedback.medium()
-                    showSearch = true
-                } label: {
-                    ZStack {
-                        Circle()
-                            .fill(AppTheme.Colors.accent)
-                            .frame(width: 56, height: 56)
-                            .shadow(color: AppTheme.Shadow.fab.color,
-                                    radius: AppTheme.Shadow.fab.radius,
-                                    x: AppTheme.Shadow.fab.x,
-                                    y: AppTheme.Shadow.fab.y)
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 22, weight: .semibold))
-                            .foregroundStyle(.white)
+            // Floating buttons — search pill (Home only) + add FAB, both in thumb zone
+            HStack(spacing: AppTheme.Spacing.medium) {
+                if selectedTab == .home {
+                    SearchPillButton {
+                        HapticFeedback.light()
+                        searchConfig = SearchConfig()
                     }
+                } else {
+                    Spacer()
                 }
-                .buttonStyle(FABButtonStyle())
-                .accessibilityLabel("Search vault")
-                .padding(.leading, AppTheme.Spacing.large)
 
-                Spacer()
-
-                // Add FAB — right side
                 FABView(
                     showSheet: $showAddSheet,
                     isRadialOpen: fabIconRotated,
@@ -145,17 +131,17 @@ struct ContentView: View {
                         fabDragEndTrigger += 1
                     }
                 )
-                .padding(.trailing, AppTheme.Spacing.large)
             }
+            .padding(.horizontal, AppTheme.Spacing.large)
             .padding(.bottom, 90)
         }
         .sheet(isPresented: $showAddSheet) {
             AddItemSheetView()
                 .environment(appContainer)
         }
-        .fullScreenCover(isPresented: $showSearch) {
+        .fullScreenCover(item: $searchConfig) { config in
             NavigationStack {
-                HomeSearchView()
+                HomeSearchView(initialFilter: config.fileTypes, initialTag: config.tag)
             }
         }
     }
@@ -166,6 +152,48 @@ struct ContentView: View {
 extension ContentView {
     enum Tab: Hashable {
         case home, knowledge, files, insights, settings
+    }
+}
+
+// MARK: - Search pill button
+
+/// Wide tappable pill styled as a search bar, sits beside the add FAB in the thumb zone.
+private struct SearchPillButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: AppTheme.Spacing.small) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                Text("Search files, tags…")
+                    .font(.system(size: 15))
+                    .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                Spacer()
+            }
+            .padding(.horizontal, AppTheme.Spacing.medium)
+            .frame(height: 50)
+            .background(.ultraThinMaterial, in: Capsule())
+            .shadow(color: AppTheme.Shadow.fab.color,
+                    radius: AppTheme.Shadow.fab.radius,
+                    x: AppTheme.Shadow.fab.x,
+                    y: AppTheme.Shadow.fab.y)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Search configuration passed to HomeSearchView
+
+struct SearchConfig: Identifiable {
+    let id = UUID()
+    let fileTypes: Set<FileType>
+    let tag: Tag?
+
+    init(fileTypes: Set<FileType> = [], tag: Tag? = nil) {
+        self.fileTypes = fileTypes
+        self.tag = tag
     }
 }
 

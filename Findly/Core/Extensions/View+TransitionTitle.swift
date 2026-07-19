@@ -18,7 +18,6 @@ struct LargeTitleHeader: View {
             .foregroundStyle(AppTheme.Colors.label)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, AppTheme.Spacing.base)
-            .padding(.top, AppTheme.Spacing.small)
             .padding(.bottom, AppTheme.Spacing.medium)
             .opacity(1.0 - progress)
     }
