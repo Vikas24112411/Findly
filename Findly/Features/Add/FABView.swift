@@ -46,14 +46,18 @@ struct FABView: View {
                     if !isPressed { isPressed = true }
 
                     // Start the 400 ms long-press timer on first event.
+                    // Uses .common RunLoop mode so it fires even while the RunLoop is in
+                    // .tracking mode (during scroll) or under brief main-thread load.
                     if longPressTimer == nil && !longPressConsumed {
-                        longPressTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { _ in
+                        let t = Timer(timeInterval: 0.4, repeats: false) { _ in
                             DispatchQueue.main.async {
                                 longPressConsumed = true
                                 HapticFeedback.medium()
                                 onLongPress?()
                             }
                         }
+                        RunLoop.main.add(t, forMode: .common)
+                        longPressTimer = t
                     }
 
                     // Once long press has fired, forward drag location.

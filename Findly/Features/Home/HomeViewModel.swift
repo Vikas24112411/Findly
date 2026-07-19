@@ -144,8 +144,14 @@ final class HomeViewModel {
 
     func setup(context: ModelContext) {
         self.context = context
-        loadHomeSections()
-        loadSearchHistory()
+        // Defer DB fetches so HomeView renders its empty state before hitting SQLite.
+        // loadHomeSections() is called synchronously from mutation paths (bulkTogglePin etc.)
+        // and from the itemSaved observer — only this initial call is deferred.
+        Task { @MainActor in
+            await Task.yield()
+            self.loadHomeSections()
+            self.loadSearchHistory()
+        }
         // Register once per instance to clear cached [Item] arrays when all vault data
         // is wiped. Clearing happens synchronously on the main thread so the arrays are
         // empty before SwiftUI re-renders with the next await yield.
