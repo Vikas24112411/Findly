@@ -25,16 +25,14 @@ final class AppContainer {
 
     // MARK: - Init
 
-    init() {
-        persistence    = PersistenceController.shared
+    /// Designated init — takes pre-resolved values so heavy IO can be done off the main thread.
+    init(persistence: PersistenceController, baseDirectory: URL) {
+        self.persistence = persistence
         auth           = AuthService()
         drive          = GoogleDriveService(auth: auth)
         tokenRefresher = TokenRefresher.shared
 
-        // LocalFileService base directory is resolved from the user's saved preference.
-        // Defaults to ApplicationSupport/Findly/files/ on first launch.
-        let baseDir = StorageLocationService.shared.resolvedBaseDirectory
-        guard let localFS = try? LocalFileService(baseDirectory: baseDir) else {
+        guard let localFS = try? LocalFileService(baseDirectory: baseDirectory) else {
             fatalError("Could not initialize local file storage.")
         }
         localStorage = localFS
@@ -46,8 +44,26 @@ final class AppContainer {
             context: persistence.container.mainContext
         )
 
-        // Register BGProcessingTask handler
         BackgroundSyncTask.register(syncService: sync)
+    }
+
+    /// Async factory — runs the two blocking operations (SQLite open + bookmark resolution)
+    /// on a detached task so the main RunLoop stays free during startup.
+    static func makeAsync() async -> AppContainer {
+        let (persistence, baseDir) = await Task.detached(priority: .userInitiated) {
+            let p = PersistenceController.shared                        // SQLite open
+            let d = StorageLocationService.shared.resolvedBaseDirectory // bookmark resolve
+            return (p, d)
+        }.value
+        return AppContainer(persistence: persistence, baseDirectory: baseDir)
+    }
+
+    /// Convenience init for Xcode previews — synchronous, main-thread only.
+    convenience init() {
+        self.init(
+            persistence: PersistenceController.shared,
+            baseDirectory: StorageLocationService.shared.resolvedBaseDirectory
+        )
     }
 
     // MARK: - App lifecycle hooks
