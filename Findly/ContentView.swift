@@ -58,22 +58,23 @@ struct ContentView: View {
 
     private var mainContent: some View {
         ZStack(alignment: .bottom) {
-            // Radial long-press menu overlay
-            if showRadialMenu {
-                RadialMenuView(
-                    isVisible: $showRadialMenu,
-                    dragPoint: fabDragPoint,
-                    dragEndTrigger: fabDragEndTrigger,
-                    onOptionCommitted: {
-                        withAnimation(AppTheme.Animation.snappy) {
-                            fabIconRotated = false
-                        }
+            // Radial long-press menu overlay — always in the hierarchy so it is pre-warmed
+            // (view constructed, layout done, anchor position captured) before the user
+            // long-presses. Visibility is controlled via opacity and hit-testing.
+            RadialMenuView(
+                isVisible: $showRadialMenu,
+                dragPoint: fabDragPoint,
+                dragEndTrigger: fabDragEndTrigger,
+                onOptionCommitted: {
+                    withAnimation(AppTheme.Animation.snappy) {
+                        fabIconRotated = false
                     }
-                )
-                .environment(appContainer)
-                .transition(.opacity)
-                .zIndex(10)
-            }
+                }
+            )
+            .environment(appContainer)
+            .opacity(showRadialMenu ? 1 : 0)
+            .allowsHitTesting(showRadialMenu)
+            .zIndex(showRadialMenu ? 10 : 0)
 
             TabView(selection: $selectedTab) {
                 HomeView()

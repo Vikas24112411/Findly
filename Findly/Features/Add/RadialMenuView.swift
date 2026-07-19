@@ -71,7 +71,18 @@ struct RadialMenuView: View {
             dimBackground
             iconFan
         }
-        .onAppear { animateIn() }
+        .onAppear {
+            // View is pre-warmed in the hierarchy while invisible — do not animate in on appear.
+            // Animation is triggered by the isVisible binding becoming true (see onChange below).
+        }
+        .onChange(of: isVisible) { _, visible in
+            if visible {
+                // Reset any state left from a previous show before animating in.
+                isDismissing = false
+                animationProgress = Array(repeating: false, count: 5)
+                animateIn()
+            }
+        }
         .onChange(of: dragPoint) { _, pt in
             let newState = pt.map { computeHoverState(for: $0) } ?? .none
             fireHapticIfNeeded(from: hoverState, to: newState)
