@@ -9,7 +9,9 @@ struct HomeView: View {
     @Environment(AppContainer.self) private var appContainer
     @State private var viewModel = HomeViewModel()
     @State private var scrollOffset: CGFloat = 0
+    @State private var showSettings = false
 
+    @AppStorage("appearanceMode")     private var appearanceMode     = "system"
     @AppStorage("showRecentItems")    private var showRecentItems    = true
     @AppStorage("showFrequentItems")  private var showFrequentItems  = true
     @AppStorage("showPinnedItems")    private var showPinnedItems    = true
@@ -34,6 +36,19 @@ struct HomeView: View {
             .navTransitionTitle(inlineTitle, progress: titleProgress)
             // Reserve space so scroll content doesn't hide behind the bottom pill bar
             .safeAreaInset(edge: .bottom) { Color.clear.frame(height: 95) }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                }
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
+                    .preferredColorScheme(appearanceMode == "light" ? .light : appearanceMode == "dark" ? .dark : nil)
+            }
             .onAppear {
                 viewModel.setup(context: modelContext)
             }

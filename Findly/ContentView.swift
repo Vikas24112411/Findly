@@ -94,10 +94,6 @@ struct ContentView: View {
                 InsightsView()
                     .tabItem { Label("Insights", systemImage: "chart.bar.fill") }
                     .tag(Tab.insights)
-
-                SettingsView()
-                    .tabItem { Label("Settings", systemImage: "gearshape.fill") }
-                    .tag(Tab.settings)
             }
             .tint(AppTheme.Colors.accent)
 
@@ -151,7 +147,7 @@ struct ContentView: View {
 
 extension ContentView {
     enum Tab: Hashable {
-        case home, knowledge, files, insights, settings
+        case home, knowledge, files, insights
     }
 }
 
