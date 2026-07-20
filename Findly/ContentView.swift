@@ -1,7 +1,7 @@
 import SwiftUI
 import LocalAuthentication
 
-/// Root view: TabView with four tabs + persistent floating action button.
+/// Root view: TabView with five tabs + persistent floating action button.
 struct ContentView: View {
 
     @Environment(AppContainer.self) private var appContainer
@@ -9,9 +9,10 @@ struct ContentView: View {
     @AppStorage("appLockEnabled") private var appLockEnabled = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @Environment(\.scenePhase) private var scenePhase
-    @State private var selectedTab: Tab = .home
+    @State private var selectedTab: AppTab = .home
     @State private var showAddSheet = false
-    @State private var searchConfig: SearchConfig? = nil
+    @State private var pendingSearchConfig: SearchConfig? = nil
+    @State private var tabSearchText: String = ""
     @State private var showRadialMenu = false
     @State private var fabIconRotated = false
     @State private var lockManager = AppLockManager()
@@ -77,68 +78,68 @@ struct ContentView: View {
             .zIndex(showRadialMenu ? 10 : 0)
 
             TabView(selection: $selectedTab) {
-                HomeView(onSearch: { fileTypes, tag in
-                    searchConfig = SearchConfig(fileTypes: fileTypes, tag: tag)
-                })
-                .tabItem { Label("Home", systemImage: "house") }
-                .tag(Tab.home)
+                Tab("Home", systemImage: "house", value: AppTab.home) {
+                    HomeView(onSearch: { fileTypes, tag in
+                        pendingSearchConfig = SearchConfig(fileTypes: fileTypes, tag: tag)
+                        selectedTab = .search
+                    })
+                }
 
-                KnowledgeView()
-                    .tabItem { Label("Tags", systemImage: "tag.fill") }
-                    .tag(Tab.knowledge)
+                Tab("Tags", systemImage: "tag.fill", value: AppTab.knowledge) {
+                    KnowledgeView()
+                }
 
-                FilesView()
-                    .tabItem { Label("Files", systemImage: "doc.fill") }
-                    .tag(Tab.files)
+                Tab("Files", systemImage: "doc.fill", value: AppTab.files) {
+                    FilesView()
+                }
 
-                InsightsView()
-                    .tabItem { Label("Insights", systemImage: "chart.bar.fill") }
-                    .tag(Tab.insights)
+                Tab("Insights", systemImage: "chart.bar.fill", value: AppTab.insights) {
+                    InsightsView()
+                }
+
+                Tab("Search", systemImage: "magnifyingglass", value: AppTab.search, role: .search) {
+                    NavigationStack {
+                        HomeSearchView(
+                            searchText: $tabSearchText,
+                            pendingConfig: $pendingSearchConfig
+                        )
+                    }
+                    .searchable(text: $tabSearchText)
+                }
             }
             .tint(AppTheme.Colors.accent)
 
-            // Floating buttons — search pill (Home only) + add FAB, both in thumb zone
-            HStack(spacing: AppTheme.Spacing.medium) {
-                if selectedTab == .home {
-                    SearchPillButton {
-                        HapticFeedback.light()
-                        searchConfig = SearchConfig()
-                    }
-                } else {
+            // Floating add FAB — hidden on Search tab
+            if selectedTab != .search {
+                HStack {
                     Spacer()
-                }
-
-                FABView(
-                    showSheet: $showAddSheet,
-                    isRadialOpen: fabIconRotated,
-                    onLongPress: {
-                        withAnimation(AppTheme.Animation.fast) {
-                            showRadialMenu = true
-                            fabIconRotated = true
+                    FABView(
+                        showSheet: $showAddSheet,
+                        isRadialOpen: fabIconRotated,
+                        onLongPress: {
+                            withAnimation(AppTheme.Animation.fast) {
+                                showRadialMenu = true
+                                fabIconRotated = true
+                            }
+                        },
+                        onDragChanged: { pt in
+                            guard showRadialMenu else { return }
+                            fabDragPoint = pt
+                        },
+                        onDragEnded: { pt in
+                            guard showRadialMenu else { return }
+                            fabDragPoint = pt
+                            fabDragEndTrigger += 1
                         }
-                    },
-                    onDragChanged: { pt in
-                        guard showRadialMenu else { return }
-                        fabDragPoint = pt
-                    },
-                    onDragEnded: { pt in
-                        guard showRadialMenu else { return }
-                        fabDragPoint = pt
-                        fabDragEndTrigger += 1
-                    }
-                )
+                    )
+                }
+                .padding(.horizontal, AppTheme.Spacing.large)
+                .padding(.bottom, 90)
             }
-            .padding(.horizontal, AppTheme.Spacing.large)
-            .padding(.bottom, 90)
         }
         .sheet(isPresented: $showAddSheet) {
             AddItemSheetView()
                 .environment(appContainer)
-        }
-        .fullScreenCover(item: $searchConfig) { config in
-            NavigationStack {
-                HomeSearchView(initialFilter: config.fileTypes, initialTag: config.tag)
-            }
         }
     }
 }
@@ -146,43 +147,14 @@ struct ContentView: View {
 // MARK: - Tab enum
 
 extension ContentView {
-    enum Tab: Hashable {
-        case home, knowledge, files, insights
-    }
-}
-
-// MARK: - Search pill button
-
-/// Wide tappable pill styled as a search bar, sits beside the add FAB in the thumb zone.
-private struct SearchPillButton: View {
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: AppTheme.Spacing.small) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundStyle(AppTheme.Colors.tertiaryLabel)
-                Text("Search files, tags…")
-                    .font(.system(size: 15))
-                    .foregroundStyle(AppTheme.Colors.tertiaryLabel)
-                Spacer()
-            }
-            .padding(.horizontal, AppTheme.Spacing.medium)
-            .frame(height: 50)
-            .background(.ultraThinMaterial, in: Capsule())
-            .shadow(color: AppTheme.Shadow.fab.color,
-                    radius: AppTheme.Shadow.fab.radius,
-                    x: AppTheme.Shadow.fab.x,
-                    y: AppTheme.Shadow.fab.y)
-        }
-        .buttonStyle(.plain)
+    enum AppTab: Hashable {
+        case home, knowledge, files, insights, search
     }
 }
 
 // MARK: - Search configuration passed to HomeSearchView
 
-struct SearchConfig: Identifiable {
+struct SearchConfig: Identifiable, Equatable {
     let id = UUID()
     let fileTypes: Set<FileType>
     let tag: Tag?

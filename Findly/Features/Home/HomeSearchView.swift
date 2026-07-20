@@ -3,14 +3,12 @@ import SwiftData
 
 struct HomeSearchView: View {
 
-    var initialFilter: Set<FileType> = []
-    var initialTag: Tag? = nil
+    @Binding var searchText: String
+    @Binding var pendingConfig: SearchConfig?
 
     @State private var viewModel = HomeViewModel()
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Environment(AppContainer.self) private var appContainer
-    @FocusState private var searchFocused: Bool
     @State private var showFilterSheet = false
     @State private var showBulkDeleteConfirm = false
     @State private var showBulkTagPicker = false
@@ -18,11 +16,11 @@ struct HomeSearchView: View {
     var body: some View {
         ScrollView {
             if viewModel.isSearching || !viewModel.selectedFileTypes.isEmpty || viewModel.selectedTag != nil {
+                activeFilterChips
                 SearchResultsView(
                     results: viewModel.searchResults,
                     isLoading: viewModel.isLoading,
                     query: viewModel.searchText,
-                    activeFileTypes: viewModel.selectedFileTypes,
                     isSelectMode: viewModel.isSelectMode,
                     selectedIDs: viewModel.selectedItemIDs,
                     onOpen: { viewModel.openItem($0) },
@@ -36,8 +34,6 @@ struct HomeSearchView: View {
         .safeAreaInset(edge: .bottom) {
             if viewModel.isSelectMode {
                 bulkActionBar
-            } else {
-                bottomSearchBar
             }
         }
         .background(AppTheme.Colors.groupedBG)
@@ -96,22 +92,82 @@ struct HomeSearchView: View {
         } message: {
             Text("Selected items will be removed from your vault and Google Drive.")
         }
+        .onChange(of: searchText) { _, newValue in
+            viewModel.searchText = newValue
+        }
         .onChange(of: viewModel.searchText) { _, _ in
             viewModel.performSearch()
+        }
+        .onChange(of: pendingConfig) { _, newConfig in
+            guard let config = newConfig else { return }
+            applyConfig(config)
+            pendingConfig = nil
         }
         .onAppear {
             viewModel.setup(context: modelContext)
             viewModel.loadSearchHistory()
-            searchFocused = true
-            if !initialFilter.isEmpty {
-                viewModel.selectedFileTypes = initialFilter
-                viewModel.performSearch()
-            }
-            if let tag = initialTag {
-                viewModel.selectedTag = tag
-                viewModel.performSearch()
+            if let config = pendingConfig {
+                applyConfig(config)
+                pendingConfig = nil
             }
         }
+    }
+
+    // MARK: - Apply pending search config from pills
+
+    private func applyConfig(_ config: SearchConfig) {
+        viewModel.resetFilters()
+        viewModel.selectedFileTypes = config.fileTypes
+        viewModel.selectedTag = config.tag
+        viewModel.performSearch()
+    }
+
+    // MARK: - Active filter chips (tag + file types)
+
+    private var activeFilterChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: AppTheme.Spacing.small) {
+                ForEach(Array(viewModel.selectedFileTypes), id: \.self) { type in
+                    filterChip(
+                        label: type.displayName,
+                        symbol: type.sfSymbol,
+                        color: type.tintColor
+                    ) {
+                        viewModel.selectedFileTypes.remove(type)
+                        viewModel.performSearch()
+                    }
+                }
+                if let tag = viewModel.selectedTag {
+                    filterChip(
+                        label: "#\(tag.name)",
+                        symbol: tag.sfSymbol,
+                        color: Color(hex: tag.colorHex)
+                    ) {
+                        viewModel.selectedTag = nil
+                        viewModel.performSearch()
+                    }
+                }
+            }
+            .padding(.horizontal, AppTheme.Spacing.base)
+            .padding(.top, AppTheme.Spacing.xSmall)
+        }
+    }
+
+    private func filterChip(label: String, symbol: String, color: Color, onRemove: @escaping () -> Void) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: symbol)
+                .font(.system(size: 10, weight: .medium))
+            Text(label)
+                .font(.system(size: 12, weight: .semibold))
+            Button(action: onRemove) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .bold))
+            }
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(color.opacity(0.15), in: Capsule())
     }
 
     // MARK: - Empty state content (suggestions + recents)
@@ -138,6 +194,7 @@ struct HomeSearchView: View {
             VStack(alignment: .leading, spacing: AppTheme.Spacing.xSmall) {
                 ForEach(viewModel.recentSearches.prefix(6)) { entry in
                     Button {
+                        searchText = entry.query
                         viewModel.searchText = entry.query
                         viewModel.performSearch()
                     } label: {
@@ -197,76 +254,6 @@ struct HomeSearchView: View {
                 .padding(.horizontal, AppTheme.Spacing.base)
             }
         }
-    }
-
-    // MARK: - Bottom search bar
-
-    private var bottomSearchBar: some View {
-        HStack(spacing: AppTheme.Spacing.small) {
-            HStack(spacing: AppTheme.Spacing.small) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(AppTheme.Colors.tertiaryLabel)
-
-                // Active tag chip — shows which tag is filtering results
-                if let tag = viewModel.selectedTag {
-                    HStack(spacing: 4) {
-                        Image(systemName: tag.sfSymbol)
-                            .font(.system(size: 10, weight: .medium))
-                        Text("#\(tag.name)")
-                            .font(.system(size: 12, weight: .semibold))
-                        Button {
-                            viewModel.selectedTag = nil
-                            viewModel.performSearch()
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 9, weight: .bold))
-                        }
-                    }
-                    .foregroundStyle(Color(hex: tag.colorHex))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color(hex: tag.colorHex).opacity(0.15), in: Capsule())
-                    .transition(.scale(scale: 0.8).combined(with: .opacity))
-                }
-
-                TextField("Search your vault...", text: $viewModel.searchText)
-                    .focused($searchFocused)
-                    .submitLabel(.search)
-                    .onSubmit { viewModel.submitSearch() }
-                if !viewModel.searchText.isEmpty || !viewModel.selectedFileTypes.isEmpty || viewModel.selectedTag != nil {
-                    Button {
-                        viewModel.clearSearch()
-                        viewModel.resetFilters()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(AppTheme.Colors.tertiaryLabel)
-                    }
-                    .transition(.scale(scale: 0.7).combined(with: .opacity))
-                }
-            }
-            .padding(.horizontal, AppTheme.Spacing.medium)
-            .padding(.vertical, 10)
-            .background(.ultraThinMaterial,
-                        in: RoundedRectangle(cornerRadius: AppTheme.Radius.full, style: .continuous))
-            .shadow(color: .black.opacity(0.04), radius: 6, x: 0, y: 2)
-            .animation(.easeInOut(duration: 0.15), value: viewModel.searchText.isEmpty)
-            .animation(.easeInOut(duration: 0.15), value: viewModel.selectedTag == nil)
-
-            Button {
-                dismiss()
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 36, height: 36)
-                    Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                }
-            }
-        }
-        .padding(.horizontal, AppTheme.Spacing.base)
-        .padding(.vertical, AppTheme.Spacing.small)
     }
 
     // MARK: - Bulk action bar
