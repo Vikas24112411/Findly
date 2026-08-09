@@ -56,7 +56,7 @@ struct ContentView: View {
             Text("The database couldn't be migrated. A backup was saved and your vault has been reset. Contact support to recover your data.")
         }
     }
-
+    
     private var mainContent: some View {
         ZStack(alignment: .bottom) {
             // Radial long-press menu overlay — always in the hierarchy so it is pre-warmed
@@ -78,7 +78,7 @@ struct ContentView: View {
             .zIndex(showRadialMenu ? 10 : 0)
 
             TabView(selection: $selectedTab) {
-                Tab("Home", systemImage: "house", value: AppTab.home) {
+                Tab("Home", systemImage: "house.fill", value: AppTab.home) {
                     HomeView(onSearch: { fileTypes, tag in
                         pendingSearchConfig = SearchConfig(fileTypes: fileTypes, tag: tag)
                         selectedTab = .search
@@ -108,6 +108,11 @@ struct ContentView: View {
                 }
             }
             .tint(AppTheme.Colors.accent)
+            
+            LiquidTabBar(
+                    selectedTab: $selectedTab,
+                    isCollapsed: isScrollingDown
+                )
 
             // Floating add FAB — hidden on Search tab
             if selectedTab != .search {

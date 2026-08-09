@@ -161,30 +161,36 @@ struct ItemDetailView: View {
             }
 
             Divider()
-
-            metaRow(label: "Size",     value: item.fileSize.fileSizeString)
-            metaRow(label: "Added",    value: item.createdAt.fullDateTimeString)
-            metaRow(label: "Modified", value: item.modifiedAt.fullDateTimeString)
+            metaIconRow(icon: "internaldrive", iconColor: Color(.systemGray),  label: "Size",    value: item.fileSize.fileSizeString)
+            metaIconRow(icon: "eye.fill", iconColor: Color(.systemGray),  label: "Viewed",    value: "\(item.viewCount)")
+            metaIconRow(icon: "calendar.badge.plus", iconColor: Color(.systemGray),  label: "Added",    value: item.createdAt.fullDateTimeString)
+            metaIconRow(icon: "pencil.circle.fill",  iconColor: Color(.systemGray), label: "Modified", value: item.modifiedAt.fullDateTimeString)
             if let opened = item.lastOpenedAt {
-                metaRow(label: "Opened", value: opened.relativeString)
-            }
-            metaRow(label: "Views", value: "\(item.viewCount)")
-            HStack {
-                Text("Sync")
-                    .font(AppTheme.Typography.subheadline)
-                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                Spacer()
-                HStack(spacing: 4) {
-                    SyncStatusBadge(status: item.syncStatus)
-                    Text(item.syncStatus.displayLabel)
-                        .font(AppTheme.Typography.subheadline)
-                        .foregroundStyle(item.syncStatus.tintColor)
-                }
+                metaIconRow(icon: "clock.fill", iconColor: Color(.systemGray), label: "Opened", value: opened.relativeString)
             }
         }
         .padding(AppTheme.Spacing.base)
         .background(AppTheme.Colors.secondaryBG)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
+    }
+
+
+
+    private func metaIconRow(icon: String, iconColor: Color, label: String, value: String) -> some View {
+        HStack(spacing: AppTheme.Spacing.small) {
+            Image(systemName: icon)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(iconColor)
+                .frame(width: 22, alignment: .center)
+            Text(label)
+                .font(AppTheme.Typography.subheadline)
+                .foregroundStyle(AppTheme.Colors.secondaryLabel)
+            Spacer()
+            Text(value)
+                .font(AppTheme.Typography.subheadline)
+                .foregroundStyle(AppTheme.Colors.label)
+                .multilineTextAlignment(.trailing)
+        }
     }
 
     private func commitTitleEdit() {
@@ -195,18 +201,6 @@ struct ItemDetailView: View {
         try? modelContext.save()
         isEditingTitle = false
         HapticFeedback.light()
-    }
-
-    private func metaRow(label: String, value: String) -> some View {
-        HStack {
-            Text(label)
-                .font(AppTheme.Typography.subheadline)
-                .foregroundStyle(AppTheme.Colors.secondaryLabel)
-            Spacer()
-            Text(value)
-                .font(AppTheme.Typography.subheadline)
-                .foregroundStyle(AppTheme.Colors.label)
-        }
     }
 
     // MARK: - Tags

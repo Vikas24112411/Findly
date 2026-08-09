@@ -319,7 +319,6 @@ final class HomeViewModel {
     // MARK: - Item interaction
 
     func openItem(_ item: Item) {
-        item.markOpened()
         try? context?.save()
         // Defer the 4-fetch home section reload to after the navigation push
         // completes so it doesn't block the transition animation.
