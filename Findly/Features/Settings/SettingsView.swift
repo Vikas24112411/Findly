@@ -1,6 +1,8 @@
 import SwiftUI
 import SwiftData
 import LocalAuthentication
+import UniformTypeIdentifiers
+import UIKit
 
 struct SettingsView: View {
 
@@ -26,6 +28,11 @@ struct SettingsView: View {
     @State private var exportError: String?
     @State private var scrollOffset: CGFloat = 0
     @State private var showStoragePicker = false
+    // Periodic backup
+    @State private var showBackupFolderPicker = false
+    @State private var enableAfterBackupFolderSelection = false
+    @State private var periodicBackupToggleState = false
+    @State private var backupConfigurationError: String?
     // Export success flow
     @State private var exportedVaultURL: URL?
     @State private var exportSuccess = false
@@ -47,6 +54,7 @@ struct SettingsView: View {
                 preferencesSection
                 insightsSection
                 localStorageSection
+                periodicBackupSection
                 dataSection
                 aboutSection
             }
@@ -59,6 +67,7 @@ struct SettingsView: View {
                     await viewModel.loadDriveStats(appContainer: appContainer)
                     await viewModel.loadLocalStorageSize(appContainer: appContainer)
                 }
+                periodicBackupToggleState = appContainer.periodicBackup.isEnabled
             }
             .sheet(isPresented: Binding(
                 get: { exportURL != nil },
@@ -87,6 +96,19 @@ struct SettingsView: View {
             .sheet(isPresented: $showStoragePicker) {
                 StorageLocationPickerView(viewModel: viewModel)
                     .environment(appContainer)
+            }
+            .sheet(isPresented: $showBackupFolderPicker) {
+                BackupFolderPickerView(
+                    isPresented: $showBackupFolderPicker,
+                    onSelection: { urls in
+                        handleBackupFolderSelection(.success(urls))
+                    },
+                    onCancellation: {
+                        handleBackupFolderPickerCancellation()
+                    }
+                )
+                .ignoresSafeArea()
+                .interactiveDismissDisabled()
             }
             .alert("Storage Move Failed", isPresented: Binding(
                 get: { viewModel.storageMigrationError != nil },
@@ -387,6 +409,242 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Periodic Backup
+
+    private var periodicBackupSection: some View {
+        let backup = appContainer.periodicBackup
+        let operationsBusy = isExporting || isImporting || viewModel.isDeletingAll
+
+        return Section {
+            Toggle("Periodic Backup", isOn: Binding(
+                get: { periodicBackupToggleState },
+                set: { setPeriodicBackupEnabled($0) }
+            ))
+            .disabled(backup.isRunning || operationsBusy)
+
+            if periodicBackupToggleState {
+                Picker("Frequency", selection: Binding(
+                    get: { backup.schedule.frequency },
+                    set: { backup.updateFrequency($0) }
+                )) {
+                    ForEach(BackupFrequency.allCases, id: \.self) { frequency in
+                        Text(frequency.displayName).tag(frequency)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .disabled(backup.isRunning || operationsBusy)
+
+                HStack {
+                    Text("Schedule")
+                    Spacer()
+
+                    if backup.schedule.frequency == .weekly {
+                        Picker("Day", selection: Binding(
+                            get: { backup.schedule.weekday },
+                            set: { backup.updateWeekday($0) }
+                        )) {
+                            ForEach(Array(Calendar.autoupdatingCurrent.weekdaySymbols.enumerated()), id: \.offset) { index, name in
+                                Text(name).tag(index + 1)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                    }
+
+                    DatePicker(
+                        "Time",
+                        selection: backupTimeBinding,
+                        displayedComponents: .hourAndMinute
+                    )
+                    .labelsHidden()
+                }
+                .disabled(backup.isRunning || operationsBusy)
+
+                Button {
+                    enableAfterBackupFolderSelection = false
+                    showBackupFolderPicker = true
+                } label: {
+                    HStack {
+                        Text("Backup Location")
+                        Spacer()
+                        Text(backup.folderDisplayName ?? "Choose Folder")
+                            .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                    }
+                }
+                .disabled(backup.isRunning || operationsBusy)
+
+                Button {
+                    Task {
+                        let succeeded = await backup.backupNow()
+                        if succeeded { HapticFeedback.success() } else { HapticFeedback.error() }
+                    }
+                } label: {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text(backup.isRunning ? "Backing Up…" : "Back Up Now")
+                                .foregroundStyle(AppTheme.Colors.accent)
+                            Spacer()
+                            if backup.isRunning {
+                                Text("\(Int(backup.progress * 100))%")
+                                    .font(AppTheme.Typography.subheadline)
+                                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                                    .monospacedDigit()
+                            }
+                        }
+                        if backup.isRunning {
+                            ProgressView(value: backup.progress)
+                                .progressViewStyle(.linear)
+                                .tint(AppTheme.Colors.accent)
+                        }
+                    }
+                }
+                .disabled(!backup.hasDestination || backup.isRunning || operationsBusy)
+
+                if backup.lastSuccess != nil || backup.nextScheduledDate != nil {
+                    VStack(alignment: .leading, spacing: 3) {
+                        if let lastSuccess = backup.lastSuccess {
+                            Text("Last: \(lastSuccess.formatted(date: .abbreviated, time: .shortened))")
+                        }
+                        if let next = backup.nextScheduledDate {
+                            Text("Next: \(next.formatted(date: .abbreviated, time: .shortened))")
+                        }
+                    }
+                    .font(AppTheme.Typography.caption1)
+                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                }
+
+                if let error = backup.latestError {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .font(AppTheme.Typography.caption1)
+                        .foregroundStyle(.red)
+                }
+            }
+        } header: {
+            Text("Periodic Backup")
+        } footer: {
+            if periodicBackupToggleState {
+                Text("\(backup.schedule.description()). iOS may run a missed backup later when background time is available.")
+            } else {
+                Text("Automatically keep one restorable vault backup in a folder you choose.")
+            }
+        }
+        .alert("Periodic Backup", isPresented: Binding(
+            get: { backupConfigurationError != nil },
+            set: { if !$0 { backupConfigurationError = nil } }
+        )) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(backupConfigurationError ?? "")
+        }
+    }
+
+    private func setPeriodicBackupEnabled(_ enabled: Bool) {
+        let backup = appContainer.periodicBackup
+
+        if !enabled {
+            periodicBackupToggleState = false
+            try? backup.setEnabled(false)
+            return
+        }
+
+        guard backup.hasDestination else {
+            // Reflect the user's intent immediately. The service itself remains
+            // disabled until a destination is successfully selected.
+            periodicBackupToggleState = true
+            enableAfterBackupFolderSelection = true
+            presentBackupFolderPicker()
+            return
+        }
+
+        do {
+            try backup.setEnabled(true)
+            periodicBackupToggleState = backup.isEnabled
+        } catch {
+            // The stored bookmark is missing or no longer usable. Let the user
+            // replace it immediately instead of leaving an unexplained off switch.
+            periodicBackupToggleState = true
+            enableAfterBackupFolderSelection = true
+            presentBackupFolderPicker()
+        }
+    }
+
+    private func presentBackupFolderPicker() {
+        Task { @MainActor in
+            // Present after the Toggle's binding transaction completes. Presenting
+            // synchronously from its setter can be ignored by SwiftUI.
+            await Task.yield()
+            showBackupFolderPicker = true
+        }
+    }
+
+    private func handleBackupFolderSelection(_ result: Result<[URL], Error>) {
+        let shouldEnable = enableAfterBackupFolderSelection
+        enableAfterBackupFolderSelection = false
+
+        guard case .success(let urls) = result, let url = urls.first else {
+            if shouldEnable {
+                periodicBackupToggleState = false
+            }
+            return
+        }
+
+        let accessed = url.startAccessingSecurityScopedResource()
+        defer {
+            if accessed { url.stopAccessingSecurityScopedResource() }
+        }
+
+        do {
+            try appContainer.periodicBackup.setDestination(url)
+            if shouldEnable {
+                try appContainer.periodicBackup.setEnabled(true)
+            }
+            periodicBackupToggleState = appContainer.periodicBackup.isEnabled
+        } catch {
+            if shouldEnable {
+                periodicBackupToggleState = false
+            }
+            backupConfigurationError = error.localizedDescription
+            HapticFeedback.error()
+        }
+    }
+
+    private func handleBackupFolderPickerCancellation() {
+        let shouldDisable = enableAfterBackupFolderSelection
+        enableAfterBackupFolderSelection = false
+        if shouldDisable {
+            periodicBackupToggleState = false
+        }
+    }
+
+    private var backupTimeBinding: Binding<Date> {
+        let calendar = Calendar.autoupdatingCurrent
+        let backup = appContainer.periodicBackup
+        let value = calendar.date(
+            from: DateComponents(
+                calendar: calendar,
+                year: 2001,
+                month: 1,
+                day: 1,
+                hour: backup.schedule.hour,
+                minute: backup.schedule.minute
+            )
+        ) ?? Date()
+
+        return Binding(
+            get: { value },
+            set: { newValue in
+                let components = calendar.dateComponents([.hour, .minute], from: newValue)
+                backup.updateTime(
+                    hour: components.hour ?? 21,
+                    minute: components.minute ?? 0
+                )
+            }
+        )
+    }
+
     // MARK: - Data
 
     private var dataSection: some View {
@@ -413,7 +671,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            .disabled(isExporting || isImporting)
+            .disabled(isExporting || isImporting || appContainer.periodicBackup.isRunning)
 
             Button {
                 showImportPicker = true
@@ -437,7 +695,7 @@ struct SettingsView: View {
                     }
                 }
             }
-            .disabled(isImporting || isExporting)
+            .disabled(isImporting || isExporting || appContainer.periodicBackup.isRunning)
 
             Button(role: .destructive) {
                 showDeleteConfirmation = true
@@ -451,7 +709,7 @@ struct SettingsView: View {
                     Text(viewModel.isDeletingAll ? "Deleting…" : "Delete All Data")
                 }
             }
-            .disabled(viewModel.isDeletingAll || isImporting)
+            .disabled(viewModel.isDeletingAll || isImporting || appContainer.periodicBackup.isRunning)
         } header: {
             Text("Data")
         } footer: {
@@ -526,6 +784,62 @@ struct SettingsView: View {
                     .foregroundStyle(AppTheme.Colors.secondaryLabel)
             }
             Link("Open Source Libraries", destination: URL(string: "https://github.com/google/GoogleSignIn-iOS")!)
+        }
+    }
+}
+
+private struct BackupFolderPickerView: UIViewControllerRepresentable {
+    @Binding var isPresented: Bool
+    let onSelection: ([URL]) -> Void
+    let onCancellation: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(
+            isPresented: $isPresented,
+            onSelection: onSelection,
+            onCancellation: onCancellation
+        )
+    }
+
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let picker = UIDocumentPickerViewController(
+            forOpeningContentTypes: [.folder],
+            asCopy: false
+        )
+        picker.delegate = context.coordinator
+        picker.allowsMultipleSelection = false
+        picker.shouldShowFileExtensions = true
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
+
+    final class Coordinator: NSObject, UIDocumentPickerDelegate {
+        let isPresented: Binding<Bool>
+        let onSelection: ([URL]) -> Void
+        let onCancellation: () -> Void
+
+        init(
+            isPresented: Binding<Bool>,
+            onSelection: @escaping ([URL]) -> Void,
+            onCancellation: @escaping () -> Void
+        ) {
+            self.isPresented = isPresented
+            self.onSelection = onSelection
+            self.onCancellation = onCancellation
+        }
+
+        func documentPicker(
+            _ controller: UIDocumentPickerViewController,
+            didPickDocumentsAt urls: [URL]
+        ) {
+            isPresented.wrappedValue = false
+            onSelection(urls)
+        }
+
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            isPresented.wrappedValue = false
+            onCancellation()
         }
     }
 }

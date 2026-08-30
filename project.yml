@@ -50,6 +50,9 @@ targets:
               - com.googleusercontent.apps.REPLACE_WITH_REVERSED_CLIENT_ID
         BGTaskSchedulerPermittedIdentifiers:
           - com.findlyvikas.app.sync
+          - com.findlyvikas.app.periodic-backup
+        UIBackgroundModes:
+          - processing
         NSPhotoLibraryUsageDescription: "Findly needs access to your photo library to add images and videos to your vault."
         NSCameraUsageDescription: "Findly needs camera access to capture photos and videos for your vault."
         NSMicrophoneUsageDescription: "Findly needs microphone access to record audio notes."

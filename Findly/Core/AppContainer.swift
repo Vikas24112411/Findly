@@ -22,6 +22,7 @@ final class AppContainer {
     let tokenRefresher: TokenRefresher
     let export = ExportService()
     let importService = ImportService()
+    let periodicBackup: PeriodicBackupService
 
     // MARK: - Init
 
@@ -44,7 +45,14 @@ final class AppContainer {
             context: persistence.container.mainContext
         )
 
+        periodicBackup = PeriodicBackupService(
+            exportService: export,
+            localStorage: localStorage,
+            modelContainer: persistence.container
+        )
+
         BackgroundSyncTask.register(syncService: sync)
+        BackgroundBackupTask.register(service: periodicBackup)
     }
 
     /// Async factory — runs the two blocking operations (SQLite open + bookmark resolution)
@@ -70,6 +78,7 @@ final class AppContainer {
 
     func onAppBecomeActive() {
         Task {
+            _ = await periodicBackup.backupIfDue()
             await auth.restorePreviousSignIn()
             if auth.isAuthenticated {
                 tokenRefresher.start(authService: auth)
@@ -82,5 +91,10 @@ final class AppContainer {
 
     func onAppBackground() {
         BackgroundSyncTask.schedule()
+        periodicBackup.scheduleNextBackgroundRun()
+    }
+
+    func onSignificantTimeChange() {
+        periodicBackup.handleSignificantTimeChange()
     }
 }

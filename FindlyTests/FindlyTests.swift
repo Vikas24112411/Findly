@@ -1,6 +1,425 @@
 import Testing
 import Foundation
+import SwiftData
 @testable import Findly
+
+@MainActor
+private final class FakeBackupTaskScheduler: BackupTaskScheduling {
+    private(set) var scheduledDates: [Date] = []
+    private(set) var cancellationCount = 0
+
+    func schedule(earliestBeginDate: Date) {
+        scheduledDates.append(earliestBeginDate)
+    }
+
+    func cancel() {
+        cancellationCount += 1
+    }
+}
+
+// MARK: - Periodic backup schedule tests
+
+@Suite("Periodic Backup Schedule")
+struct PeriodicBackupScheduleTests {
+
+    @Test("Daily schedule becomes due at its fixed local time")
+    func dailyFixedTime() throws {
+        let calendar = utcCalendar
+        let schedule = BackupSchedule(frequency: .daily, hour: 9, minute: 30)
+        let established = try date(2026, 8, 29, 10, 0, calendar: calendar)
+        let expectedOccurrence = try date(2026, 8, 30, 9, 30, calendar: calendar)
+
+        #expect(schedule.dueOccurrence(
+            at: try date(2026, 8, 30, 9, 29, calendar: calendar),
+            establishedAt: established,
+            lastHandledOccurrence: nil,
+            calendar: calendar
+        ) == nil)
+
+        #expect(schedule.dueOccurrence(
+            at: try date(2026, 8, 30, 9, 30, calendar: calendar),
+            establishedAt: established,
+            lastHandledOccurrence: nil,
+            calendar: calendar
+        ) == expectedOccurrence)
+    }
+
+    @Test("A handled daily occurrence does not drift from the fixed time")
+    func handledDailyOccurrence() throws {
+        let calendar = utcCalendar
+        let schedule = BackupSchedule(frequency: .daily, hour: 21, minute: 0)
+        let established = try date(2026, 8, 29, 12, 0, calendar: calendar)
+        let handled = try date(2026, 8, 30, 21, 0, calendar: calendar)
+        let nextDay = try date(2026, 8, 31, 21, 0, calendar: calendar)
+
+        #expect(schedule.dueOccurrence(
+            at: try date(2026, 8, 31, 20, 59, calendar: calendar),
+            establishedAt: established,
+            lastHandledOccurrence: handled,
+            calendar: calendar
+        ) == nil)
+        #expect(schedule.nextOccurrence(after: handled, calendar: calendar) == nextDay)
+    }
+
+    @Test("Weekly schedules use the selected weekday and wrap into the next week")
+    func weeklyWeekdayAndWrap() throws {
+        let calendar = utcCalendar
+        // Sunday at 18:15. August 30, 2026 is a Sunday.
+        let schedule = BackupSchedule(frequency: .weekly, hour: 18, minute: 15, weekday: 1)
+        let before = try date(2026, 8, 30, 18, 14, calendar: calendar)
+        let occurrence = try date(2026, 8, 30, 18, 15, calendar: calendar)
+        let followingWeek = try date(2026, 9, 6, 18, 15, calendar: calendar)
+
+        #expect(schedule.nextOccurrence(after: before, calendar: calendar) == occurrence)
+        #expect(schedule.nextOccurrence(after: occurrence, calendar: calendar) == followingWeek)
+    }
+
+    @Test("Weekly schedules support every calendar weekday")
+    func everyWeeklyWeekday() throws {
+        let calendar = utcCalendar
+        let sundayMorning = try date(2026, 8, 30, 0, 0, calendar: calendar)
+
+        for weekday in 1...7 {
+            let schedule = BackupSchedule(
+                frequency: .weekly,
+                hour: 12,
+                minute: 45,
+                weekday: weekday
+            )
+            let next = try #require(schedule.nextOccurrence(after: sundayMorning, calendar: calendar))
+            let components = calendar.dateComponents([.weekday, .hour, .minute], from: next)
+            #expect(components.weekday == weekday)
+            #expect(components.hour == 12)
+            #expect(components.minute == 45)
+        }
+    }
+
+    @Test("Multiple missed occurrences collapse to the most recent one")
+    func missedOccurrencesCollapse() throws {
+        let calendar = utcCalendar
+        let schedule = BackupSchedule(frequency: .daily, hour: 7, minute: 0)
+        let due = schedule.dueOccurrence(
+            at: try date(2026, 8, 30, 20, 0, calendar: calendar),
+            establishedAt: try date(2026, 8, 25, 12, 0, calendar: calendar),
+            lastHandledOccurrence: try date(2026, 8, 26, 7, 0, calendar: calendar),
+            calendar: calendar
+        )
+        let expectedOccurrence = try date(2026, 8, 30, 7, 0, calendar: calendar)
+
+        #expect(due == expectedOccurrence)
+    }
+
+    @Test("Changing a schedule ignores occurrences before the edit")
+    func scheduleEditCreatesNewBaseline() throws {
+        let calendar = utcCalendar
+        let schedule = BackupSchedule(frequency: .daily, hour: 8, minute: 0)
+        let editedAt = try date(2026, 8, 30, 10, 0, calendar: calendar)
+        let nextDay = try date(2026, 8, 31, 8, 0, calendar: calendar)
+
+        #expect(schedule.dueOccurrence(
+            at: editedAt,
+            establishedAt: editedAt,
+            lastHandledOccurrence: nil,
+            calendar: calendar
+        ) == nil)
+        #expect(schedule.nextOccurrence(after: editedAt, calendar: calendar) == nextDay)
+    }
+
+    @Test("Nonexistent daylight-saving time advances to the next valid local time")
+    func daylightSavingGap() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        let schedule = BackupSchedule(frequency: .daily, hour: 2, minute: 30)
+        let beforeGap = try date(2026, 3, 7, 3, 0, calendar: calendar)
+        let next = try #require(schedule.nextOccurrence(after: beforeGap, calendar: calendar))
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: next)
+
+        #expect(components.year == 2026)
+        #expect(components.month == 3)
+        #expect(components.day == 8)
+        #expect(components.hour == 3)
+        #expect(components.minute == 0)
+    }
+
+    @Test("Repeated daylight-saving time consistently chooses the first occurrence")
+    func daylightSavingOverlap() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        let schedule = BackupSchedule(frequency: .daily, hour: 1, minute: 30)
+        let beforeOverlap = try date(2026, 10, 31, 3, 0, calendar: calendar)
+        let next = try #require(schedule.nextOccurrence(after: beforeOverlap, calendar: calendar))
+        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: next)
+
+        #expect(components.year == 2026)
+        #expect(components.month == 11)
+        #expect(components.day == 1)
+        #expect(components.hour == 1)
+        #expect(components.minute == 30)
+        #expect(calendar.timeZone.secondsFromGMT(for: next) == -7 * 60 * 60)
+    }
+
+    @Test("Schedule follows local clock time after a timezone change")
+    func followsLocalTimezone() throws {
+        let schedule = BackupSchedule(frequency: .daily, hour: 9, minute: 0)
+        var india = Calendar(identifier: .gregorian)
+        india.timeZone = try #require(TimeZone(identifier: "Asia/Kolkata"))
+        var london = Calendar(identifier: .gregorian)
+        london.timeZone = try #require(TimeZone(identifier: "Europe/London"))
+
+        let reference = try date(2026, 8, 30, 0, 0, calendar: utcCalendar)
+        let indiaNext = try #require(schedule.nextOccurrence(after: reference, calendar: india))
+        let londonNext = try #require(schedule.nextOccurrence(after: reference, calendar: london))
+
+        #expect(india.dateComponents([.hour, .minute], from: indiaNext).hour == 9)
+        #expect(london.dateComponents([.hour, .minute], from: londonNext).hour == 9)
+        #expect(indiaNext != londonNext)
+    }
+
+    private var utcCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        return calendar
+    }
+
+    private func date(
+        _ year: Int,
+        _ month: Int,
+        _ day: Int,
+        _ hour: Int,
+        _ minute: Int,
+        calendar: Calendar
+    ) throws -> Date {
+        try #require(calendar.date(from: DateComponents(
+            year: year,
+            month: month,
+            day: day,
+            hour: hour,
+            minute: minute
+        )))
+    }
+}
+
+@Suite("Periodic Backup Service")
+@MainActor
+struct PeriodicBackupServiceTests {
+
+    @Test("Enabling commits immediately and creates the first backup asynchronously")
+    func enablingTurnsToggleOnImmediately() async throws {
+        let suiteName = "PeriodicBackupEnableTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let destination = FileManager.default.temporaryDirectory
+            .appending(component: "FindlyBackupEnableDestination-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: destination) }
+
+        let scheduler = FakeBackupTaskScheduler()
+        let service = try makeService(defaults: defaults, scheduler: scheduler)
+        try service.setDestination(destination)
+        try service.setEnabled(true)
+
+        // The setting must commit before the potentially long ZIP export completes.
+        #expect(service.isEnabled)
+        #expect(defaults.bool(forKey: "periodicBackup.enabled"))
+
+        let backupURL = destination.appending(component: PeriodicBackupService.backupFileName)
+        for _ in 0..<100 where !FileManager.default.fileExists(atPath: backupURL.path) {
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        #expect(FileManager.default.fileExists(atPath: backupURL.path))
+    }
+
+    @Test("Enabled service schedules the next fixed calendar occurrence")
+    func schedulesNextOccurrence() throws {
+        let suiteName = "PeriodicBackupServiceTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = try makeDate(2026, 8, 30, 8, 0, calendar: calendar)
+        let expected = try makeDate(2026, 8, 30, 9, 0, calendar: calendar)
+        defaults.set(true, forKey: "periodicBackup.enabled")
+        defaults.set(Data([0x01]), forKey: "periodicBackup.folderBookmark")
+        defaults.set("daily", forKey: "periodicBackup.frequency")
+        defaults.set(9, forKey: "periodicBackup.hour")
+        defaults.set(0, forKey: "periodicBackup.minute")
+        defaults.set(try makeDate(2026, 8, 29, 12, 0, calendar: calendar),
+                     forKey: "periodicBackup.scheduleEstablishedAt")
+
+        let scheduler = FakeBackupTaskScheduler()
+        let service = try makeService(defaults: defaults, scheduler: scheduler, calendar: calendar)
+        service.scheduleNextBackgroundRun(now: now)
+
+        #expect(scheduler.scheduledDates.last == expected)
+    }
+
+    @Test("Disabling periodic backup cancels its pending background request")
+    func disablingCancelsRequest() async throws {
+        let suiteName = "PeriodicBackupDisableTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set(true, forKey: "periodicBackup.enabled")
+        defaults.set(Data([0x01]), forKey: "periodicBackup.folderBookmark")
+
+        let scheduler = FakeBackupTaskScheduler()
+        let service = try makeService(defaults: defaults, scheduler: scheduler)
+        try service.setEnabled(false)
+
+        #expect(service.isEnabled == false)
+        #expect(scheduler.cancellationCount == 1)
+    }
+
+    @Test("Archive installation replaces only after a complete staged copy")
+    func atomicArchiveInstallation() async throws {
+        let folder = FileManager.default.temporaryDirectory
+            .appending(component: "FindlyBackupInstallTests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+
+        let finalURL = folder.appending(component: PeriodicBackupService.backupFileName)
+        let sourceURL = folder.appending(component: "new.zip")
+        try Data("old".utf8).write(to: finalURL)
+        try Data("new".utf8).write(to: sourceURL)
+
+        try await PeriodicBackupService.installArchive(sourceURL, in: folder)
+
+        #expect(try Data(contentsOf: finalURL) == Data("new".utf8))
+        #expect(!FileManager.default.fileExists(
+            atPath: folder.appending(component: ".Findly_AutoBackup.partial.zip").path
+        ))
+    }
+
+    @Test("Failed staging leaves the previous backup untouched")
+    func failedInstallPreservesPreviousBackup() async throws {
+        let folder = FileManager.default.temporaryDirectory
+            .appending(component: "FindlyBackupFailureTests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+
+        let finalURL = folder.appending(component: PeriodicBackupService.backupFileName)
+        let missingSource = folder.appending(component: "missing.zip")
+        try Data("old".utf8).write(to: finalURL)
+
+        await #expect(throws: (any Error).self) {
+            try await PeriodicBackupService.installArchive(missingSource, in: folder)
+        }
+        #expect(try Data(contentsOf: finalURL) == Data("old".utf8))
+    }
+
+    @Test("Automatic backup archive round-trips through the existing importer")
+    func automaticBackupRoundTrip() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appending(component: "FindlyBackupRoundTrip-\(UUID().uuidString)")
+        let sourceFolder = root.appending(component: "source")
+        let restoredFolder = root.appending(component: "restored")
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let sourceStorage = try LocalFileService(baseDirectory: sourceFolder)
+        let sourcePersistence = PersistenceController(inMemory: true)
+        let sourceContext = sourcePersistence.container.mainContext
+
+        let parent = Tag(name: "Work")
+        let child = Tag(name: "Reports")
+        child.parents = [parent]
+        parent.children = [child]
+        let item = Item(
+            title: "Quarterly Report",
+            fileType: .pdf,
+            fileSize: 4,
+            originalFileName: "report.pdf"
+        )
+        item.localFilePath = try await sourceStorage.write(
+            data: Data("file".utf8),
+            itemID: item.id,
+            fileExtension: "pdf"
+        )
+        item.thumbnailData = Data("thumb".utf8)
+        item.tags = [child]
+        item.isFavorite = true
+        item.isPinned = true
+        let history = SearchHistoryEntry(query: "quarterly")
+        history.recordUse()
+
+        sourceContext.insert(parent)
+        sourceContext.insert(child)
+        sourceContext.insert(item)
+        sourceContext.insert(history)
+        try sourceContext.save()
+
+        let archive = try await ExportService().exportVault(
+            items: [item],
+            tags: [parent, child],
+            searchHistory: [history],
+            localStorage: sourceStorage
+        )
+        defer { try? FileManager.default.removeItem(at: archive) }
+
+        let restoredStorage = try LocalFileService(baseDirectory: restoredFolder)
+        let restoredPersistence = PersistenceController(inMemory: true)
+        try await ImportService().importVault(
+            from: archive,
+            localStorage: restoredStorage,
+            context: restoredPersistence.container.mainContext
+        )
+
+        let verificationContext = ModelContext(restoredPersistence.container)
+        let restoredItems = try verificationContext.fetch(FetchDescriptor<Item>())
+        let restoredTags = try verificationContext.fetch(FetchDescriptor<Findly.Tag>())
+        let restoredHistory = try verificationContext.fetch(FetchDescriptor<SearchHistoryEntry>())
+        let restoredItem = try #require(restoredItems.first)
+
+        #expect(restoredItems.count == 1)
+        #expect(restoredItem.title == "Quarterly Report")
+        #expect(restoredItem.isFavorite)
+        #expect(restoredItem.isPinned)
+        #expect(restoredItem.thumbnailData == Data("thumb".utf8))
+        #expect(restoredItem.tags.map(\.name) == ["Reports"])
+        #expect(restoredTags.count == 2)
+        #expect(restoredTags.first(where: { $0.name == "Reports" })?.parents.map(\.name) == ["Work"])
+        #expect(restoredHistory.first?.query == "quarterly")
+        #expect(restoredHistory.first?.useCount == 2)
+
+        let restoredPath = try #require(restoredItem.localFilePath)
+        #expect(try await restoredStorage.read(relativePath: restoredPath) == Data("file".utf8))
+    }
+
+    private func makeService(
+        defaults: UserDefaults,
+        scheduler: FakeBackupTaskScheduler,
+        calendar: Calendar? = nil
+    ) throws -> PeriodicBackupService {
+        let storageURL = FileManager.default.temporaryDirectory
+            .appending(component: "FindlyBackupStorage-\(UUID().uuidString)")
+        let localStorage = try LocalFileService(baseDirectory: storageURL)
+        let persistence = PersistenceController(inMemory: true)
+        return PeriodicBackupService(
+            exportService: ExportService(),
+            localStorage: localStorage,
+            modelContainer: persistence.container,
+            scheduler: scheduler,
+            defaults: defaults,
+            calendar: calendar
+        )
+    }
+
+    private func makeDate(
+        _ year: Int,
+        _ month: Int,
+        _ day: Int,
+        _ hour: Int,
+        _ minute: Int,
+        calendar: Calendar
+    ) throws -> Date {
+        try #require(calendar.date(from: DateComponents(
+            year: year,
+            month: month,
+            day: day,
+            hour: hour,
+            minute: minute
+        )))
+    }
+}
 
 // MARK: - TagGraphTraverser Tests
 

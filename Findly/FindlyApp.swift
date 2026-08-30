@@ -27,6 +27,16 @@ struct FindlyApp: App {
                         // Required for Google Sign-In callback
                         GIDSignIn.sharedInstance.handle(url)
                     }
+                    .onReceive(NotificationCenter.default.publisher(
+                        for: UIApplication.significantTimeChangeNotification
+                    )) { _ in
+                        appContainer.onSignificantTimeChange()
+                    }
+                    .onReceive(NotificationCenter.default.publisher(
+                        for: NSNotification.Name.NSSystemTimeZoneDidChange
+                    )) { _ in
+                        appContainer.onSignificantTimeChange()
+                    }
             } else {
                 Color(UIColor.systemBackground)
                     .task { appContainer = await AppContainer.makeAsync() }

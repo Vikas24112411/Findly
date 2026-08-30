@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0A1100000000000000000001 /* BackgroundBackupTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B1100000000000000000001 /* BackgroundBackupTask.swift */; };
+		0A1200000000000000000001 /* BackupSchedule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B1200000000000000000001 /* BackupSchedule.swift */; };
+		0A1300000000000000000001 /* PeriodicBackupService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B1300000000000000000001 /* PeriodicBackupService.swift */; };
 		015D50F7F6FC410731C8DD43 /* KnowledgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CB55A08FA601385A2B1A393 /* KnowledgeView.swift */; };
 		06E87E0340D44E86B6A83F76 /* CameraPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF2A4531F3BB3058974FF772 /* CameraPickerView.swift */; };
 		09108284BE9EEF4CF1E9A760 /* FindlyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C12A92DC624B5881CF71F75 /* FindlyTests.swift */; };
@@ -85,6 +88,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0B1100000000000000000001 /* BackgroundBackupTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundBackupTask.swift; sourceTree = "<group>"; };
+		0B1200000000000000000001 /* BackupSchedule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupSchedule.swift; sourceTree = "<group>"; };
+		0B1300000000000000000001 /* PeriodicBackupService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeriodicBackupService.swift; sourceTree = "<group>"; };
 		0203E9B98ADFCBDF69669EAE /* HomeSearchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeSearchView.swift; sourceTree = "<group>"; };
 		0A0C614A1977C53D6D5E7E65 /* Findly.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Findly.entitlements; sourceTree = "<group>"; };
 		0FE2353ACF03192F968F1546 /* SyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncService.swift; sourceTree = "<group>"; };
@@ -173,6 +179,7 @@
 				FE24AD566D9B62D8160F25AA /* ExportService.swift */,
 				BAB57B77B2C0626E3C476B1B /* ImportService.swift */,
 				F75131BC2D9458437F02DE28 /* Auth */,
+				0C1100000000000000000001 /* Backup */,
 				B69721E99F4B202C935727E8 /* Drive */,
 				8CB85CAE534ADC01EC9241E2 /* Persistence */,
 				0EB3AA7D6218B3FDF309DB29 /* Search */,
@@ -180,6 +187,16 @@
 				40374A3D29E32F3E8DF56099 /* Sync */,
 			);
 			path = Services;
+			sourceTree = "<group>";
+		};
+		0C1100000000000000000001 /* Backup */ = {
+			isa = PBXGroup;
+			children = (
+				0B1100000000000000000001 /* BackgroundBackupTask.swift */,
+				0B1200000000000000000001 /* BackupSchedule.swift */,
+				0B1300000000000000000001 /* PeriodicBackupService.swift */,
+			);
+			path = Backup;
 			sourceTree = "<group>";
 		};
 		094034C64A524B032939C214 /* Files */ = {
@@ -530,7 +547,9 @@
 				133416AFDBE81BD9CC195AC5 /* AppTheme.swift in Sources */,
 				9856375442DA88C284353507 /* AudioRecorderView.swift in Sources */,
 				357BBCD196D4977A8C2E8984 /* AuthService.swift in Sources */,
+				0A1100000000000000000001 /* BackgroundBackupTask.swift in Sources */,
 				A5D0BE8D1206631E458BAD5D /* BackgroundSyncTask.swift in Sources */,
+				0A1200000000000000000001 /* BackupSchedule.swift in Sources */,
 				D642F87F9C5C95FF8EB49331 /* BulkActionsBar.swift in Sources */,
 				06E87E0340D44E86B6A83F76 /* CameraPickerView.swift in Sources */,
 				EC7315CAE35CA940D22735A5 /* Color+Hex.swift in Sources */,
@@ -561,6 +580,7 @@
 				8CC762F972744F50BB608C36 /* LocalFileService.swift in Sources */,
 				34468AC14BCB22C9533B18C1 /* OnboardingStorageView.swift in Sources */,
 				945BF8F83F406130B5874577 /* PersistenceController.swift in Sources */,
+				0A1300000000000000000001 /* PeriodicBackupService.swift in Sources */,
 				EF9B959CF041858E19B5DFAC /* QuickImportView.swift in Sources */,
 				7290F33069C18BCA8A946B7A /* RadialMenuView.swift in Sources */,
 				7867D813C591F63589424DF6 /* RecentItemsSection.swift in Sources */,

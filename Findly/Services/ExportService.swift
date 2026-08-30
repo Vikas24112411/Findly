@@ -20,7 +20,7 @@ actor ExportService {
         onProgress: (@MainActor @Sendable (Double) -> Void)? = nil
     ) async throws -> URL {
         let tempURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("Findly_Export_\(Int(Date().timeIntervalSince1970)).zip")
+            .appendingPathComponent("Findly_Export_\(UUID().uuidString).zip")
 
         FileManager.default.createFile(atPath: tempURL.path, contents: nil)
 
@@ -39,6 +39,7 @@ actor ExportService {
         // This is done upfront so the manifest accurately reflects what will be in the ZIP.
         var exportedPaths: Set<String> = []
         for item in items {
+            try Task.checkCancellation()
             guard let relativePath = item.localFilePath else { continue }
             let url = await localStorage.fileURL(relativePath: relativePath)
             if FileManager.default.fileExists(atPath: url.path) {
@@ -60,6 +61,7 @@ actor ExportService {
         var done = 0
 
         for item in items {
+            try Task.checkCancellation()
             guard let relativePath = item.localFilePath,
                   exportedPaths.contains(relativePath) else { continue }
             let url = await localStorage.fileURL(relativePath: relativePath)
@@ -78,6 +80,7 @@ actor ExportService {
             if let onProgress { await onProgress(Double(done) / Double(total)) }
         }
 
+        try Task.checkCancellation()
         try writer.finalize()
         succeeded = true
         return tempURL
