@@ -158,6 +158,8 @@ struct QuickImportView: View {
 
             await MainActor.run {
                 try? modelContext.save()
+                // Keep manually-fetched Home/Files sections in sync with bulk imports.
+                NotificationCenter.default.post(name: .itemSaved, object: nil)
                 if appContainer.auth.isAuthenticated {
                     Task { await appContainer.sync.syncPendingItems() }
                 }

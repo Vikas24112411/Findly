@@ -7,6 +7,7 @@ struct HomeView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(AppContainer.self) private var appContainer
+    @Query private var recentlyAddedItems: [Item]
     @State private var viewModel = HomeViewModel()
     @State private var scrollOffset: CGFloat = 0
     @State private var showSettings = false
@@ -16,6 +17,15 @@ struct HomeView: View {
     @AppStorage("showFrequentItems")  private var showFrequentItems  = true
     @AppStorage("showPinnedItems")    private var showPinnedItems    = true
     @AppStorage("showFavoriteItems")  private var showFavoriteItems  = false
+
+    init(onSearch: @escaping (Set<FileType>, Tag?) -> Void) {
+        self.onSearch = onSearch
+        var descriptor = FetchDescriptor<Item>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 20
+        _recentlyAddedItems = Query(descriptor)
+    }
 
     private var titleProgress: CGFloat {
         scrollProgress(from: scrollOffset)
@@ -61,6 +71,10 @@ struct HomeView: View {
     private var homeContent: some View {
         VStack(spacing: AppTheme.Spacing.base) {
 
+            if !recentlyAddedItems.isEmpty {
+                recentlyAddedShelfSection
+            }
+
             if showRecentItems && !viewModel.recentItems.isEmpty {
                 recentShelfSection
             }
@@ -83,7 +97,8 @@ struct HomeView: View {
                 browseByTagSection
             }
 
-            if viewModel.recentItems.isEmpty
+            if recentlyAddedItems.isEmpty
+                && viewModel.recentItems.isEmpty
                 && viewModel.frequentItems.isEmpty
                 && viewModel.pinnedItems.isEmpty
                 && viewModel.favoriteItems.isEmpty
@@ -93,6 +108,12 @@ struct HomeView: View {
         }
         .padding(.top, AppTheme.Spacing.small)
         .padding(.bottom, AppTheme.Spacing.large)
+    }
+
+    // MARK: - Recently added shelf (new uploads)
+
+    private var recentlyAddedShelfSection: some View {
+        itemShelfSection(title: "Recently Added", items: recentlyAddedItems)
     }
 
     // MARK: - Quick filter chips
@@ -129,11 +150,15 @@ struct HomeView: View {
     // MARK: - Recent shelf (large cards, recently opened)
 
     private var recentShelfSection: some View {
+        itemShelfSection(title: "Recent", items: viewModel.recentItems)
+    }
+
+    private func itemShelfSection(title: String, items: [Item]) -> some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
-            SectionHeader(title: "Recent")
+            SectionHeader(title: title)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: AppTheme.Spacing.medium) {
-                    ForEach(viewModel.recentItems) { item in
+                    ForEach(items) { item in
                         NavigationLink(destination: ItemDetailView(item: item)) {
                             ItemCardView(item: item, style: .grid, titleLines: 1, availableTagWidth: 140 - 16)
                                 .frame(width: 140)
