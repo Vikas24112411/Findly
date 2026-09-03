@@ -421,6 +421,50 @@ struct PeriodicBackupServiceTests {
     }
 }
 
+// MARK: - Delete all data tests
+
+@Suite("Delete All Data")
+@MainActor
+struct DeleteAllDataTests {
+
+    @Test("Wipes records and files through an isolated context")
+    func wipesRecordsAndFiles() async throws {
+        let folder = FileManager.default.temporaryDirectory
+            .appending(component: "FindlyDeleteAllTests-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: folder) }
+
+        let storage = try LocalFileService(baseDirectory: folder)
+        let persistence = PersistenceController(inMemory: true)
+        let mainContext = persistence.container.mainContext
+
+        let tag = Tag(name: "Work")
+        let item = Item(title: "Report", fileType: .pdf)
+        item.tags = [tag]
+        item.localFilePath = try await storage.write(
+            data: Data("contents".utf8),
+            itemID: item.id,
+            fileExtension: "pdf"
+        )
+        let history = SearchHistoryEntry(query: "report")
+
+        mainContext.insert(tag)
+        mainContext.insert(item)
+        mainContext.insert(history)
+        try mainContext.save()
+
+        let viewModel = SettingsViewModel()
+        await viewModel.deleteAllData(localStorage: storage, context: mainContext)
+
+        let verificationContext = ModelContext(persistence.container)
+        #expect(try verificationContext.fetchCount(FetchDescriptor<Item>()) == 0)
+        #expect(try verificationContext.fetchCount(FetchDescriptor<Findly.Tag>()) == 0)
+        #expect(try verificationContext.fetchCount(FetchDescriptor<SearchHistoryEntry>()) == 0)
+        #expect(await storage.sizeOfLocalStorage() == 0)
+        #expect(viewModel.deleteError == nil)
+        #expect(!viewModel.isDeletingAll)
+    }
+}
+
 // MARK: - TagGraphTraverser Tests
 
 @Suite("TagGraphTraverser")

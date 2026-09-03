@@ -131,16 +131,26 @@ final class SettingsViewModel {
         isDeletingAll = true
         defer { isDeletingAll = false }
         do {
+            // Never stage the deletes on SwiftUI's live main context. Views and @Query
+            // results can still hold lazy Item faults while Settings is presented; marking
+            // those same instances as deleted detaches their backing data, and the next
+            // render can crash while reading an attribute such as `fileType`.
+            //
+            // A sibling context performs the whole transaction without exposing that
+            // intermediate deleted-object state to the view hierarchy. The main context
+            // observes only the committed store change after save().
+            let deletionContext = ModelContext(context.container)
+
             // Fetch + delete individually so SwiftData can nullify the Item↔Tag M2M
             // join entries first — context.delete(model:) is a SQL batch delete that
             // throws a "Constraint trigger violation" on that relationship.
-            let items = try context.fetch(FetchDescriptor<Item>())
-            items.forEach { context.delete($0) }
-            let tags = try context.fetch(FetchDescriptor<Tag>())
-            tags.forEach { context.delete($0) }
-            let history = try context.fetch(FetchDescriptor<SearchHistoryEntry>())
-            history.forEach { context.delete($0) }
-            try context.save()
+            let items = try deletionContext.fetch(FetchDescriptor<Item>())
+            items.forEach { deletionContext.delete($0) }
+            let tags = try deletionContext.fetch(FetchDescriptor<Tag>())
+            tags.forEach { deletionContext.delete($0) }
+            let history = try deletionContext.fetch(FetchDescriptor<SearchHistoryEntry>())
+            history.forEach { deletionContext.delete($0) }
+            try deletionContext.save()
             // Synchronously clear any cached [Item] arrays in running view models BEFORE
             // the next await yields the main actor. Without this, SwiftUI would re-render
             // background views (Home, Files) whose view models still hold stale Item
