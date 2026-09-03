@@ -5,6 +5,7 @@ struct FilesView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(AppContainer.self) private var appContainer
+    @Environment(FileViewerCoordinator.self) private var fileViewer
     @State private var viewModel = FilesViewModel()
     @State private var showFilterSheet = false
     @State private var showBulkTagPicker = false
@@ -106,10 +107,10 @@ struct FilesView: View {
                 symbol: "doc.on.doc",
                 title: "No files",
                 subtitle: viewModel.hasActiveFilters
-                    ? "No files match the active filters."
-                    : "Tap the + button to add your first file."
+                    ? "Try different filters."
+                    : "Tap + to add one.",
+                placement: .page
             )
-            .padding(.top, AppTheme.Spacing.xxxLarge)
         } else {
             Group {
                 switch viewModel.layoutStyle {
@@ -147,7 +148,7 @@ struct FilesView: View {
             ItemCardView(item: item, style: style, isSelectMode: true, isSelected: isSelected)
                 .onTapGesture { viewModel.toggleSelection(item) }
         } else {
-            NavigationLink(destination: ItemDetailView(item: item)) {
+            Button { fileViewer.open(item) } label: {
                 ItemCardView(item: item, style: style)
             }
             .buttonStyle(.plain)
@@ -176,4 +177,5 @@ struct FilesView: View {
     FilesView()
         .modelContainer(PersistenceController.preview.container)
         .environment(AppContainer())
+        .environment(FileViewerCoordinator())
 }

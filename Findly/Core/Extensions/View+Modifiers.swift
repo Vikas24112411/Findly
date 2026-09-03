@@ -116,25 +116,35 @@ struct SectionHeader: View {
 // MARK: - Empty state view
 
 struct EmptyStateView: View {
+    enum Placement {
+        case page
+        case inline
+    }
+
     let symbol: String
     let title: String
-    let subtitle: String
+    var subtitle: String? = nil
+    var placement: Placement = .inline
     var actionLabel: String? = nil
     var action: (() -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: AppTheme.Spacing.base) {
+        VStack(spacing: AppTheme.Spacing.medium) {
             Image(systemName: symbol)
-                .font(.system(size: 56, weight: .light))
+                .font(.system(size: 44, weight: .light))
                 .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                .frame(width: 52, height: 52)
             VStack(spacing: AppTheme.Spacing.xSmall) {
                 Text(title)
-                    .font(AppTheme.Typography.title3)
+                    .font(AppTheme.Typography.headline)
                     .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                Text(subtitle)
-                    .font(AppTheme.Typography.callout)
-                    .foregroundStyle(AppTheme.Colors.tertiaryLabel)
-                    .multilineTextAlignment(.center)
+                if let subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(AppTheme.Typography.subheadline)
+                        .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                }
             }
             if let actionLabel, let action {
                 Button(action: action) {
@@ -149,8 +159,10 @@ struct EmptyStateView: View {
                 .padding(.top, AppTheme.Spacing.small)
             }
         }
-        .padding(AppTheme.Spacing.xxLarge)
+        .padding(.horizontal, AppTheme.Spacing.xxLarge)
+        .padding(.vertical, placement == .page ? AppTheme.Spacing.xxxLarge : AppTheme.Spacing.xLarge)
         .frame(maxWidth: .infinity)
+        .frame(minHeight: placement == .page ? 320 : nil)
     }
 }
 

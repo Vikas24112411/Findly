@@ -67,10 +67,10 @@ struct TagSearchView: View {
             if viewModel.rootTags.isEmpty {
                 EmptyStateView(
                     symbol: "tag.slash",
-                    title: "No tags yet",
-                    subtitle: "Create tags to organize your vault."
+                    title: "No tags",
+                    subtitle: "Type a name to create one.",
+                    placement: .page
                 )
-                .padding(.top, AppTheme.Spacing.xxxLarge)
             } else {
                 SectionHeader(title: "All Tags")
                 LazyVStack(spacing: 0) {
@@ -147,10 +147,8 @@ struct TagSearchView: View {
                     Divider().padding(.leading, 56)
                     EmptyStateView(
                         symbol: "magnifyingglass",
-                        title: "No matching tags",
-                        subtitle: "No tags match \"\(viewModel.searchText)\"."
+                        title: "No matches"
                     )
-                    .padding(.vertical, AppTheme.Spacing.xxxLarge)
                 }
                 .background(AppTheme.Colors.secondaryBG)
                 .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))

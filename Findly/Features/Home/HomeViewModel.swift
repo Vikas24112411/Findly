@@ -111,7 +111,7 @@ final class HomeViewModel {
     }
 
     /// Removes selected items from SwiftData. The caller is responsible for
-    /// deleting local files and Drive copies (same pattern as ItemDetailView).
+    /// deleting local files and Drive copies (same pattern as the metadata inspector).
     func bulkDeleteFromContext() {
         guard let context else { return }
         selectedItems.forEach { context.delete($0) }
@@ -310,19 +310,6 @@ final class HomeViewModel {
             try? context.save()
         }
         loadSearchHistory()
-    }
-
-    // MARK: - Item interaction
-
-    func openItem(_ item: Item) {
-        item.markOpened()
-        try? context?.save()
-        // Defer the 4-fetch home section reload to after the navigation push
-        // completes so it doesn't block the transition animation.
-        Task { @MainActor in
-            await Task.yield()
-            self.loadHomeSections()
-        }
     }
 
 }

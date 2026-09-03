@@ -16,6 +16,7 @@ struct ContentView: View {
     @State private var showRadialMenu = false
     @State private var fabIconRotated = false
     @State private var lockManager = AppLockManager()
+    @State private var fileViewerCoordinator = FileViewerCoordinator()
     @State private var showStoreRecoveryAlert = false
     @State private var fabDragPoint: CGPoint? = nil
     @State private var fabDragEndTrigger: Int = 0
@@ -32,6 +33,14 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: lockManager.isLocked)
+        .environment(fileViewerCoordinator)
+        .fullScreenCover(item: Binding(
+            get: { fileViewerCoordinator.selectedItem },
+            set: { fileViewerCoordinator.selectedItem = $0 }
+        )) { item in
+            FileViewerView(item: item)
+                .environment(fileViewerCoordinator)
+        }
         .onChange(of: showRadialMenu) { _, newValue in
             if !newValue { fabIconRotated = false }
         }

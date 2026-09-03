@@ -7,6 +7,7 @@ struct HomeView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(AppContainer.self) private var appContainer
+    @Environment(FileViewerCoordinator.self) private var fileViewer
     @Query private var recentlyAddedItems: [Item]
     @State private var viewModel = HomeViewModel()
     @State private var scrollOffset: CGFloat = 0
@@ -91,23 +92,27 @@ struct HomeView: View {
                 favoritesShelfSection
             }
 
-            quickFilterChipsSection
-
-            if !viewModel.allTags.isEmpty {
-                browseByTagSection
-            }
-
-            if recentlyAddedItems.isEmpty
-                && viewModel.recentItems.isEmpty
-                && viewModel.frequentItems.isEmpty
-                && viewModel.pinnedItems.isEmpty
-                && viewModel.favoriteItems.isEmpty
-                && viewModel.allTags.isEmpty {
+            if isVaultEmpty {
                 emptyStateView
+            } else {
+                quickFilterChipsSection
+
+                if !viewModel.allTags.isEmpty {
+                    browseByTagSection
+                }
             }
         }
-        .padding(.top, AppTheme.Spacing.small)
+        .padding(.top, isVaultEmpty ? 0 : AppTheme.Spacing.small)
         .padding(.bottom, AppTheme.Spacing.large)
+    }
+
+    private var isVaultEmpty: Bool {
+        recentlyAddedItems.isEmpty
+            && viewModel.recentItems.isEmpty
+            && viewModel.frequentItems.isEmpty
+            && viewModel.pinnedItems.isEmpty
+            && viewModel.favoriteItems.isEmpty
+            && viewModel.allTags.isEmpty
     }
 
     // MARK: - Recently added shelf (new uploads)
@@ -159,12 +164,11 @@ struct HomeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: AppTheme.Spacing.medium) {
                     ForEach(items) { item in
-                        NavigationLink(destination: ItemDetailView(item: item)) {
+                        Button { fileViewer.open(item) } label: {
                             ItemCardView(item: item, style: .grid, titleLines: 1, availableTagWidth: 140 - 16)
                                 .frame(width: 140)
                         }
                         .buttonStyle(.plain)
-                        .simultaneousGesture(TapGesture().onEnded { viewModel.openItem(item) })
                     }
                 }
                 .padding(.horizontal, AppTheme.Spacing.base)
@@ -180,12 +184,11 @@ struct HomeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: AppTheme.Spacing.medium) {
                     ForEach(viewModel.frequentItems) { item in
-                        NavigationLink(destination: ItemDetailView(item: item)) {
+                        Button { fileViewer.open(item) } label: {
                             ItemCardView(item: item, style: .grid, titleLines: 1, availableTagWidth: 140 - 16)
                                 .frame(width: 140)
                         }
                         .buttonStyle(.plain)
-                        .simultaneousGesture(TapGesture().onEnded { viewModel.openItem(item) })
                     }
                 }
                 .padding(.horizontal, AppTheme.Spacing.base)
@@ -201,12 +204,11 @@ struct HomeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: AppTheme.Spacing.medium) {
                     ForEach(viewModel.pinnedItems) { item in
-                        NavigationLink(destination: ItemDetailView(item: item)) {
+                        Button { fileViewer.open(item) } label: {
                             ItemCardView(item: item, style: .grid, titleLines: 1, availableTagWidth: 140 - 16)
                                 .frame(width: 140)
                         }
                         .buttonStyle(.plain)
-                        .simultaneousGesture(TapGesture().onEnded { viewModel.openItem(item) })
                     }
                 }
                 .padding(.horizontal, AppTheme.Spacing.base)
@@ -222,12 +224,11 @@ struct HomeView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: AppTheme.Spacing.medium) {
                     ForEach(viewModel.favoriteItems) { item in
-                        NavigationLink(destination: ItemDetailView(item: item)) {
+                        Button { fileViewer.open(item) } label: {
                             ItemCardView(item: item, style: .grid, titleLines: 1, availableTagWidth: 140 - 16)
                                 .frame(width: 140)
                         }
                         .buttonStyle(.plain)
-                        .simultaneousGesture(TapGesture().onEnded { viewModel.openItem(item) })
                     }
                 }
                 .padding(.horizontal, AppTheme.Spacing.base)
@@ -285,10 +286,9 @@ struct HomeView: View {
         EmptyStateView(
             symbol: "sparkles",
             title: "Your vault is empty",
-            subtitle: "Tap the + button to add your first file, note, or link.",
-            actionLabel: nil
+            subtitle: "Tap + to add an item.",
+            placement: .page
         )
-        .padding(.top, AppTheme.Spacing.xxxLarge)
     }
 }
 
@@ -339,4 +339,5 @@ struct BulkTagPickerSheet: View {
     HomeView(onSearch: { _, _ in })
         .modelContainer(PersistenceController.preview.container)
         .environment(AppContainer())
+        .environment(FileViewerCoordinator())
 }

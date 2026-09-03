@@ -17,6 +17,43 @@ private final class FakeBackupTaskScheduler: BackupTaskScheduling {
     }
 }
 
+// MARK: - File viewer tests
+
+@Suite("File Viewer")
+@MainActor
+struct FileViewerTests {
+
+    @Test("Resolution prefers an available local file")
+    func localResolution() {
+        #expect(FileResolutionStrategy.choose(hasLocalFile: true, hasRemoteFile: true) == .useLocalFile)
+        #expect(FileResolutionStrategy.choose(hasLocalFile: true, hasRemoteFile: false) == .useLocalFile)
+    }
+
+    @Test("Resolution recovers a missing local file when a Drive copy exists")
+    func driveRecoveryResolution() {
+        #expect(FileResolutionStrategy.choose(hasLocalFile: false, hasRemoteFile: true) == .recoverFromDrive)
+    }
+
+    @Test("Resolution reports unavailable when neither copy exists")
+    func unavailableResolution() {
+        #expect(FileResolutionStrategy.choose(hasLocalFile: false, hasRemoteFile: false) == .unavailable)
+    }
+
+    @Test("A viewer session records a successful open exactly once")
+    func openCountIsIdempotent() {
+        let item = Item(title: "Document", fileType: .pdf)
+        var session = FileOpenSession()
+
+        let firstOpen = session.recordOpen(for: item)
+        let secondOpen = session.recordOpen(for: item)
+
+        #expect(firstOpen)
+        #expect(!secondOpen)
+        #expect(item.viewCount == 1)
+        #expect(item.lastOpenedAt != nil)
+    }
+}
+
 // MARK: - Periodic backup schedule tests
 
 @Suite("Periodic Backup Schedule")

@@ -20,9 +20,9 @@ struct SearchResultsView: View {
                 EmptyStateView(
                     symbol: "magnifyingglass",
                     title: "No results",
-                    subtitle: "Nothing in your vault matches \"\(query)\"."
+                    subtitle: "Try another search.",
+                    placement: .page
                 )
-                .padding(.top, AppTheme.Spacing.xxxLarge)
             } else {
                 LazyVStack(spacing: AppTheme.Spacing.medium) {
                     HStack {
@@ -41,7 +41,7 @@ struct SearchResultsView: View {
                                 .onTapGesture { onToggleSelect(item) }
                                 .padding(.horizontal, AppTheme.Spacing.base)
                         } else {
-                            NavigationLink(destination: ItemDetailView(item: item)) {
+                            Button { onOpen(item) } label: {
                                 ItemCardView(item: item, style: .row)
                             }
                             .buttonStyle(.plain)

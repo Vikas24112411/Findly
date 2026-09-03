@@ -321,8 +321,8 @@ struct MultiTagPickerSheet: View {
                         if filtered.isEmpty && !canCreate {
                             EmptyStateView(
                                 symbol: "tag.slash",
-                                title: "No tags found",
-                                subtitle: "Type a name above to create a new tag."
+                                title: "No tags",
+                                subtitle: "Type a name to create one."
                             )
                         } else {
                             if canCreate {

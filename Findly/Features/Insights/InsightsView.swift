@@ -4,6 +4,7 @@ import Charts
 struct InsightsView: View {
 
     @Environment(\.modelContext) private var modelContext
+    @Environment(FileViewerCoordinator.self) private var fileViewer
     @State private var viewModel = InsightsViewModel()
     @State private var scrollOffset: CGFloat = 0
     @AppStorage("insightsShowStorageGrowth") private var showStorageGrowth = true
@@ -213,7 +214,7 @@ struct InsightsView: View {
         insightCard(title: "Most Opened", symbol: "flame.fill") {
             VStack(spacing: 0) {
                 ForEach(Array(viewModel.mostOpenedItems.enumerated()), id: \.element.id) { index, item in
-                    NavigationLink(destination: ItemDetailView(item: item)) {
+                    Button { fileViewer.open(item) } label: {
                         HStack(spacing: AppTheme.Spacing.medium) {
                             // Rank
                             Text("\(index + 1)")
@@ -255,7 +256,7 @@ struct InsightsView: View {
         insightCard(title: "Largest Files", symbol: "archivebox.fill") {
             VStack(spacing: 0) {
                 ForEach(Array(viewModel.largestItems.enumerated()), id: \.element.id) { index, item in
-                    NavigationLink(destination: ItemDetailView(item: item)) {
+                    Button { fileViewer.open(item) } label: {
                         HStack(spacing: AppTheme.Spacing.medium) {
                             Image(systemName: item.fileType.sfSymbol)
                                 .font(.system(size: 14, weight: .medium))
@@ -421,4 +422,5 @@ struct InsightsView: View {
     InsightsView()
         .modelContainer(PersistenceController.preview.container)
         .environment(AppContainer())
+        .environment(FileViewerCoordinator())
 }

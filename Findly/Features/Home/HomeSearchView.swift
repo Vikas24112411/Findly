@@ -9,6 +9,7 @@ struct HomeSearchView: View {
     @State private var viewModel = HomeViewModel()
     @Environment(\.modelContext) private var modelContext
     @Environment(AppContainer.self) private var appContainer
+    @Environment(FileViewerCoordinator.self) private var fileViewer
     @State private var showFilterSheet = false
     @State private var showBulkDeleteConfirm = false
     @State private var showBulkTagPicker = false
@@ -23,7 +24,7 @@ struct HomeSearchView: View {
                     query: viewModel.searchText,
                     isSelectMode: viewModel.isSelectMode,
                     selectedIDs: viewModel.selectedItemIDs,
-                    onOpen: { viewModel.openItem($0) },
+                    onOpen: { fileViewer.open($0) },
                     onToggleSelect: { viewModel.toggleItemSelection($0) }
                 )
             } else {

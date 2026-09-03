@@ -16,13 +16,7 @@ struct KnowledgeView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if viewModel.rootTags.isEmpty {
-                    emptyState
-                } else {
-                    tagTree
-                }
-            }
+            tagTree
             .navTransitionTitle("Tags", progress: scrollProgress(from: scrollOffset))
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
@@ -83,41 +77,45 @@ struct KnowledgeView: View {
         ScrollView {
             VStack(spacing: 0) {
                 LargeTitleHeader(title: "Tags", progress: scrollProgress(from: scrollOffset))
-                LazyVStack(spacing: 0) {
-                    let allTags = allNestedTags(from: viewModel.rootTags)
-                    ForEach(viewModel.rootTags) { tag in
-                        TagNodeView(
-                            tag: tag,
-                            depth: 0,
-                            allTags: allTags,
-                            expandedIDs: $viewModel.expandedTagIDs,
-                            onSelect: { selected in
-                                viewModel.selectTag(selected)
-                                selectedTagForDetail = selected
-                            },
-                            onCreateChild: { parent in
-                                createChildFor = parent
-                                showCreateSheet = true
-                            },
-                            onRename: { tag in
-                                renameTag = tag
-                            },
-                            onDelete: { tag in
-                                viewModel.deleteTag(tag)
-                            },
-                            onSetParent: { tag in
-                                tagToSetParentFor = tag
-                            },
-                            onMakeTopLevel: { tag in
-                                viewModel.makeTopLevel(tag)
-                            }
-                        )
-                        Divider().padding(.leading, AppTheme.Spacing.base)
+                if viewModel.rootTags.isEmpty {
+                    emptyState
+                } else {
+                    LazyVStack(spacing: 0) {
+                        let allTags = allNestedTags(from: viewModel.rootTags)
+                        ForEach(viewModel.rootTags) { tag in
+                            TagNodeView(
+                                tag: tag,
+                                depth: 0,
+                                allTags: allTags,
+                                expandedIDs: $viewModel.expandedTagIDs,
+                                onSelect: { selected in
+                                    viewModel.selectTag(selected)
+                                    selectedTagForDetail = selected
+                                },
+                                onCreateChild: { parent in
+                                    createChildFor = parent
+                                    showCreateSheet = true
+                                },
+                                onRename: { tag in
+                                    renameTag = tag
+                                },
+                                onDelete: { tag in
+                                    viewModel.deleteTag(tag)
+                                },
+                                onSetParent: { tag in
+                                    tagToSetParentFor = tag
+                                },
+                                onMakeTopLevel: { tag in
+                                    viewModel.makeTopLevel(tag)
+                                }
+                            )
+                            Divider().padding(.leading, AppTheme.Spacing.base)
+                        }
                     }
+                    .background(AppTheme.Colors.secondaryBG)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
+                    .padding(AppTheme.Spacing.base)
                 }
-                .background(AppTheme.Colors.secondaryBG)
-                .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
-                .padding(AppTheme.Spacing.base)
             }
         }
         .background(AppTheme.Colors.groupedBG)
@@ -129,12 +127,10 @@ struct KnowledgeView: View {
     private var emptyState: some View {
         EmptyStateView(
             symbol: "tag.slash",
-            title: "No tags yet",
-            subtitle: "Use tags to organize and find your files.",
-            actionLabel: "Create First Tag"
-        ) {
-            showCreateSheet = true
-        }
+            title: "No tags",
+            subtitle: "Tap + to create one.",
+            placement: .page
+        )
     }
 
     // MARK: - Create tag sheet
@@ -234,6 +230,7 @@ struct TagDetailSheet: View {
     let tag: Tag
     let items: [Item]
     @Environment(\.dismiss) private var dismiss
+    @Environment(FileViewerCoordinator.self) private var fileViewer
 
     var body: some View {
         NavigationStack {
@@ -242,13 +239,13 @@ struct TagDetailSheet: View {
                     if items.isEmpty {
                         EmptyStateView(
                             symbol: "tray",
-                            title: "No items",
-                            subtitle: "No files are tagged with \"\(tag.name)\" or its descendants."
+                            title: "No files",
+                            subtitle: "Nothing uses this tag yet.",
+                            placement: .page
                         )
-                        .padding(.top, AppTheme.Spacing.xxxLarge)
                     } else {
                         ForEach(items) { item in
-                            NavigationLink(destination: ItemDetailView(item: item)) {
+                            Button { fileViewer.open(item) } label: {
                                 ItemCardView(item: item, style: .row)
                             }
                             .buttonStyle(.plain)

@@ -13,7 +13,7 @@ struct RecentItemsSection: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: AppTheme.Spacing.medium) {
                     ForEach(items) { item in
-                        NavigationLink(destination: ItemDetailView(item: item)) {
+                        Button { onOpen(item) } label: {
                             RecentItemCard(item: item)
                         }
                         .buttonStyle(.plain)
