@@ -1,150 +1,185 @@
 import SwiftUI
 
-/// A single row in the tag tree with expand/collapse, swipe actions, and context menu.
+/// A semantic row in the expandable tag hierarchy.
 struct TagNodeView: View {
-
     let tag: Tag
     let depth: Int
-    let allTags: [Tag]           // needed to populate "Set Parent" menu
+    let visibleChildren: (Tag) -> [Tag]
     @Binding var expandedIDs: Set<UUID>
     var onSelect: (Tag) -> Void
     var onCreateChild: (Tag) -> Void
-    var onRename: (Tag) -> Void
+    var onMove: (Tag) -> Void
+    var onEdit: (Tag) -> Void
     var onDelete: (Tag) -> Void
-    var onSetParent: (Tag) -> Void
-    var onMakeTopLevel: (Tag) -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var children: [Tag] { visibleChildren(tag) }
     private var isExpanded: Bool { expandedIDs.contains(tag.id) }
-    private var isChild: Bool {
-        allTags.contains { $0.children.contains(where: { $0.id == tag.id }) }
-    }
-    private let stepWidth: CGFloat = 24
+    private var cappedDepth: Int { min(depth, dynamicTypeSize.isAccessibilitySize ? 3 : 6) }
 
     var body: some View {
         VStack(spacing: 0) {
             row
-            if !tag.children.isEmpty && isExpanded {
-                ForEach(tag.children.sorted { $0.name < $1.name }) { child in
+
+            if !children.isEmpty && isExpanded {
+                ForEach(children) { child in
+                    Divider()
+                        .padding(.leading, rowLeadingPadding + 44)
                     TagNodeView(
                         tag: child,
                         depth: depth + 1,
-                        allTags: allTags,
+                        visibleChildren: visibleChildren,
                         expandedIDs: $expandedIDs,
                         onSelect: onSelect,
                         onCreateChild: onCreateChild,
-                        onRename: onRename,
-                        onDelete: onDelete,
-                        onSetParent: onSetParent,
-                        onMakeTopLevel: onMakeTopLevel
+                        onMove: onMove,
+                        onEdit: onEdit,
+                        onDelete: onDelete
                     )
                 }
             }
         }
     }
 
-    // MARK: - Row
-
     private var row: some View {
-        HStack(spacing: AppTheme.Spacing.medium) {
-            // Indentation
-            if depth > 0 {
-                Spacer().frame(width: CGFloat(depth) * stepWidth)
-            }
-
-            // Expand / collapse chevron
-            if !tag.children.isEmpty {
+        HStack(spacing: 0) {
+            if !children.isEmpty {
                 Button {
-                    withAnimation(AppTheme.Animation.snappy) {
-                        if isExpanded { expandedIDs.remove(tag.id) }
-                        else { expandedIDs.insert(tag.id) }
+                    if reduceMotion {
+                        toggleExpansion()
+                    } else {
+                        withAnimation(AppTheme.Animation.snappy) { toggleExpansion() }
                     }
                 } label: {
                     Image(systemName: "chevron.right")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
                         .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                        .animation(AppTheme.Animation.snappy, value: isExpanded)
-                        .frame(width: 16)
+                        .frame(width: 44, height: 52)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(isExpanded ? "Collapse \(tag.name)" : "Expand \(tag.name)")
+            } else {
+                Color.clear
+                    .frame(width: 44, height: 52)
+                    .accessibilityHidden(true)
             }
 
-            // Tag icon
-            TagSymbolView(sfSymbol: tag.sfSymbol, color: Color(hex: tag.colorHex), size: 14)
-                .frame(width: 22, height: 22)
-                .background(Color(hex: tag.colorHex).opacity(0.12))
-                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            Button { onSelect(tag) } label: {
+                HStack(spacing: AppTheme.Spacing.medium) {
+                    tagIcon
 
-            // Name + subtag hint
-            VStack(alignment: .leading, spacing: 1) {
-                Text(tag.name)
-                    .font(AppTheme.Typography.body)
-                    .foregroundStyle(AppTheme.Colors.label)
-                    .lineLimit(1)
-                if !tag.children.isEmpty {
-                    Text("\(tag.children.count) subtag\(tag.children.count == 1 ? "" : "s")")
-                        .font(.system(size: 11))
-                        .foregroundStyle(AppTheme.Colors.tertiaryLabel)
-                }
-            }
+                    VStack(alignment: .leading, spacing: AppTheme.Spacing.xxSmall) {
+                        Text(tag.name)
+                            .font(AppTheme.Typography.body)
+                            .foregroundStyle(AppTheme.Colors.label)
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
 
-            Spacer()
-
-            // Item count badge
-            if tag.totalItemCount > 0 {
-                Text("\(tag.totalItemCount)")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 2)
-                    .background(AppTheme.Colors.fill)
-                    .clipShape(Capsule())
-            }
-
-        }
-        .padding(.vertical, AppTheme.Spacing.medium)
-        .padding(.horizontal, AppTheme.Spacing.base)
-        // Vertical tree lines drawn with Canvas so positions are absolute from (0,0) = row's top-left.
-        // .background{} centers its content by default, making ZStack/Color positioning unreliable.
-        // Canvas receives the exact row bounds and draws lines at precise x positions.
-        .background {
-            if depth > 0 {
-                let d = depth
-                let step = stepWidth
-                Canvas { ctx, size in
-                    for level in 0..<d {
-                        // Middle of each indent segment: base leading padding + level offset + half step
-                        let x = AppTheme.Spacing.base + CGFloat(level) * step + step * 0.5
-                        var path = Path()
-                        path.move(to: CGPoint(x: x, y: 0))
-                        path.addLine(to: CGPoint(x: x, y: size.height))
-                        ctx.stroke(path, with: .color(Color(UIColor.separator).opacity(0.5)), lineWidth: 2)
+                        if !tag.children.isEmpty {
+                            Text("\(tag.children.count) subtag\(tag.children.count == 1 ? "" : "s")")
+                                .font(AppTheme.Typography.caption1)
+                                .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                        }
                     }
+
+                    Spacer(minLength: AppTheme.Spacing.small)
+
+                    if tag.totalItemCount > 0 {
+                        Text("\(tag.totalItemCount)")
+                            .font(AppTheme.Typography.caption1.weight(.semibold))
+                            .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                            .padding(.horizontal, AppTheme.Spacing.small)
+                            .padding(.vertical, AppTheme.Spacing.xSmall)
+                            .background(AppTheme.Colors.fill, in: Capsule())
+                            .accessibilityLabel("\(tag.totalItemCount) files including subtags")
+                    }
+
+                    Image(systemName: "chevron.forward")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                        .accessibilityHidden(true)
                 }
-                .accessibilityHidden(true)
+                .padding(.trailing, AppTheme.Spacing.base)
+                .padding(.vertical, AppTheme.Spacing.small)
+                .frame(minHeight: 56)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(tag.name)
+            .accessibilityValue(accessibilityValue)
+            .accessibilityHint("Opens files for this tag")
+        }
+        .padding(.leading, rowLeadingPadding)
+        .background(alignment: .leading) {
+            if depth > 0 {
+                Rectangle()
+                    .fill(AppTheme.Colors.separator.opacity(0.45))
+                    .frame(width: 2)
+                    .padding(.leading, max(7, rowLeadingPadding - 10))
+                    .accessibilityHidden(true)
             }
         }
-        .contentShape(Rectangle())
-        .onTapGesture { onSelect(tag) }
-        .contextMenu {
-            Button { onCreateChild(tag) } label: {
-                Label("New Child Tag", systemImage: "plus.circle")
-            }
-            Button { onSetParent(tag) } label: {
-                Label("Set Parent...", systemImage: "arrow.up.to.line")
-            }
-            if isChild {
-                Button { onMakeTopLevel(tag) } label: {
-                    Label("Make Top-Level", systemImage: "arrow.up.left.and.down.right.and.arrow.up.right.and.down.left")
-                }
-            }
-            Divider()
-            Button { onRename(tag) } label: {
-                Label("Edit Tag", systemImage: "pencil")
-            }
-            Button(role: .destructive) { onDelete(tag) } label: {
-                Label("Delete", systemImage: "trash")
-            }
+        .contextMenu { actionMenu }
+        .accessibilityAction(named: "Add Subtag") { onCreateChild(tag) }
+        .accessibilityAction(named: "Move Tag") { onMove(tag) }
+        .accessibilityAction(named: "Edit Tag") { onEdit(tag) }
+        .accessibilityAction(named: "Delete Tag") { onDelete(tag) }
+    }
+
+    private var tagIcon: some View {
+        TagSymbolView(
+            sfSymbol: tag.sfSymbol,
+            color: Color(hex: tag.colorHex),
+            size: 16
+        )
+        .frame(width: 32, height: 32)
+        .background(Color(hex: tag.colorHex).opacity(0.13))
+        .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.small, style: .continuous))
+        .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private var actionMenu: some View {
+        Button { onCreateChild(tag) } label: {
+            Label("Add Subtag", systemImage: "plus")
+        }
+        Button { onMove(tag) } label: {
+            Label("Move Tag", systemImage: "folder")
+        }
+        Button { onEdit(tag) } label: {
+            Label("Edit Tag", systemImage: "pencil")
+        }
+        Divider()
+        Button(role: .destructive) { onDelete(tag) } label: {
+            Label("Delete Tag", systemImage: "trash")
+        }
+    }
+
+    private var rowLeadingPadding: CGFloat {
+        CGFloat(cappedDepth) * (dynamicTypeSize.isAccessibilitySize ? 12 : 18)
+    }
+
+    private var accessibilityValue: String {
+        var parts = ["Level \(depth + 1)"]
+        if !tag.children.isEmpty {
+            parts.append("\(tag.children.count) subtags")
+            parts.append(isExpanded ? "expanded" : "collapsed")
+        }
+        if tag.totalItemCount > 0 {
+            parts.append("\(tag.totalItemCount) files including subtags")
+        }
+        return parts.joined(separator: ", ")
+    }
+
+    private func toggleExpansion() {
+        if isExpanded {
+            expandedIDs.remove(tag.id)
+        } else {
+            expandedIDs.insert(tag.id)
         }
     }
 }

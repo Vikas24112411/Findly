@@ -602,6 +602,191 @@ struct TagGraphTraverserTests {
     }
 }
 
+// MARK: - Tags experience tests
+
+@Suite("Tags Experience", .serialized)
+@MainActor
+struct TagsExperienceTests {
+
+    @Test("Tag icon catalog is complete, unique, categorized, and searchable")
+    func iconCatalog() {
+        #expect(TagIconCatalog.options.count == 96)
+        #expect(Set(TagIconCatalog.options.map(\.systemName)).count == 96)
+
+        for category in TagIconCategory.allCases {
+            #expect(TagIconCatalog.options(in: category).count == 12)
+        }
+
+        #expect(TagIconCatalog.search("camera").contains { $0.systemName == "camera.fill" })
+        #expect(TagIconCatalog.search("rupee").contains { $0.systemName == "indianrupeesign.circle.fill" })
+        #expect(TagIconCatalog.search("finance").count == 12)
+    }
+
+    @Test("Search keeps matching paths and restores the previous expansion state")
+    func searchPrunesAndRestoresExpansion() throws {
+        let store = makeStore()
+        let context = store.context
+        let viewModel = store.viewModel
+        let personal = Tag(name: "Personal")
+        let work = Tag(name: "Work")
+        let reports = Tag(name: "Reports")
+        let expenses = Tag(name: "Expenses")
+
+        work.children.append(reports)
+        reports.children.append(expenses)
+        context.insert(personal)
+        context.insert(work)
+        context.insert(reports)
+        context.insert(expenses)
+        try context.save()
+        viewModel.reload()
+
+        #expect(viewModel.rootTags.map(\.name) == ["Personal", "Work"])
+        viewModel.expandedTagIDs = [personal.id]
+        viewModel.setSearchText("expense")
+
+        #expect(viewModel.filteredRootTags.map(\.name) == ["Work"])
+        #expect(viewModel.matchingTagIDs == [expenses.id])
+        #expect(viewModel.visibleChildren(of: work).map(\.name) == ["Reports"])
+        #expect(viewModel.expandedTagIDs.contains(work.id))
+        #expect(viewModel.expandedTagIDs.contains(reports.id))
+
+        viewModel.setSearchText("")
+        #expect(viewModel.expandedTagIDs == [personal.id])
+    }
+
+    @Test("Exact search matching ignores case and diacritics")
+    func exactSearchMatching() throws {
+        let store = makeStore()
+        let context = store.context
+        let viewModel = store.viewModel
+        let cafe = Tag(name: "Café")
+        context.insert(cafe)
+        try context.save()
+        viewModel.reload()
+
+        viewModel.setSearchText("cafe")
+        #expect(viewModel.hasExactSearchMatch)
+    }
+
+    @Test("Legacy multiple parents keep the alphabetically first parent")
+    func normalizesMultipleParents() throws {
+        let persistence = PersistenceController(inMemory: true)
+        let context = persistence.container.mainContext
+        let zebra = Tag(name: "Zebra")
+        let alpha = Tag(name: "Alpha")
+        let child = Tag(name: "Shared")
+
+        zebra.children.append(child)
+        alpha.children.append(child)
+        context.insert(zebra)
+        context.insert(alpha)
+        context.insert(child)
+        try context.save()
+
+        let viewModel = KnowledgeViewModel()
+        viewModel.setup(context: context)
+
+        #expect(alpha.children.contains(where: { $0.id == child.id }))
+        #expect(!zebra.children.contains(where: { $0.id == child.id }))
+        #expect(viewModel.parent(of: child)?.id == alpha.id)
+    }
+
+    @Test("Moving replaces the parent, avoids duplicates, and prevents cycles")
+    func moveRules() throws {
+        let store = makeStore()
+        let context = store.context
+        let viewModel = store.viewModel
+        let root = Tag(name: "Root")
+        let branch = Tag(name: "Branch")
+        let leaf = Tag(name: "Leaf")
+        root.children.append(branch)
+        branch.children.append(leaf)
+        context.insert(root)
+        context.insert(branch)
+        context.insert(leaf)
+        try context.save()
+        viewModel.reload()
+
+        #expect(viewModel.moveTag(leaf, to: root))
+        #expect(!branch.children.contains(where: { $0.id == leaf.id }))
+        #expect(root.children.filter { $0.id == leaf.id }.count == 1)
+
+        #expect(viewModel.moveTag(leaf, to: root))
+        #expect(root.children.filter { $0.id == leaf.id }.count == 1)
+
+        #expect(!viewModel.moveTag(root, to: leaf))
+        #expect(viewModel.errorMessage != nil)
+
+        viewModel.clearError()
+        #expect(viewModel.moveTag(branch, to: nil))
+        #expect(viewModel.parent(of: branch) == nil)
+    }
+
+    @Test("Deleting a nested tag promotes children and preserves files")
+    func deletePromotesChildren() throws {
+        let store = makeStore()
+        let context = store.context
+        let viewModel = store.viewModel
+        let root = Tag(name: "Root")
+        let middle = Tag(name: "Middle")
+        let child = Tag(name: "Child")
+        let item = Item(title: "Document", fileType: .pdf)
+        root.children.append(middle)
+        middle.children.append(child)
+        item.tags = [middle]
+
+        context.insert(root)
+        context.insert(middle)
+        context.insert(child)
+        context.insert(item)
+        try context.save()
+        viewModel.reload()
+
+        #expect(viewModel.deleteTagPromotingChildren(middle))
+        #expect(root.children.contains(where: { $0.id == child.id }))
+        #expect(viewModel.parent(of: child)?.id == root.id)
+        #expect(try context.fetchCount(FetchDescriptor<Findly.Tag>()) == 2)
+        #expect(try context.fetchCount(FetchDescriptor<Item>()) == 1)
+    }
+
+    @Test("Deleting a root tag promotes its children to the root")
+    func deleteRootPromotesChildren() throws {
+        let store = makeStore()
+        let context = store.context
+        let viewModel = store.viewModel
+        let root = Tag(name: "Root")
+        let child = Tag(name: "Child")
+        root.children.append(child)
+        context.insert(root)
+        context.insert(child)
+        try context.save()
+        viewModel.reload()
+
+        #expect(viewModel.deleteTagPromotingChildren(root))
+        #expect(viewModel.rootTags.map(\.name) == ["Child"])
+        #expect(viewModel.parent(of: child) == nil)
+    }
+
+    @MainActor
+    private final class TestStore {
+        let persistence: PersistenceController
+        let context: ModelContext
+        let viewModel: KnowledgeViewModel
+
+        init() {
+            persistence = PersistenceController(inMemory: true)
+            context = persistence.container.mainContext
+            viewModel = KnowledgeViewModel()
+            viewModel.setup(context: context)
+        }
+    }
+
+    private func makeStore() -> TestStore {
+        TestStore()
+    }
+}
+
 // MARK: - FileType detection tests
 
 @Suite("FileType Detection")
