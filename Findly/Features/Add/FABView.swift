@@ -17,6 +17,10 @@ struct FABView: View {
     /// Called when the finger lifts after a long-press drag (global coords).
     var onDragEnded: ((CGPoint) -> Void)? = nil
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @GestureState private var gestureActive = false
+
     @State private var isPressed = false
     @State private var longPressConsumed = false
     @State private var longPressTimer: Timer? = nil
@@ -35,13 +39,14 @@ struct FABView: View {
                 .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(.white)
                 .rotationEffect(.degrees(isRadialOpen ? 45 : 0))
-                .animation(AppTheme.Animation.snappy, value: isRadialOpen)
+                .animation(reduceMotion ? nil : AppTheme.Animation.snappy, value: isRadialOpen)
         }
-        .scaleEffect(isPressed ? 0.92 : 1.0)
+        .scaleEffect(isPressed && !reduceMotion ? 0.92 : 1.0)
         .animation(AppTheme.Animation.snappy, value: isPressed)
         .contentShape(Circle())
         .gesture(
             DragGesture(minimumDistance: 0, coordinateSpace: .global)
+                .updating($gestureActive) { _, active, _ in active = true }
                 .onChanged { value in
                     if !isPressed { isPressed = true }
 
@@ -51,6 +56,7 @@ struct FABView: View {
                     if longPressTimer == nil && !longPressConsumed {
                         let t = Timer(timeInterval: 0.4, repeats: false) { _ in
                             DispatchQueue.main.async {
+                                guard isPressed, longPressTimer != nil else { return }
                                 longPressConsumed = true
                                 HapticFeedback.medium()
                                 onLongPress?()
@@ -75,19 +81,32 @@ struct FABView: View {
                         onDragEnded?(value.location)
                         longPressConsumed = false
                     } else {
-                        // Finger lifted before 500 ms — treat as a tap.
+                        // Finger lifted before 400 ms — treat as a tap.
                         HapticFeedback.medium()
                         showSheet = true
                     }
                 }
         )
-        .onDisappear {
-            longPressTimer?.invalidate()
-            longPressTimer = nil
-            longPressConsumed = false
-            isPressed = false
+        .onChange(of: gestureActive) { _, active in
+            if !active { resetPress() }
         }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { resetPress() }
+        }
+        .onDisappear { resetPress() }
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel("Add item")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Tap to add an item, or hold and drag to choose an upload type.")
+        .accessibilityAction { showSheet = true }
+        .accessibilityAction(named: "Show upload options") { onLongPress?() }
+    }
+
+    private func resetPress() {
+        longPressTimer?.invalidate()
+        longPressTimer = nil
+        longPressConsumed = false
+        isPressed = false
     }
 }
 

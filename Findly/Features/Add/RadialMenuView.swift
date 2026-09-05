@@ -3,7 +3,7 @@ import PhotosUI
 import UniformTypeIdentifiers
 
 /// Full-screen radial menu overlay shown on long-pressing the + FAB.
-/// Displays 5 file-type options as liquid-glass circles fanning out in a quarter-arc above the FAB.
+/// Displays five labeled options fanning upward and left from the FAB.
 /// Supports drag-to-select: hold the FAB, drag to an icon, release to select it.
 struct RadialMenuView: View {
 
@@ -19,10 +19,15 @@ struct RadialMenuView: View {
     @Environment(AppContainer.self) private var appContainer
     @Environment(\.modelContext) private var modelContext
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     // MARK: - Visual state
 
     @State private var isDismissing = false
-    @State private var animationProgress: [Bool] = Array(repeating: false, count: 5)
+    @State private var isExpanded = false
     /// Three-level hover state for drag-to-select feedback.
     private enum HoverState: Equatable {
         case none
@@ -56,40 +61,49 @@ struct RadialMenuView: View {
 
     // MARK: - Layout constants
 
-    // Options ordered by thumb ergonomics for a bottom-right FAB.
-    // 270° (up) is easiest to reach; 90° (down, toward screen edge) is hardest.
+    // Keep the original option order, with the lower endpoint lifted clear of the tab bar.
     private let options: [AddOption] = [.link, .note, .document, .camera, .photo]
-    private let angles: [Double] = [90, 135, 180, 225, 270]
-    private let radius: CGFloat = 118
-    private let fabTrailingPad: CGFloat = AppTheme.Spacing.large
-    private let fabBottomOffset: CGFloat = 90 + 28
+    private let angles: [Double] = [165, 191.25, 217.5, 243.75, 270]
+    private let radius: CGFloat = 164
+
+    private var menuAnimation: Animation {
+        reduceMotion ? .easeOut(duration: 0.12) : .spring(response: 0.28, dampingFraction: 0.86)
+    }
 
     // MARK: - Body
 
     var body: some View {
         ZStack(alignment: .bottom) {
             dimBackground
-            iconFan
+            if dynamicTypeSize.isAccessibilitySize {
+                accessibleOptions
+            } else {
+                iconFan
+            }
         }
-        .onAppear {
-            // View is pre-warmed in the hierarchy while invisible — do not animate in on appear.
-            // Animation is triggered by the isVisible binding becoming true (see onChange below).
-        }
+        .accessibilityHidden(!isVisible || isDismissing)
+        .accessibilityAddTraits(.isModal)
+        .accessibilityAction(.escape) { dismissAndClose() }
         .onChange(of: isVisible) { _, visible in
+            hoverState = .none
             if visible {
-                // Reset any state left from a previous show before animating in.
                 isDismissing = false
-                animationProgress = Array(repeating: false, count: 5)
-                animateIn()
+                withAnimation(menuAnimation) { isExpanded = true }
+            } else {
+                isExpanded = false
             }
         }
         .onChange(of: dragPoint) { _, pt in
+            guard isVisible, !isDismissing, !dynamicTypeSize.isAccessibilitySize else { return }
             let newState = pt.map { computeHoverState(for: $0) } ?? .none
             fireHapticIfNeeded(from: hoverState, to: newState)
             hoverState = newState
         }
         .onChange(of: dragEndTrigger) { _, _ in
-            if let idx = hoverState.confirmedIndex {
+            guard isVisible, !isDismissing else { return }
+            guard !dynamicTypeSize.isAccessibilitySize else { return }
+            // Recompute from the release point; hover updates may be coalesced in this frame.
+            if let idx = dragPoint.flatMap({ computeHoverState(for: $0).confirmedIndex }) {
                 // Past dead zone — commit the selection
                 HapticFeedback.light()
                 onOptionCommitted?()
@@ -191,137 +205,133 @@ struct RadialMenuView: View {
     // MARK: - Subviews
 
     private var dimBackground: some View {
-        Rectangle()
-            .fill(.ultraThinMaterial)
-            .ignoresSafeArea()
-            .onTapGesture { dismissAndClose() }
-            .opacity(isDismissing ? 0 : 1)
-            .allowsHitTesting(!isDismissing)
-            .animation(.easeOut(duration: 0.15), value: isDismissing)
+        Button(action: dismissAndClose) {
+            Rectangle()
+                .fill(reduceTransparency
+                      ? AnyShapeStyle(Color(uiColor: .systemBackground))
+                      : AnyShapeStyle(.regularMaterial))
+                .ignoresSafeArea()
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Close upload options")
+        .opacity(isExpanded ? 1 : 0)
+        .allowsHitTesting(!isDismissing)
     }
 
     private var iconFan: some View {
         HStack(alignment: .bottom) {
             Spacer()
-            ZStack {
-                // Anchor placeholder: same size as the FAB.
-                // A GeometryReader captures its actual global center so icon hit-testing
-                // is accurate regardless of safe-area insets or device size.
-                Color.clear
-                    .frame(width: 56, height: 56)
-                    .background(
-                        GeometryReader { geo in
-                            Color.clear.onAppear {
-                                let frame = geo.frame(in: .global)
-                                anchorPosition = CGPoint(x: frame.midX, y: frame.midY)
-                            }
-                        }
-                    )
-
-                ForEach(Array(zip(options.indices, options)), id: \.0) { index, option in
-                    let rad = angles[index] * .pi / 180
-                    glassButton(option: option, index: index)
-                        .offset(
-                            x: radius * CGFloat(cos(rad)),
-                            y: radius * CGFloat(sin(rad))
-                        )
+            Color.clear
+                .frame(width: 56, height: 56)
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
+                    anchorPosition = CGPoint(x: frame.midX, y: frame.midY)
                 }
-            }
-            .padding(.trailing, fabTrailingPad)
+                .overlay {
+                    ZStack {
+                        Button(action: dismissAndClose) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 22, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .frame(width: 56, height: 56)
+                                .background(AppTheme.Colors.accent, in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Close upload options")
+                        ForEach(options.indices, id: \.self) { index in
+                            let rad = angles[index] * .pi / 180
+                            optionButton(options[index], index: index)
+                                .offset(
+                                    x: radius * CGFloat(cos(rad)) * (isExpanded || reduceMotion ? 1 : 0),
+                                    y: radius * CGFloat(sin(rad)) * (isExpanded || reduceMotion ? 1 : 0)
+                                )
+                        }
+                    }
+                }
+                .padding(.trailing, AppTheme.Spacing.large)
         }
-        .padding(.bottom, fabBottomOffset - 28)
+        .padding(.bottom, 90)
+        .opacity(isExpanded ? 1 : 0)
+        .allowsHitTesting(isExpanded && !isDismissing)
     }
 
-    @ViewBuilder
-    private func glassButton(option: AddOption, index: Int) -> some View {
-        let isConfirmed = hoverState == .confirmed(index)
-        let isPending   = hoverState == .pending(index)
-
-        let ringOpacity: Double  = isConfirmed ? 0.7  : isPending ? 0.5  : 0.35
-        let ringWidth: CGFloat   = isConfirmed ? 1.5  : isPending ? 1.0  : 0.5
-        let fillOpacity: Double  = isConfirmed ? 0.15 : isPending ? 0.07 : 0.0
-        let scale: CGFloat       = isConfirmed ? 1.15 : isPending ? 1.08 : 1.0
-        let labelWeight: Font.Weight = isConfirmed ? .semibold : .medium
-
-        Button {
-            onOptionCommitted?()
-            dismissMenuVisual()
-            handleOption(option)
-        } label: {
-            VStack(spacing: 6) {
-                ZStack {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                        .frame(width: 52, height: 52)
-                        .overlay(
-                            Circle()
-                                .stroke(Color.white.opacity(ringOpacity), lineWidth: ringWidth)
-                        )
-                        .overlay(
-                            Circle()
-                                .fill(Color.white.opacity(fillOpacity))
-                        )
-                        .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 4)
-
-                    Image(systemName: option.customSymbol ?? option.fileType.addSheetSymbol)
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(option.fileType.tintColor)
+    private var accessibleOptions: some View {
+        ScrollView {
+            VStack(spacing: 12) {
+                Text("Add to Vault").font(.headline)
+                ForEach(options.indices, id: \.self) { index in
+                    Button { commit(options[index]) } label: {
+                        Label(options[index].radialLabel,
+                              systemImage: options[index].customSymbol ?? options[index].fileType.addSheetSymbol)
+                            .font(.body)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .padding(12)
+                            .background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+                    }
+                    .buttonStyle(.plain)
                 }
-
-                Text(option.radialLabel)
-                    .font(.system(size: 12, weight: labelWeight))
-                    .foregroundStyle(.primary)
-                    .shadow(color: .black.opacity(0.25), radius: 3, x: 0, y: 1)
+                Button("Cancel", action: dismissAndClose).padding()
             }
+            .padding(24)
+        }
+        .opacity(isExpanded ? 1 : 0)
+        .allowsHitTesting(isExpanded && !isDismissing)
+    }
+
+    private func optionButton(_ option: AddOption, index: Int) -> some View {
+        let selected = hoverState == .confirmed(index)
+        return Button { commit(option) } label: {
+            VStack(spacing: 6) {
+                Image(systemName: option.customSymbol ?? option.fileType.addSheetSymbol)
+                    .font(.system(size: 21, weight: .semibold))
+                    .foregroundStyle(selected ? Color.white : option.fileType.tintColor)
+                    .frame(width: 54, height: 54)
+                    .background(selected ? AppTheme.Colors.accent : Color(uiColor: .secondarySystemBackground), in: Circle())
+                    .overlay {
+                        Circle().strokeBorder(selected ? AppTheme.Colors.accent : Color.primary.opacity(contrast == .increased ? 0.6 : 0.12), lineWidth: selected ? 3 : 1)
+                    }
+                    .overlay(alignment: .topTrailing) {
+                        if selected {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.white, AppTheme.Colors.accent)
+                        }
+                    }
+                    .shadow(color: .black.opacity(0.1), radius: 8, y: 3)
+                Text(option.radialLabel)
+                    .font(.caption.weight(selected ? .bold : .medium))
+                    .foregroundStyle(.primary)
+                    .fixedSize()
+            }
+            .frame(width: 76)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel(option.radialLabel)
-        .scaleEffect(animationProgress[index] ? scale : 0.3)
-        .opacity(animationProgress[index] ? 1.0 : 0.0)
-        // No built-in delay here — all staggering is driven via asyncAfter in animateIn/dismissMenuVisual
-        // so open and close can use different orderings without fighting each other.
-        .animation(.spring(response: 0.4, dampingFraction: 0.65), value: animationProgress[index])
-        .animation(.spring(response: 0.15, dampingFraction: 0.7), value: hoverState)
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
+        .scaleEffect(selected && !reduceMotion ? 1.06 : 1)
+        .animation(menuAnimation, value: hoverState)
     }
 
-    // MARK: - Animation helpers
-
-    private func animateIn() {
-        // Stagger icons in forward order (0 → last).
-        // 25 ms per icon → ~125 ms total.
-        for i in options.indices {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.025) {
-                animationProgress[i] = true
-            }
-        }
+    private func commit(_ option: AddOption) {
+        guard isVisible, !isDismissing else { return }
+        HapticFeedback.light()
+        onOptionCommitted?()
+        dismissMenuVisual()
+        handleOption(option)
     }
 
-    /// Plays the reverse close animation (icons collapse last → first, then background fades).
-    /// Call `handleOption` immediately after if an option was selected — the picker appears
-    /// while the icons are still animating out.
     private func dismissMenuVisual() {
-        // Stagger icons out in reverse order (last → 0).
-        // 35 ms per icon — matches open stagger speed.
-        for i in options.indices.reversed() {
-            let delay = Double(options.count - 1 - i) * 0.035
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                animationProgress[i] = false
-            }
-        }
-        // Fade the background after the last icon starts collapsing.
-        let bgDelay = Double(options.count - 1) * 0.035 + 0.18
-        DispatchQueue.main.asyncAfter(deadline: .now() + bgDelay) {
-            withAnimation(.easeOut(duration: 0.15)) {
-                isDismissing = true
-            }
-        }
+        isDismissing = true
+        withAnimation(menuAnimation) { isExpanded = false }
     }
 
     private func dismissAndClose() {
-        dismissMenuVisual()
-        // Remove from hierarchy after the full close animation completes.
-        let closeDelay = Double(options.count - 1) * 0.05 + 0.35
-        DispatchQueue.main.asyncAfter(deadline: .now() + closeDelay) {
+        guard !isDismissing else { return }
+        isDismissing = true
+        withAnimation(menuAnimation, completionCriteria: .logicallyComplete) {
+            isExpanded = false
+        } completion: {
+            guard isDismissing else { return }
             isVisible = false
         }
     }
@@ -355,7 +365,7 @@ struct RadialMenuView: View {
     ///
     /// - Dead zone (0–52 pt from anchor): returns `.pending` — soft preview, no commit on release.
     /// - Past dead zone (≥52 pt): returns `.confirmed` — full highlight, commits on release.
-    /// - Outside the 90°–270° arc: returns `.none`.
+    /// - Outside the rendered arc or beyond its outer margin: returns `.none`.
     private func computeHoverState(for point: CGPoint) -> HoverState {
         guard let anchor = anchorPosition else { return .none }
         let dx = point.x - anchor.x
@@ -365,28 +375,17 @@ struct RadialMenuView: View {
         var angleDeg = atan2(dy, dx) * 180 / .pi
         if angleDeg < 0 { angleDeg += 360 }
 
-        guard let sector = sectorIndex(for: angleDeg) else { return .none }
+        guard distance <= radius + 60,
+              let sector = sectorIndex(for: angleDeg) else { return .none }
         return distance < 52 ? .pending(sector) : .confirmed(sector)
     }
 
-    /// Maps an angle (degrees, 0–360) to an option index using arc-sector midpoint boundaries.
-    ///
-    /// Options sit at 90°, 135°, 180°, 225°, 270° (45° spacing).
-    /// Sector boundaries are midpoints between adjacent options: 112.5°, 157.5°, 202.5°, 247.5°.
-    /// Edge options are extended outward by 22.5° (half a sector) so all 5 options have equal 45° arcs:
-    ///   Option 0 (Link):      67.5° – 112.5°
-    ///   Option 1 (Note):     112.5° – 157.5°
-    ///   Option 2 (Document): 157.5° – 202.5°
-    ///   Option 3 (Camera):   202.5° – 247.5°
-    ///   Option 4 (Photo):    247.5° – 292.5°
-    /// Angles outside [67.5°, 292.5°] are rightward drags — no option lives there.
+    /// Derive equal sectors from the rendered fan so visual and drag targets stay aligned.
     private func sectorIndex(for angleDeg: Double) -> Int? {
-        guard angleDeg >= 67.5, angleDeg <= 292.5 else { return nil }
-        let boundaries: [Double] = [112.5, 157.5, 202.5, 247.5]
-        for (i, boundary) in boundaries.enumerated() {
-            if angleDeg < boundary { return i }
-        }
-        return 4
+        let halfStep = (angles[1] - angles[0]) / 2
+        guard angleDeg >= angles[0] - halfStep,
+              angleDeg <= angles[angles.count - 1] + halfStep else { return nil }
+        return options.indices.min { abs(angles[$0] - angleDeg) < abs(angles[$1] - angleDeg) }
     }
 
     // MARK: - Option routing

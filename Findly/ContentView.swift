@@ -8,6 +8,7 @@ struct ContentView: View {
     @AppStorage("appearanceMode") private var appearanceMode = "system"
     @AppStorage("appLockEnabled") private var appLockEnabled = false
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: AppTab = .home
     @State private var showAddSheet = false
@@ -76,7 +77,7 @@ struct ContentView: View {
                 dragPoint: fabDragPoint,
                 dragEndTrigger: fabDragEndTrigger,
                 onOptionCommitted: {
-                    withAnimation(AppTheme.Animation.snappy) {
+                    withAnimation(reduceMotion ? nil : AppTheme.Animation.snappy) {
                         fabIconRotated = false
                     }
                 }
@@ -117,6 +118,7 @@ struct ContentView: View {
                 }
             }
             .tint(AppTheme.Colors.accent)
+            .accessibilityHidden(showRadialMenu && fabIconRotated)
 
             // Floating add FAB — hidden on Search tab
             if selectedTab != .search {
@@ -126,7 +128,8 @@ struct ContentView: View {
                         showSheet: $showAddSheet,
                         isRadialOpen: fabIconRotated,
                         onLongPress: {
-                            withAnimation(AppTheme.Animation.fast) {
+                            fabDragPoint = nil
+                            withAnimation(reduceMotion ? nil : AppTheme.Animation.fast) {
                                 showRadialMenu = true
                                 fabIconRotated = true
                             }
