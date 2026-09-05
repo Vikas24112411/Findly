@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import Observation
 import SwiftData
 import SwiftUI
 import UIKit
@@ -1122,9 +1123,60 @@ struct ExperimentalFeaturesTests {
         #expect(store.enabledCount == 0)
     }
 
+    @Test("Store notifies observers when a flag changes")
+    func publishesFlagChanges() async throws {
+        let (defaults, suiteName) = try makeIsolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = ExperimentalFeatureStore(
+            defaults: defaults,
+            features: [Self.alpha, Self.beta]
+        )
+        let counter = ObservationCounter()
+        withObservationTracking {
+            _ = store.isEnabled(Self.alpha)
+        } onChange: {
+            counter.count += 1
+        }
+
+        store.setEnabled(true, for: Self.alpha)
+
+        // Delivery is asynchronous; wait briefly rather than asserting inline.
+        for _ in 0..<100 where counter.count == 0 {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(counter.count >= 1)
+    }
+
+    @Test("Setting a flag to its current value does not notify observers")
+    func noNotificationOnNoOp() async throws {
+        let (defaults, suiteName) = try makeIsolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = ExperimentalFeatureStore(
+            defaults: defaults,
+            features: [Self.alpha]
+        )
+        store.setEnabled(true, for: Self.alpha)
+
+        let counter = ObservationCounter()
+        withObservationTracking {
+            _ = store.isEnabled(Self.alpha)
+        } onChange: {
+            counter.count += 1
+        }
+
+        store.setEnabled(true, for: Self.alpha)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(counter.count == 0)
+    }
+
     private func makeIsolatedDefaults() throws -> (UserDefaults, String) {
         let suiteName = "ExperimentalFeaturesTests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))
         return (defaults, suiteName)
     }
+}
+
+/// Mutable box for observation callbacks, which may fire off the test actor.
+private final class ObservationCounter {
+    var count = 0
 }

@@ -26,6 +26,13 @@ final class ExperimentalFeatureStore {
     private let defaults: UserDefaults
     private let features: [ExperimentalFeature]
 
+    /// Bumped on every effective mutation. Flag state itself lives in
+    /// `UserDefaults`, which the observation system cannot track, so views
+    /// gating on `isEnabled` / `enabledCount` subscribe through this counter
+    /// instead. Without it, toggles, counts, and the turn-off-all button
+    /// would only refresh after navigating away and back.
+    private var revision = 0
+
     /// Creates a store over `features` (default: the shared catalog).
     ///
     /// - Parameters:
@@ -62,21 +69,28 @@ final class ExperimentalFeatureStore {
     /// Unknown IDs (graduated or removed features) resolve to `defaultValue`
     /// and never crash or affect app behavior.
     func isEnabled(id: String, defaultValue: Bool = false) -> Bool {
+        _ = revision // Subscribe observing views to flag changes.
         guard features.contains(where: { $0.id == id }) else { return defaultValue }
         return storedValue(for: id) ?? defaultValue
     }
 
-    /// Persists `enabled` for `feature`, effective immediately.
+    /// Persists `enabled` for `feature`, effective immediately. No-op when
+    /// the flag already holds that value, so observers aren't pinged twice.
     func setEnabled(_ enabled: Bool, for feature: ExperimentalFeature) {
+        guard isEnabled(feature) != enabled else { return }
         defaults.set(enabled, forKey: Self.key(for: feature.id))
+        revision += 1
     }
 
     /// Turns off every registered experiment that is currently on.
     /// Reversible and confirmation-free; re-enabling is a plain toggle.
     func disableAll() {
+        var changed = false
         for feature in features where isEnabled(feature) {
             defaults.set(false, forKey: Self.key(for: feature.id))
+            changed = true
         }
+        if changed { revision += 1 }
     }
 
     // MARK: - Private
