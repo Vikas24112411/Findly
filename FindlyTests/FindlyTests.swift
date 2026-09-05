@@ -898,3 +898,192 @@ struct FileTypeDetectionTests {
         #expect(FileType.detect(fileExtension: "xyz123") == .other)
     }
 }
+
+// MARK: - Experimental features tests
+
+@Suite("Experimental Features")
+@MainActor
+struct ExperimentalFeaturesTests {
+
+    private static let alpha = ExperimentalFeature(
+        id: "test.alpha",
+        name: "Alpha",
+        description: "First test fixture with a deliberately long description so the Settings toggle subtitle wraps across multiple lines at accessibility text sizes."
+    )
+    private static let beta = ExperimentalFeature(
+        id: "test.beta",
+        name: "Beta",
+        description: "Second test fixture."
+    )
+
+    @Test("Every feature defaults to disabled when no preference exists")
+    func defaultsToDisabled() throws {
+        let (defaults, suiteName) = try makeIsolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = ExperimentalFeatureStore(
+            defaults: defaults,
+            features: [Self.alpha, Self.beta]
+        )
+
+        #expect(!store.isEnabled(Self.alpha))
+        #expect(!store.isEnabled(Self.beta))
+        #expect(store.enabledCount == 0)
+    }
+
+    @Test("Empty catalog reports zero enabled features")
+    func emptyCatalogIsZero() throws {
+        let (defaults, suiteName) = try makeIsolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = ExperimentalFeatureStore(defaults: defaults, features: [])
+
+        #expect(store.allFeatures.isEmpty)
+        #expect(store.enabledCount == 0)
+        #expect(ExperimentalFeaturesSummary.text(enabledCount: store.enabledCount) == "Off")
+    }
+
+    @Test("Enabling and disabling a flag persists immediately")
+    func enableAndDisable() throws {
+        let (defaults, suiteName) = try makeIsolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = ExperimentalFeatureStore(
+            defaults: defaults,
+            features: [Self.alpha, Self.beta]
+        )
+
+        store.setEnabled(true, for: Self.alpha)
+        #expect(store.isEnabled(Self.alpha))
+        #expect(store.enabledCount == 1)
+
+        store.setEnabled(false, for: Self.alpha)
+        #expect(!store.isEnabled(Self.alpha))
+        #expect(store.enabledCount == 0)
+    }
+
+    @Test("Flags are independent of each other")
+    func flagsAreIndependent() throws {
+        let (defaults, suiteName) = try makeIsolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = ExperimentalFeatureStore(
+            defaults: defaults,
+            features: [Self.alpha, Self.beta]
+        )
+
+        store.setEnabled(true, for: Self.alpha)
+
+        #expect(store.isEnabled(Self.alpha))
+        #expect(!store.isEnabled(Self.beta))
+        #expect(store.enabledCount == 1)
+    }
+
+    @Test("Flags restore across relaunch from the same defaults suite")
+    func relaunchRestoration() throws {
+        let (defaults, suiteName) = try makeIsolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let firstLaunch = ExperimentalFeatureStore(
+            defaults: defaults,
+            features: [Self.alpha, Self.beta]
+        )
+        firstLaunch.setEnabled(true, for: Self.alpha)
+        firstLaunch.setEnabled(true, for: Self.beta)
+
+        let secondLaunch = ExperimentalFeatureStore(
+            defaults: defaults,
+            features: [Self.alpha, Self.beta]
+        )
+
+        #expect(secondLaunch.isEnabled(Self.alpha))
+        #expect(secondLaunch.isEnabled(Self.beta))
+        #expect(secondLaunch.enabledCount == 2)
+    }
+
+    @Test("disableAll turns off every active flag")
+    func disableAll() throws {
+        let (defaults, suiteName) = try makeIsolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = ExperimentalFeatureStore(
+            defaults: defaults,
+            features: [Self.alpha, Self.beta]
+        )
+        store.setEnabled(true, for: Self.alpha)
+        store.setEnabled(true, for: Self.beta)
+
+        store.disableAll()
+
+        #expect(!store.isEnabled(Self.alpha))
+        #expect(!store.isEnabled(Self.beta))
+        #expect(store.enabledCount == 0)
+    }
+
+    @Test("Flags persist under a namespaced key")
+    func namespacedPersistenceKey() throws {
+        let (defaults, suiteName) = try makeIsolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = ExperimentalFeatureStore(
+            defaults: defaults,
+            features: [Self.alpha]
+        )
+
+        store.setEnabled(true, for: Self.alpha)
+
+        #expect(defaults.object(
+            forKey: ExperimentalFeatureStore.key(for: Self.alpha.id)
+        ) as? Bool == true)
+    }
+
+    @Test("Catalog IDs are unique")
+    func catalogIDsAreUnique() {
+        let ids = ExperimentalFeatureCatalog.all.map(\.id)
+        #expect(Set(ids).count == ids.count)
+        #expect(Set([Self.alpha.id, Self.beta.id]).count == 2)
+    }
+
+    @Test("Unknown persisted IDs do not affect the app")
+    func unknownPersistedIDsAreIgnored() throws {
+        let (defaults, suiteName) = try makeIsolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        defaults.set(true, forKey: ExperimentalFeatureStore.key(for: "removed-feature"))
+
+        let store = ExperimentalFeatureStore(
+            defaults: defaults,
+            features: [Self.alpha]
+        )
+
+        #expect(store.enabledCount == 0)
+        #expect(!store.allFeatures.contains { $0.id == "removed-feature" })
+        #expect(!store.isEnabled(id: "removed-feature"))
+    }
+
+    @Test("Removed catalog entries stop contributing while survivors restore")
+    func removedEntriesAreIgnored() throws {
+        let (defaults, suiteName) = try makeIsolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let beforeRemoval = ExperimentalFeatureStore(
+            defaults: defaults,
+            features: [Self.alpha, Self.beta]
+        )
+        beforeRemoval.setEnabled(true, for: Self.alpha)
+        beforeRemoval.setEnabled(true, for: Self.beta)
+
+        let afterRemoval = ExperimentalFeatureStore(
+            defaults: defaults,
+            features: [Self.alpha]
+        )
+
+        #expect(afterRemoval.isEnabled(Self.alpha))
+        #expect(afterRemoval.enabledCount == 1)
+        #expect(!afterRemoval.isEnabled(id: Self.beta.id))
+    }
+
+    @Test("Summary shows Off when nothing is enabled and counts otherwise")
+    func enabledCountSummary() {
+        #expect(ExperimentalFeaturesSummary.text(enabledCount: 0) == "Off")
+        #expect(ExperimentalFeaturesSummary.text(enabledCount: 1) == "1 enabled")
+        #expect(ExperimentalFeaturesSummary.text(enabledCount: 3) == "3 enabled")
+    }
+
+    private func makeIsolatedDefaults() throws -> (UserDefaults, String) {
+        let suiteName = "ExperimentalFeaturesTests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        return (defaults, suiteName)
+    }
+}

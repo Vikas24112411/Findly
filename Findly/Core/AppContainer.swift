@@ -24,6 +24,11 @@ final class AppContainer {
     let importService = ImportService()
     let periodicBackup: PeriodicBackupService
 
+    /// App-wide experimental feature flags. Owned here and injected into
+    /// SwiftUI alongside the container so consumers update immediately.
+    /// Local-only (`UserDefaults`), never synced through Google Drive.
+    let experimentalFeatures = ExperimentalFeatureStore()
+
     // MARK: - Init
 
     /// Designated init — takes pre-resolved values so heavy IO can be done off the main thread.

@@ -75,6 +75,10 @@
 		EF9B959CF041858E19B5DFAC /* QuickImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2B87EFD21DE9F4894EBAB /* QuickImportView.swift */; };
 		EFF467B2D72A07E21621034E /* FilesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAD25E2B83D8895935B70EE8 /* FilesViewModel.swift */; };
 		F6261A48B6FE50A00A4958CA /* SyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0FE2353ACF03192F968F1546 /* SyncService.swift */; };
+		E1B100000000000000000001 /* ExperimentalFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F100000000000000000001 /* ExperimentalFeature.swift */; };
+		E1B100000000000000000002 /* ExperimentalFeatureCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F100000000000000000002 /* ExperimentalFeatureCatalog.swift */; };
+		E1B100000000000000000003 /* ExperimentalFeatureStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F100000000000000000003 /* ExperimentalFeatureStore.swift */; };
+		E1B100000000000000000004 /* ExperimentalFeaturesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F100000000000000000004 /* ExperimentalFeaturesView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -158,6 +162,10 @@
 		FEF3C39112C246BAF1639541 /* KnowledgeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KnowledgeViewModel.swift; sourceTree = "<group>"; };
 		FEF8F5EB02E8EB39DC99EF9E /* HapticFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticFeedback.swift; sourceTree = "<group>"; };
 		FF2A4531F3BB3058974FF772 /* CameraPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPickerView.swift; sourceTree = "<group>"; };
+		E1F100000000000000000001 /* ExperimentalFeature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentalFeature.swift; sourceTree = "<group>"; };
+		E1F100000000000000000002 /* ExperimentalFeatureCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentalFeatureCatalog.swift; sourceTree = "<group>"; };
+		E1F100000000000000000003 /* ExperimentalFeatureStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentalFeatureStore.swift; sourceTree = "<group>"; };
+		E1F100000000000000000004 /* ExperimentalFeaturesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExperimentalFeaturesView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -263,9 +271,20 @@
 				8EDE8EF48626A40A4867E9D6 /* AppTheme.swift */,
 				FEF8F5EB02E8EB39DC99EF9E /* HapticFeedback.swift */,
 				2E53979559F7E48608C170DC /* ThumbnailCache.swift */,
+				E1G1000000000000000000001 /* Experimental */,
 				87DAFBFAFDAFFE0AE63EE581 /* Extensions */,
 			);
 			path = Core;
+			sourceTree = "<group>";
+		};
+		E1G1000000000000000000001 /* Experimental */ = {
+			isa = PBXGroup;
+			children = (
+				E1F100000000000000000001 /* ExperimentalFeature.swift */,
+				E1F100000000000000000002 /* ExperimentalFeatureCatalog.swift */,
+				E1F100000000000000000003 /* ExperimentalFeatureStore.swift */,
+			);
+			path = Experimental;
 			sourceTree = "<group>";
 		};
 		3B97B558E989C8081E8DC6CE /* Features */ = {
@@ -381,6 +400,7 @@
 		8A0231F1A9CA16E8E70DA548 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				E1F100000000000000000004 /* ExperimentalFeaturesView.swift */,
 				A496B85633FD9FB681F38542 /* SettingsView.swift */,
 				C4E9F5DBC86871A006BBD86F /* SettingsViewModel.swift */,
 			);
@@ -557,6 +577,10 @@
 				6DD4214CFE7AF57239FDD873 /* Date+Formatting.swift in Sources */,
 				583463D652C1A14DBAEB409D /* DriveModels.swift in Sources */,
 				708ABE50111A778F99CF4027 /* DriveUploadSession.swift in Sources */,
+				E1B100000000000000000001 /* ExperimentalFeature.swift in Sources */,
+				E1B100000000000000000002 /* ExperimentalFeatureCatalog.swift in Sources */,
+				E1B100000000000000000003 /* ExperimentalFeatureStore.swift in Sources */,
+				E1B100000000000000000004 /* ExperimentalFeaturesView.swift in Sources */,
 				6696BBD9A071187A6C572FFC /* ExportService.swift in Sources */,
 				55501229F107C962C4A8AA83 /* FABView.swift in Sources */,
 				B8F24AA1F14E6CEBFCF0BF48 /* FileType.swift in Sources */,

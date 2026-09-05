@@ -21,6 +21,7 @@ struct FindlyApp: App {
             if let appContainer {
                 ContentView()
                     .environment(appContainer)
+                    .environment(appContainer.experimentalFeatures)
                     .modelContainer(appContainer.persistence.container)
                     .tint(AppTheme.Colors.accent)
                     .onOpenURL { url in

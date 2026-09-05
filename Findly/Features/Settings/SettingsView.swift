@@ -205,6 +205,8 @@ struct SettingsView: View {
             )
         case .about:
             AboutFindlyView()
+        case .experimental:
+            ExperimentalFeaturesView()
         }
     }
 
@@ -440,7 +442,7 @@ struct SettingsView: View {
 }
 
 private enum SettingsRoute: Hashable {
-    case cloudSync, appearance, home, insights, storage, backups, dataManagement, about
+    case cloudSync, appearance, home, insights, storage, backups, dataManagement, about, experimental
 }
 
 private enum DataOperation: Equatable {
@@ -450,6 +452,7 @@ private enum DataOperation: Equatable {
 
 private struct SettingsOverviewView: View {
     @Environment(AppContainer.self) private var appContainer
+    @Environment(ExperimentalFeatureStore.self) private var experimentalFeatures
     let viewModel: SettingsViewModel
     let appearanceMode: String
     @Binding var appLockEnabled: Bool
@@ -530,6 +533,17 @@ private struct SettingsOverviewView: View {
                     SettingsSummaryRow(
                         title: "About Findly", subtitle: "Version \(appVersion)",
                         symbol: "info.circle"
+                    )
+                }
+            }
+            Section("Advanced") {
+                NavigationLink(value: SettingsRoute.experimental) {
+                    SettingsSummaryRow(
+                        title: "Experimental Features",
+                        subtitle: ExperimentalFeaturesSummary.text(
+                            enabledCount: experimentalFeatures.enabledCount
+                        ),
+                        symbol: "flask"
                     )
                 }
             }
@@ -1317,14 +1331,18 @@ private struct BackupFolderPickerView: UIViewControllerRepresentable {
 }
 
 #Preview("Settings - Disconnected") {
-    SettingsView()
-        .environment(AppContainer())
+    let container = AppContainer()
+    return SettingsView()
+        .environment(container)
+        .environment(container.experimentalFeatures)
         .modelContainer(PersistenceController.preview.container)
 }
 
 #Preview("Settings - Dark, Large Text") {
-    SettingsView()
-        .environment(AppContainer())
+    let container = AppContainer()
+    return SettingsView()
+        .environment(container)
+        .environment(container.experimentalFeatures)
         .modelContainer(PersistenceController.preview.container)
         .preferredColorScheme(.dark)
         .environment(\.dynamicTypeSize, .accessibility3)
