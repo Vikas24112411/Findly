@@ -65,14 +65,14 @@ struct ExperimentalFeaturesView: View {
     }
 }
 
-#Preview("Experimental - Empty") {
+#Preview("Experimental Features") {
     NavigationStack {
         ExperimentalFeaturesView()
     }
     .environment(ExperimentalFeatureStore())
 }
 
-#Preview("Experimental - Empty, Dark, Large Text") {
+#Preview("Experimental Features - Dark, Large Text") {
     NavigationStack {
         ExperimentalFeaturesView()
     }

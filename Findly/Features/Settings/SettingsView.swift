@@ -6,6 +6,7 @@ import UIKit
 
 struct SettingsView: View {
     @Environment(AppContainer.self) private var appContainer
+    @Environment(ExperimentalFeatureStore.self) private var experimentalFeatures
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
@@ -52,6 +53,7 @@ struct SettingsView: View {
                 appLockIsAuthenticating: isAuthenticatingForAppLock,
                 enabledHomeShelves: enabledHomeShelves,
                 enabledInsightSections: enabledInsightSections,
+                totalInsightSections: totalInsightSections,
                 storageLocationName: storageLocationName,
                 periodicBackupEnabled: periodicBackupToggleState
             )
@@ -216,13 +218,25 @@ struct SettingsView: View {
     }
 
     private var enabledInsightSections: Int {
-        [
+        var values = [
             insightsShowStorageGrowth, insightsShowWeeklyActivity,
-            insightsShowBreakdownByType, insightsShowHygiene,
+            insightsShowBreakdownByType,
             insightsShowTopTags,
             insightsShowMostOpened, insightsShowLargestFiles
         ]
-        .filter { $0 }.count
+        // The Needs Attention toggle only exists while its experiment is on.
+        if isNeedsAttentionExperimentEnabled {
+            values.append(insightsShowHygiene)
+        }
+        return values.filter { $0 }.count
+    }
+
+    private var totalInsightSections: Int {
+        isNeedsAttentionExperimentEnabled ? 7 : 6
+    }
+
+    private var isNeedsAttentionExperimentEnabled: Bool {
+        experimentalFeatures.isEnabled(ExperimentalFeatureCatalog.needsAttention)
     }
 
     private var storageLocationName: String {
@@ -459,6 +473,7 @@ private struct SettingsOverviewView: View {
     let appLockIsAuthenticating: Bool
     let enabledHomeShelves: Int
     let enabledInsightSections: Int
+    let totalInsightSections: Int
     let storageLocationName: String
     let periodicBackupEnabled: Bool
 
@@ -488,7 +503,7 @@ private struct SettingsOverviewView: View {
                 }
                 NavigationLink(value: SettingsRoute.insights) {
                     SettingsSummaryRow(
-                        title: "Insights", subtitle: "\(enabledInsightSections) of 7 sections shown",
+                        title: "Insights", subtitle: "\(enabledInsightSections) of \(totalInsightSections) sections shown",
                         symbol: "chart.bar"
                     )
                 }
@@ -815,6 +830,7 @@ private struct HomeCustomizationView: View {
 }
 
 private struct InsightsCustomizationView: View {
+    @Environment(ExperimentalFeatureStore.self) private var experimentalFeatures
     @Binding var showStorageGrowth: Bool
     @Binding var showWeeklyActivity: Bool
     @Binding var showBreakdownByType: Bool
@@ -831,7 +847,10 @@ private struct InsightsCustomizationView: View {
                 Toggle("Breakdown by Type", isOn: $showBreakdownByType)
             }
             Section("Organize") {
-                Toggle("Needs Attention", isOn: $showHygiene)
+                // Only offered while the Needs Attention experiment is on.
+                if experimentalFeatures.isEnabled(ExperimentalFeatureCatalog.needsAttention) {
+                    Toggle("Needs Attention", isOn: $showHygiene)
+                }
                 Toggle("Top Tags", isOn: $showTopTags)
             }
             Section("Files") {

@@ -5,6 +5,7 @@ struct InsightsView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(FileViewerCoordinator.self) private var fileViewer
+    @Environment(ExperimentalFeatureStore.self) private var experiments
     @State private var viewModel = InsightsViewModel()
     @State private var scrollOffset: CGFloat = 0
     @AppStorage("insightsShowStorageGrowth") private var showStorageGrowth = true
@@ -32,7 +33,7 @@ struct InsightsView: View {
                     sectionPicker
                     LazyVStack(spacing: AppTheme.Spacing.xLarge) {
                         summaryCards
-                        if showHygiene && selectedSection == .overview && viewModel.totalItems > 0 { hygieneSection }
+                        if isHygieneVisible && selectedSection == .overview && viewModel.totalItems > 0 { hygieneSection }
                         sectionContent
                     }
                     .padding(.horizontal, AppTheme.Spacing.base)
@@ -135,9 +136,15 @@ struct InsightsView: View {
         viewModel.fileTypeDistribution.isEmpty && viewModel.fileTypeSizeDistribution.isEmpty
     }
 
+    /// Whether the Needs Attention card may render: the experiment flag must
+    /// be enabled and the Insights "Needs Attention" section toggle on.
+    private var isHygieneVisible: Bool {
+        experiments.isEnabled(ExperimentalFeatureCatalog.needsAttention) && showHygiene
+    }
+
     private var overviewIsEmpty: Bool {
         // Hygiene renders its own tidy state, so it only counts as empty in an empty vault.
-        (showHygiene ? viewModel.totalItems == 0 : true)
+        (isHygieneVisible ? viewModel.totalItems == 0 : true)
             && (showWeeklyActivity ? !activityHasData : true)
             && (showBreakdown ? breakdownIsEmpty : true)
             && (showTopTags ? viewModel.topTags.isEmpty : true)
@@ -736,8 +743,10 @@ extension ActivityRange {
 }
 
 #Preview {
-    InsightsView()
+    let container = AppContainer()
+    return InsightsView()
         .modelContainer(PersistenceController.preview.container)
-        .environment(AppContainer())
+        .environment(container)
+        .environment(container.experimentalFeatures)
         .environment(FileViewerCoordinator())
 }

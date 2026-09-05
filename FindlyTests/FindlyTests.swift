@@ -1081,6 +1081,47 @@ struct ExperimentalFeaturesTests {
         #expect(ExperimentalFeaturesSummary.text(enabledCount: 3) == "3 enabled")
     }
 
+    @Test("Catalog registers Needs Attention with a stable ID, defaulting off")
+    func needsAttentionRegistration() {
+        let feature = ExperimentalFeatureCatalog.needsAttention
+
+        #expect(feature.id == "needs-attention")
+        #expect(!feature.name.isEmpty)
+        #expect(!feature.description.isEmpty)
+        #expect(!feature.defaultValue)
+        #expect(ExperimentalFeatureCatalog.all.contains(feature))
+        #expect(ExperimentalFeatureCatalog.all.map(\.id).contains("needs-attention"))
+    }
+
+    @Test("Needs Attention is disabled by default on a fresh install")
+    func needsAttentionDefaultsOff() throws {
+        let (defaults, suiteName) = try makeIsolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        // Default init consults the real catalog, matching production wiring.
+        let store = ExperimentalFeatureStore(defaults: defaults)
+
+        #expect(!store.isEnabled(ExperimentalFeatureCatalog.needsAttention))
+        #expect(store.enabledCount == 0)
+        #expect(ExperimentalFeaturesSummary.text(enabledCount: store.enabledCount) == "Off")
+    }
+
+    @Test("Enabling Needs Attention through the registered catalog entry works")
+    func needsAttentionOptIn() throws {
+        let (defaults, suiteName) = try makeIsolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = ExperimentalFeatureStore(defaults: defaults)
+
+        store.setEnabled(true, for: ExperimentalFeatureCatalog.needsAttention)
+
+        #expect(store.isEnabled(ExperimentalFeatureCatalog.needsAttention))
+        #expect(store.enabledCount == 1)
+
+        store.disableAll()
+
+        #expect(!store.isEnabled(ExperimentalFeatureCatalog.needsAttention))
+        #expect(store.enabledCount == 0)
+    }
+
     private func makeIsolatedDefaults() throws -> (UserDefaults, String) {
         let suiteName = "ExperimentalFeaturesTests.\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suiteName))

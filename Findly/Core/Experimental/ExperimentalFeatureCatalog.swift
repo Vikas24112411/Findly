@@ -8,15 +8,26 @@ import Foundation
 /// step is needed.
 ///
 /// Lifecycle rules:
-/// - New experiments default off and appear immediately in Settings.
+/// - Brand-new experiments default off and appear immediately in Settings.
+/// - An existing feature moved behind a flag keeps whatever default
+///   preserves its current behavior; document the choice on the entry.
 /// - Graduated features stop consulting the flag at their call site instead
 ///   of being removed from user devices; the persisted value is then inert.
 /// - Removed IDs are ignored safely (see `ExperimentalFeatureStore`).
-///
-/// The first release ships an empty catalog on purpose: it provides the
-/// framework and empty-state UI without introducing a sample experiment.
 enum ExperimentalFeatureCatalog {
-    /// All experiments offered in Settings, in display order. Empty until
-    /// the first real experiment lands.
-    static var all: [ExperimentalFeature] { [] }
+    /// All experiments offered in Settings, in display order.
+    static var all: [ExperimentalFeature] { [needsAttention] }
+
+    /// The Insights "Needs Attention" hygiene to-do list (untagged,
+    /// never-opened, and stale files). An existing feature moved behind a
+    /// flag: it defaults off per the experiment opt-in decision, so the
+    /// card is hidden until enabled under Settings → Advanced. When the
+    /// flag is on, the card additionally honors the "Needs Attention"
+    /// toggle in Settings → Insights, which itself is only shown while
+    /// this experiment is enabled.
+    static let needsAttention = ExperimentalFeature(
+        id: "needs-attention",
+        name: "Needs Attention",
+        description: "Shows the Needs Attention card on the Insights overview, highlighting untagged files, files never opened, and files not opened in over 90 days."
+    )
 }
