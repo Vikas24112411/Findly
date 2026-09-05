@@ -52,7 +52,7 @@ struct ExperimentalFeaturesView: View {
 
                     if store.enabledCount > 0 {
                         Section {
-                            Button("Turn Off All Experimental Features", role: .destructive) {
+                            Button("Turn Off All", role: .destructive) {
                                 store.disableAll()
                             }
                         }
