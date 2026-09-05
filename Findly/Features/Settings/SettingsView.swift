@@ -468,8 +468,7 @@ private struct SettingsOverviewView: View {
                     SettingsSummaryRow(
                         title: "Cloud & Sync",
                         subtitle: cloudSyncSummary,
-                        symbol: cloudSyncSymbol,
-                        tint: cloudSyncTint
+                        symbol: cloudSyncSymbol
                     )
                 }
             }
@@ -477,19 +476,19 @@ private struct SettingsOverviewView: View {
                 NavigationLink(value: SettingsRoute.appearance) {
                     SettingsSummaryRow(
                         title: "Appearance", subtitle: appearanceName,
-                        symbol: "circle.lefthalf.filled", tint: .indigo
+                        symbol: "circle.lefthalf.filled"
                     )
                 }
                 NavigationLink(value: SettingsRoute.home) {
                     SettingsSummaryRow(
                         title: "Home", subtitle: "\(enabledHomeShelves) of 4 shelves shown",
-                        symbol: "house.fill", tint: .blue
+                        symbol: "house"
                     )
                 }
                 NavigationLink(value: SettingsRoute.insights) {
                     SettingsSummaryRow(
                         title: "Insights", subtitle: "\(enabledInsightSections) of 8 sections shown",
-                        symbol: "chart.bar.fill", tint: .purple
+                        symbol: "chart.bar"
                     )
                 }
             }
@@ -500,7 +499,7 @@ private struct SettingsOverviewView: View {
                         subtitle: appLockIsAuthenticating
                             ? "Authenticating…"
                             : "Require device authentication",
-                        symbol: "lock.fill", tint: .green
+                        symbol: "lock"
                     )
                 }
                 .disabled(appLockIsAuthenticating)
@@ -511,14 +510,13 @@ private struct SettingsOverviewView: View {
                     SettingsSummaryRow(
                         title: "Storage",
                         subtitle: "\(storageLocationName) · \(viewModel.localStorageSize.fileSizeString)",
-                        symbol: "internaldrive.fill", tint: .orange
+                        symbol: "internaldrive"
                     )
                 }
                 NavigationLink(value: SettingsRoute.backups) {
                     SettingsSummaryRow(
                         title: "Backups", subtitle: backupSummary,
-                        symbol: periodicBackupEnabled ? "clock.arrow.circlepath" : "clock",
-                        tint: periodicBackupEnabled ? .teal : .secondary
+                        symbol: periodicBackupEnabled ? "clock.arrow.circlepath" : "clock"
                     )
                 }
             }
@@ -527,13 +525,13 @@ private struct SettingsOverviewView: View {
                     SettingsSummaryRow(
                         title: "Data Management",
                         subtitle: "Import, export, or delete your vault",
-                        symbol: "externaldrive.fill", tint: .cyan
+                        symbol: "externaldrive"
                     )
                 }
                 NavigationLink(value: SettingsRoute.about) {
                     SettingsSummaryRow(
                         title: "About Findly", subtitle: "Version \(appVersion)",
-                        symbol: "info.circle.fill", tint: .gray
+                        symbol: "info.circle"
                     )
                 }
             }
@@ -561,12 +559,6 @@ private struct SettingsOverviewView: View {
         return "checkmark.icloud"
     }
 
-    private var cloudSyncTint: Color {
-        guard appContainer.auth.isAuthenticated else { return .secondary }
-        if appContainer.sync.pendingCount > 0 { return .orange }
-        return AppTheme.Colors.accent
-    }
-
     private var appearanceName: String {
         SettingsViewModel.AppearanceMode(rawValue: appearanceMode)?.displayName ?? "System"
     }
@@ -584,7 +576,6 @@ private struct SettingsSummaryRow: View {
     let title: String
     let subtitle: String
     let symbol: String
-    let tint: Color
 
     var body: some View {
         Label {
@@ -599,8 +590,9 @@ private struct SettingsSummaryRow: View {
             .padding(.vertical, AppTheme.Spacing.xxSmall)
         } icon: {
             Image(systemName: symbol)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(tint)
+                .font(.title3.weight(.regular))
+                .symbolRenderingMode(.monochrome)
+                .foregroundStyle(Color(uiColor: .secondaryLabel))
                 .imageScale(.large)
                 .accessibilityHidden(true)
         }
