@@ -1,7 +1,96 @@
 import Testing
 import Foundation
 import SwiftData
+import SwiftUI
+import UIKit
 @testable import Findly
+
+// MARK: - Files sort control tests
+
+@Suite("Files Sort Control")
+@MainActor
+struct FilesSortControlTests {
+
+    @Test("Every sort option preserves the same pill footprint")
+    func stableFootprintAcrossSelections() throws {
+        let options: [SearchService.SortOrder] = [
+            .modifiedAt, .createdAt, .title, .viewCount, .fileSize
+        ]
+        let typeSizes: [DynamicTypeSize] = [.large, .accessibility3]
+
+        for typeSize in typeSizes {
+            let reference = try renderedSize(for: .modifiedAt, typeSize: typeSize)
+
+            for option in options {
+                let size = try renderedSize(for: option, typeSize: typeSize)
+                #expect(abs(size.width - reference.width) < 0.5)
+                #expect(size.height >= 44)
+            }
+        }
+    }
+
+    @Test("Repeated selection changes keep the live menu footprint stable")
+    func repeatedLiveSelectionChanges() async throws {
+        let options: [SearchService.SortOrder] = [
+            .modifiedAt, .createdAt, .title, .viewCount, .fileSize
+        ]
+        let reversedOptions = Array(options.reversed())
+        let sequence = options + reversedOptions + options + reversedOptions
+
+        for typeSize in [DynamicTypeSize.large, .accessibility3] {
+            let state = FilesSortControlTestState()
+            let controller = UIHostingController(
+                rootView: FilesSortControlTestHost(state: state, typeSize: typeSize)
+            )
+            controller.loadViewIfNeeded()
+
+            let reference = controller.sizeThatFits(
+                in: CGSize(width: 600, height: 240)
+            )
+
+            for option in sequence {
+                state.selection = option
+                await Task.yield()
+                controller.view.setNeedsLayout()
+                controller.view.layoutIfNeeded()
+
+                let size = controller.sizeThatFits(
+                    in: CGSize(width: 600, height: 240)
+                )
+                #expect(abs(size.width - reference.width) < 0.5)
+                #expect(size.height >= 44)
+            }
+        }
+    }
+
+    private func renderedSize(
+        for sortOrder: SearchService.SortOrder,
+        typeSize: DynamicTypeSize
+    ) throws -> CGSize {
+        let renderer = ImageRenderer(
+            content: FilesSortPillLabel(sortOrder: sortOrder)
+                .environment(\.dynamicTypeSize, typeSize)
+        )
+        renderer.scale = 1
+        return try #require(renderer.uiImage).size
+    }
+}
+
+@Observable
+@MainActor
+private final class FilesSortControlTestState {
+    var selection: SearchService.SortOrder = .modifiedAt
+}
+
+private struct FilesSortControlTestHost: View {
+    @Bindable var state: FilesSortControlTestState
+    let typeSize: DynamicTypeSize
+
+    var body: some View {
+        FilesSortMenu(selection: $state.selection)
+            .environment(\.dynamicTypeSize, typeSize)
+    }
+}
 
 @MainActor
 private final class FakeBackupTaskScheduler: BackupTaskScheduling {

@@ -26,6 +26,42 @@ final class FilesViewModel {
         !selectedFileTypes.isEmpty || filterDateStart != nil || filterDateEnd != nil
     }
 
+    var hasActiveRefinements: Bool {
+        hasActiveFilters || sortOrder != .modifiedAt
+    }
+
+    var activeFilterCount: Int {
+        selectedFileTypes.count + ((filterDateStart != nil || filterDateEnd != nil) ? 1 : 0)
+    }
+
+    var itemCountSummary: String {
+        if isLoadingMore && items.isEmpty { return "Loading files…" }
+        let noun = items.count == 1 ? "file" : "files"
+        return hasMorePages ? "\(items.count) \(noun) loaded" : "\(items.count) \(noun)"
+    }
+
+    var refinementAccessibilityValue: String {
+        switch (activeFilterCount, sortOrder == .modifiedAt) {
+        case (0, true): return "No active refinements"
+        case (0, false): return "Custom sort"
+        case (let count, true): return "\(count) active filter\(count == 1 ? "" : "s")"
+        case (let count, false): return "\(count) active filter\(count == 1 ? "" : "s"), custom sort"
+        }
+    }
+
+    var dateFilterSummary: String {
+        switch (filterDateStart, filterDateEnd) {
+        case (nil, nil):
+            return "Any time"
+        case (let start?, nil):
+            return "From \(start.formatted(date: .abbreviated, time: .omitted))"
+        case (nil, let end?):
+            return "Through \(end.formatted(date: .abbreviated, time: .omitted))"
+        case (let start?, let end?):
+            return "\(start.formatted(date: .abbreviated, time: .omitted)) – \(end.formatted(date: .abbreviated, time: .omitted))"
+        }
+    }
+
     // MARK: - Select mode
 
     var isSelectMode = false
@@ -39,6 +75,7 @@ final class FilesViewModel {
     // MARK: - Context
 
     private var context: ModelContext?
+    private var loadRevision = 0
 
     // MARK: - Setup
 
@@ -64,8 +101,10 @@ final class FilesViewModel {
             queue: .main
         ) { [weak self] _ in
             MainActor.assumeIsolated {
+                self?.loadRevision += 1
                 self?.items = []
                 self?.currentOffset = 0
+                self?.isLoadingMore = false
                 self?.hasMorePages = true
             }
         }
@@ -86,64 +125,151 @@ final class FilesViewModel {
     func loadNextPage() {
         guard !isLoadingMore, hasMorePages, let context else { return }
         isLoadingMore = true
+        let revision = loadRevision
+        let requestedSort = sortOrder
+        let requestedTypes = selectedFileTypes
+        let requestedStart = filterDateStart
+        let requestedEnd = filterDateEnd
+        let startingOffset = currentOffset
 
         Task { @MainActor in
-            defer { isLoadingMore = false }
+            defer {
+                if revision == loadRevision {
+                    isLoadingMore = false
+                }
+            }
 
-            let needsPostFilter = !selectedFileTypes.isEmpty
+            guard revision == loadRevision else { return }
+
+            let needsPostFilter = !requestedTypes.isEmpty
             let batchSize = needsPostFilter
                 ? FilesViewModel.pageSize * FilesViewModel.overscanMultiplier
                 : FilesViewModel.pageSize
+            var nextOffset = startingOffset
+            var page: [Item] = []
 
-            var descriptor = FetchDescriptor<Item>(sortBy: sortOrder.sortDescriptors)
-            descriptor.fetchLimit = batchSize
-            descriptor.fetchOffset = currentOffset
+            repeat {
+                guard revision == loadRevision else { return }
 
-            // Build date predicate using concrete let-bindings (required by #Predicate macro)
-            if let start = filterDateStart, let end = filterDateEnd {
-                let s = min(start, end)
-                let e = max(start, end)
-                descriptor.predicate = #Predicate<Item> { $0.createdAt >= s && $0.createdAt <= e }
-            } else if let start = filterDateStart {
-                let s = start
-                descriptor.predicate = #Predicate<Item> { $0.createdAt >= s }
-            } else if let end = filterDateEnd {
-                let e = end
-                descriptor.predicate = #Predicate<Item> { $0.createdAt <= e }
-            }
+                var descriptor = FetchDescriptor<Item>(sortBy: requestedSort.sortDescriptors)
+                descriptor.fetchLimit = batchSize
+                descriptor.fetchOffset = nextOffset
 
-            let batch: [Item]
-            do {
-                batch = try context.fetch(descriptor)
-            } catch {
-                return
-            }
+                // Build date predicate using concrete let-bindings (required by #Predicate macro)
+                if let start = requestedStart, let end = requestedEnd {
+                    let s = min(start, end)
+                    let e = max(start, end)
+                    descriptor.predicate = #Predicate<Item> { $0.createdAt >= s && $0.createdAt <= e }
+                } else if let start = requestedStart {
+                    let s = start
+                    descriptor.predicate = #Predicate<Item> { $0.createdAt >= s }
+                } else if let end = requestedEnd {
+                    let e = end
+                    descriptor.predicate = #Predicate<Item> { $0.createdAt <= e }
+                }
 
-            if batch.isEmpty {
-                hasMorePages = false
-                return
-            }
+                let batch: [Item]
+                do {
+                    batch = try context.fetch(descriptor)
+                } catch {
+                    hasMorePages = false
+                    return
+                }
 
-            // Post-filter: file type (enum array containment not reliably supported in SwiftData #Predicate)
-            let filtered = selectedFileTypes.isEmpty
-                ? batch
-                : batch.filter { selectedFileTypes.contains($0.fileType) }
+                if batch.isEmpty {
+                    hasMorePages = false
+                    break
+                }
 
-            items.append(contentsOf: filtered)
-            currentOffset += batch.count
+                let filtered = requestedTypes.isEmpty
+                    ? batch
+                    : batch.filter { requestedTypes.contains($0.fileType) }
 
-            if batch.count < batchSize {
-                hasMorePages = false
-            }
+                page.append(contentsOf: filtered)
+                nextOffset += batch.count
+
+                if batch.count < batchSize {
+                    hasMorePages = false
+                    break
+                }
+            } while needsPostFilter && page.count < FilesViewModel.pageSize
+
+            guard revision == loadRevision else { return }
+            items.append(contentsOf: page)
+            currentOffset = nextOffset
         }
     }
 
     func resetAndReload() {
+        loadRevision += 1
         items = []
         currentOffset = 0
         hasMorePages = true
         isLoadingMore = false
         loadNextPage()
+    }
+
+    // MARK: - Refinements
+
+    func applyRefinements(
+        fileTypes: Set<FileType>,
+        sortOrder newSortOrder: SearchService.SortOrder,
+        dateStart: Date?,
+        dateEnd: Date?
+    ) {
+        let calendar = Calendar.current
+        let orderedStart: Date?
+        let orderedEnd: Date?
+        if let dateStart, let dateEnd {
+            orderedStart = min(dateStart, dateEnd)
+            orderedEnd = max(dateStart, dateEnd)
+        } else {
+            orderedStart = dateStart
+            orderedEnd = dateEnd
+        }
+
+        let normalizedStart = orderedStart.map(calendar.startOfDay(for:))
+        let normalizedEnd = orderedEnd.flatMap { date in
+            calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: date))?
+                .addingTimeInterval(-1)
+        }
+
+        guard selectedFileTypes != fileTypes ||
+                sortOrder != newSortOrder ||
+                filterDateStart != normalizedStart ||
+                filterDateEnd != normalizedEnd else { return }
+
+        selectedFileTypes = fileTypes
+        sortOrder = newSortOrder
+        filterDateStart = normalizedStart
+        filterDateEnd = normalizedEnd
+        resetAndReload()
+    }
+
+    func setSortOrder(_ newValue: SearchService.SortOrder) {
+        guard sortOrder != newValue else { return }
+        sortOrder = newValue
+        resetAndReload()
+    }
+
+    func removeFileType(_ type: FileType) {
+        guard selectedFileTypes.remove(type) != nil else { return }
+        resetAndReload()
+    }
+
+    func clearDateFilter() {
+        guard filterDateStart != nil || filterDateEnd != nil else { return }
+        filterDateStart = nil
+        filterDateEnd = nil
+        resetAndReload()
+    }
+
+    func clearFilters() {
+        guard hasActiveFilters else { return }
+        selectedFileTypes.removeAll()
+        filterDateStart = nil
+        filterDateEnd = nil
+        resetAndReload()
     }
 
     // MARK: - Select mode
