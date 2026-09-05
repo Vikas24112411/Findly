@@ -17,10 +17,9 @@ struct SettingsView: View {
     @AppStorage("showFavoriteItems") private var showFavoriteItems = false
     @AppStorage("insightsShowStorageGrowth") private var insightsShowStorageGrowth = true
     @AppStorage("insightsShowWeeklyActivity") private var insightsShowWeeklyActivity = true
-    @AppStorage("insightsShowFileTypes") private var insightsShowFileTypes = true
-    @AppStorage("insightsShowStorageByType") private var insightsShowStorageByType = true
+    @AppStorage("insightsShowBreakdownByType") private var insightsShowBreakdownByType = true
+    @AppStorage("insightsShowHygiene") private var insightsShowHygiene = true
     @AppStorage("insightsShowTopTags") private var insightsShowTopTags = true
-    @AppStorage("insightsShowTagHeatmap") private var insightsShowTagHeatmap = true
     @AppStorage("insightsShowMostOpened") private var insightsShowMostOpened = true
     @AppStorage("insightsShowLargestFiles") private var insightsShowLargestFiles = true
 
@@ -169,10 +168,9 @@ struct SettingsView: View {
             InsightsCustomizationView(
                 showStorageGrowth: $insightsShowStorageGrowth,
                 showWeeklyActivity: $insightsShowWeeklyActivity,
-                showFileTypes: $insightsShowFileTypes,
-                showStorageByType: $insightsShowStorageByType,
+                showBreakdownByType: $insightsShowBreakdownByType,
+                showHygiene: $insightsShowHygiene,
                 showTopTags: $insightsShowTopTags,
-                showTagHeatmap: $insightsShowTagHeatmap,
                 showMostOpened: $insightsShowMostOpened,
                 showLargestFiles: $insightsShowLargestFiles
             )
@@ -218,8 +216,8 @@ struct SettingsView: View {
     private var enabledInsightSections: Int {
         [
             insightsShowStorageGrowth, insightsShowWeeklyActivity,
-            insightsShowFileTypes, insightsShowStorageByType,
-            insightsShowTopTags, insightsShowTagHeatmap,
+            insightsShowBreakdownByType, insightsShowHygiene,
+            insightsShowTopTags,
             insightsShowMostOpened, insightsShowLargestFiles
         ]
         .filter { $0 }.count
@@ -487,7 +485,7 @@ private struct SettingsOverviewView: View {
                 }
                 NavigationLink(value: SettingsRoute.insights) {
                     SettingsSummaryRow(
-                        title: "Insights", subtitle: "\(enabledInsightSections) of 8 sections shown",
+                        title: "Insights", subtitle: "\(enabledInsightSections) of 7 sections shown",
                         symbol: "chart.bar"
                     )
                 }
@@ -805,10 +803,9 @@ private struct HomeCustomizationView: View {
 private struct InsightsCustomizationView: View {
     @Binding var showStorageGrowth: Bool
     @Binding var showWeeklyActivity: Bool
-    @Binding var showFileTypes: Bool
-    @Binding var showStorageByType: Bool
+    @Binding var showBreakdownByType: Bool
+    @Binding var showHygiene: Bool
     @Binding var showTopTags: Bool
-    @Binding var showTagHeatmap: Bool
     @Binding var showMostOpened: Bool
     @Binding var showLargestFiles: Bool
 
@@ -816,13 +813,12 @@ private struct InsightsCustomizationView: View {
         Form {
             Section("Storage") {
                 Toggle("Storage Growth", isOn: $showStorageGrowth)
-                Toggle("Added This Week", isOn: $showWeeklyActivity)
-                Toggle("File Types", isOn: $showFileTypes)
-                Toggle("Storage by Type", isOn: $showStorageByType)
+                Toggle("Activity Trend", isOn: $showWeeklyActivity)
+                Toggle("Breakdown by Type", isOn: $showBreakdownByType)
             }
-            Section("Tags") {
+            Section("Organize") {
+                Toggle("Needs Attention", isOn: $showHygiene)
                 Toggle("Top Tags", isOn: $showTopTags)
-                Toggle("Tag Activity", isOn: $showTagHeatmap)
             }
             Section("Files") {
                 Toggle("Most Opened", isOn: $showMostOpened)

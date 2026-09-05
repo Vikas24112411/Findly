@@ -9,31 +9,35 @@ struct InsightsView: View {
     @State private var scrollOffset: CGFloat = 0
     @AppStorage("insightsShowStorageGrowth") private var showStorageGrowth = true
     @AppStorage("insightsShowWeeklyActivity") private var showWeeklyActivity = true
-    @AppStorage("insightsShowFileTypes") private var showFileTypes = true
-    @AppStorage("insightsShowStorageByType") private var showStorageByType = true
+    @AppStorage("insightsShowBreakdownByType") private var showBreakdown = true
+    @AppStorage("insightsShowHygiene") private var showHygiene = true
     @AppStorage("insightsShowTopTags") private var showTopTags = true
-    @AppStorage("insightsShowTagHeatmap") private var showTagHeatmap = true
     @AppStorage("insightsShowMostOpened") private var showMostOpened = true
     @AppStorage("insightsShowLargestFiles") private var showLargestFiles = true
+    @AppStorage("insightsBreakdownMode") private var breakdownMode = BreakdownMode.count
+    // Legacy keys — kept for one-time migration, no longer rendered.
+    // showTagHeatmap is hidden per redesign (kept for rollback, not rendered).
+    @AppStorage("insightsShowFileTypes") private var legacyShowFileTypes = true
+    @AppStorage("insightsShowStorageByType") private var legacyShowStorageByType = true
+    @AppStorage("insightsShowTagHeatmap") private var legacyShowTagHeatmap = true
+    @AppStorage("insightsBreakdownMigrated") private var breakdownMigrated = false
+    @State private var selectedSection: InsightsSection = .overview
+    @State private var activityRange = ActivityRange.month30d
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
                     LargeTitleHeader(title: "Insights", progress: scrollProgress(from: scrollOffset))
+                    sectionPicker
                     LazyVStack(spacing: AppTheme.Spacing.xLarge) {
                         summaryCards
-                        if showStorageGrowth  && !viewModel.storageGrowth.isEmpty            { storageGrowthSection }
-                        if showWeeklyActivity && !viewModel.weeklyActivity.isEmpty            { activitySection }
-                        if showFileTypes      && !viewModel.fileTypeDistribution.isEmpty      { fileTypeChart }
-                        if showStorageByType  && !viewModel.fileTypeSizeDistribution.isEmpty  { fileTypeSizeChart }
-                        if showTopTags        && !viewModel.topTags.isEmpty                   { topTagsSection }
-                        if showTagHeatmap     && !viewModel.tagHeatmap.isEmpty                { tagHeatmapSection }
-                        if showMostOpened     && !viewModel.mostOpenedItems.isEmpty           { mostOpenedSection }
-                        if showLargestFiles   && !viewModel.largestItems.isEmpty              { largestFilesSection }
+                        if showHygiene && selectedSection == .overview && viewModel.totalItems > 0 { hygieneSection }
+                        sectionContent
                     }
                     .padding(.horizontal, AppTheme.Spacing.base)
                     .padding(.bottom, AppTheme.Spacing.large)
+                    .padding(.top, AppTheme.Spacing.medium)
                 }
             }
             .background(AppTheme.Colors.groupedBG)
@@ -41,11 +45,207 @@ struct InsightsView: View {
             .navTransitionTitle("Insights", progress: scrollProgress(from: scrollOffset))
             .onAppear {
                 viewModel.setup(context: modelContext)
+                migrateBreakdownToggle()
             }
             .refreshable {
                 await viewModel.loadAll()
             }
         }
+    }
+
+    // MARK: - One-time migration: FileTypes + StorageByType -> Breakdown
+
+    private func migrateBreakdownToggle() {
+        guard !breakdownMigrated else { return }
+        // Preserve opt-outs: only hide breakdown if both legacy toggles were off.
+        showBreakdown = legacyShowFileTypes || legacyShowStorageByType
+        _ = legacyShowTagHeatmap // retained for rollback, intentionally unrendered
+        breakdownMigrated = true
+    }
+
+    // MARK: - Segmented hub (Option B, iOS 17-safe: Picker + ScrollView + Charts only)
+
+    private var sectionPicker: some View {
+        Picker("Insights section", selection: $selectedSection) {
+            ForEach(InsightsSection.allCases) { section in
+                Text(section.title).tag(section)
+            }
+        }
+        .pickerStyle(.segmented)
+        .padding(.horizontal, AppTheme.Spacing.base)
+        .padding(.vertical, AppTheme.Spacing.small)
+        .background(AppTheme.Colors.groupedBG)
+    }
+
+    @ViewBuilder
+    private var sectionContent: some View {
+        switch selectedSection {
+        case .overview:
+            // Curated highlights: one card per domain, respects Settings toggles.
+            if showWeeklyActivity && activityHasData                                 { activitySection }
+            if showBreakdown && !breakdownIsEmpty                                 { breakdownByTypeSection }
+            if showTopTags        && !viewModel.topTags.isEmpty                   { topTagsSection }
+            if showMostOpened     && !viewModel.mostOpenedItems.isEmpty           { mostOpenedSection }
+            if overviewIsEmpty {
+                ContentUnavailableView(
+                    "No Highlights",
+                    systemImage: "chart.bar.fill",
+                    description: Text("Add files or enable sections in Settings to see highlights.")
+                )
+            }
+        case .storage:
+            if showStorageGrowth  && !viewModel.storageGrowth.isEmpty            { storageGrowthSection }
+            if showWeeklyActivity && activityHasData                              { activitySection }
+            if showBreakdown && !breakdownIsEmpty                                 { breakdownByTypeSection }
+            if storageIsEmpty {
+                ContentUnavailableView(
+                    "No Storage Insights",
+                    systemImage: "internaldrive.fill",
+                    description: Text("Enable Storage sections in Settings to see them here.")
+                )
+            }
+        case .tags:
+            if showTopTags    && !viewModel.topTags.isEmpty    { topTagsSection }
+            // Tag heatmap hidden per redesign (tagHeatmapSection kept for rollback, not rendered).
+            if tagsIsEmpty {
+                ContentUnavailableView(
+                    "No Tag Insights",
+                    systemImage: "tag.fill",
+                    description: Text("Tag some files or enable Tag sections in Settings.")
+                )
+            }
+        case .files:
+            if showMostOpened   && !viewModel.mostOpenedItems.isEmpty { mostOpenedSection }
+            if showLargestFiles && !viewModel.largestItems.isEmpty    { largestFilesSection }
+            if filesIsEmpty {
+                ContentUnavailableView(
+                    "No File Insights",
+                    systemImage: "doc.fill",
+                    description: Text("Open files or enable File sections in Settings.")
+                )
+            }
+        }
+    }
+
+    private var activityHasData: Bool {
+        viewModel.activityTrend(for: activityRange).contains { $0.added > 0 || $0.opened > 0 }
+    }
+
+    private var breakdownIsEmpty: Bool {
+        viewModel.fileTypeDistribution.isEmpty && viewModel.fileTypeSizeDistribution.isEmpty
+    }
+
+    private var overviewIsEmpty: Bool {
+        // Hygiene renders its own tidy state, so it only counts as empty in an empty vault.
+        (showHygiene ? viewModel.totalItems == 0 : true)
+            && (showWeeklyActivity ? !activityHasData : true)
+            && (showBreakdown ? breakdownIsEmpty : true)
+            && (showTopTags ? viewModel.topTags.isEmpty : true)
+            && (showMostOpened ? viewModel.mostOpenedItems.isEmpty : true)
+    }
+
+    private var storageIsEmpty: Bool {
+        (showStorageGrowth ? viewModel.storageGrowth.isEmpty : true)
+            && (showWeeklyActivity ? !activityHasData : true)
+            && (showBreakdown ? breakdownIsEmpty : true)
+    }
+
+    private var tagsIsEmpty: Bool {
+        // Heatmap hidden — Tags tab is Top Tags only.
+        (showTopTags ? viewModel.topTags.isEmpty : true)
+    }
+
+    private var filesIsEmpty: Bool {
+        (showMostOpened ? viewModel.mostOpenedItems.isEmpty : true)
+            && (showLargestFiles ? viewModel.largestItems.isEmpty : true)
+    }
+
+    // MARK: - Needs attention (hygiene to-do list)
+
+    private var hygieneSection: some View {
+        insightCard(title: "Needs Attention", symbol: "checklist") {
+            if viewModel.hygieneIsTidy && viewModel.totalItems > 0 {
+                HStack(spacing: AppTheme.Spacing.medium) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(AppTheme.Colors.syncSynced)
+                    Text("All tidy — everything is tagged and recently opened.")
+                        .font(AppTheme.Typography.subheadline)
+                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                }
+                .padding(.vertical, AppTheme.Spacing.xSmall)
+            } else {
+                VStack(spacing: 0) {
+                    hygieneRow(
+                        title: "Untagged files",
+                        subtitle: "Add tags to find them later",
+                        count: viewModel.untaggedCount,
+                        symbol: "tag.slash.fill",
+                        tint: AppTheme.Colors.noteTint,
+                        items: viewModel.untaggedItems
+                    )
+                    Divider().padding(.leading, 46)
+                    hygieneRow(
+                        title: "Never opened",
+                        subtitle: "Open or remove what you don't need",
+                        count: viewModel.neverOpenedCount,
+                        symbol: "eye.slash.fill",
+                        tint: AppTheme.Colors.accent,
+                        items: viewModel.neverOpenedItems
+                    )
+                    Divider().padding(.leading, 46)
+                    hygieneRow(
+                        title: "Stale · 90+ days",
+                        subtitle: "Not opened in the last 90 days",
+                        count: viewModel.staleCount,
+                        symbol: "clock.fill",
+                        tint: AppTheme.Colors.syncPending,
+                        items: viewModel.staleItems
+                    )
+                }
+            }
+        }
+    }
+
+    private func hygieneRow(
+        title: String,
+        subtitle: String,
+        count: Int,
+        symbol: String,
+        tint: Color,
+        items: [Item]
+    ) -> some View {
+        NavigationLink {
+            HygieneListView(title: title, items: items, totalCount: count)
+        } label: {
+            HStack(spacing: AppTheme.Spacing.medium) {
+                Image(systemName: symbol)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(tint)
+                    .frame(width: 30, height: 30)
+                    .background(tint.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(AppTheme.Typography.subheadline)
+                        .foregroundStyle(AppTheme.Colors.label)
+                    Text(subtitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                }
+                Spacer()
+                Text("\(count)")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundStyle(AppTheme.Colors.label)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+            }
+            .padding(.vertical, 10)
+        }
+        .buttonStyle(.plain)
+        .disabled(count == 0)
+        .opacity(count == 0 ? 0.45 : 1.0)
     }
 
     // MARK: - Summary cards
@@ -103,68 +303,155 @@ struct InsightsView: View {
         .padding(.horizontal, 4)
     }
 
-    // MARK: - Activity this week
+    // MARK: - Activity trend (7D / 30D daily, 12M weekly buckets)
 
     private var activitySection: some View {
-        insightCard(title: "Added This Week", symbol: "calendar") {
-            Chart(viewModel.weeklyActivity, id: \.day) { entry in
-                BarMark(
-                    x: .value("Day", entry.day),
-                    y: .value("Files", entry.count)
-                )
-                .foregroundStyle(
-                    entry.count > 0
-                        ? AppTheme.Colors.accent.gradient
-                        : Color.secondary.opacity(0.2).gradient
-                )
-                .cornerRadius(5)
-            }
-            .frame(height: 90)
-            .chartXAxis {
-                AxisMarks { _ in
-                    AxisValueLabel()
-                        .font(.system(size: 11))
-                        .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+        let trend = viewModel.activityTrend(for: activityRange)
+        let totalAdded = trend.reduce(0) { $0 + $1.added }
+        let totalOpened = trend.reduce(0) { $0 + $1.opened }
+        return insightCard(title: "Activity · \(activityRange.title)", symbol: "calendar") {
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
+                Picker("Activity range", selection: $activityRange) {
+                    ForEach(ActivityRange.allCases) { range in
+                        Text(range.shortTitle).tag(range)
+                    }
                 }
-            }
-            .chartYAxis(.hidden)
-            .chartXScale(range: .plotDimension(padding: 8))
-        }
-    }
-
-    // MARK: - File type donut + legend
-
-    private var fileTypeChart: some View {
-        insightCard(title: "File Types", symbol: "square.grid.2x2.fill") {
-            HStack(alignment: .center, spacing: AppTheme.Spacing.xLarge) {
-                Chart(viewModel.fileTypeDistribution, id: \.type) { entry in
-                    SectorMark(
-                        angle: .value("Count", entry.count),
-                        innerRadius: .ratio(0.54),
-                        angularInset: 2.5
+                .pickerStyle(.segmented)
+                HStack(spacing: AppTheme.Spacing.medium) {
+                    legendDot(AppTheme.Colors.accent, "Added · \(totalAdded)")
+                    legendDot(AppTheme.Colors.syncSynced, "Opened · \(totalOpened)")
+                }
+                Chart(trend) { day in
+                    BarMark(
+                        x: .value("Date", day.date, unit: activityRange.unit),
+                        y: .value("Added", day.added)
                     )
-                    .foregroundStyle(entry.type.tintColor)
-                    .cornerRadius(5)
+                    .foregroundStyle(AppTheme.Colors.accent.opacity(0.85))
+                    .cornerRadius(2)
+                    LineMark(
+                        x: .value("Date", day.date, unit: activityRange.unit),
+                        y: .value("Opened", day.opened)
+                    )
+                    .foregroundStyle(AppTheme.Colors.syncSynced)
+                    .lineStyle(StrokeStyle(lineWidth: 2))
+                    PointMark(
+                        x: .value("Date", day.date, unit: activityRange.unit),
+                        y: .value("Opened", day.opened)
+                    )
+                    .foregroundStyle(AppTheme.Colors.syncSynced)
+                    .symbolSize(12)
                 }
-                .frame(width: 110, height: 110)
-
-                VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
-                    ForEach(viewModel.fileTypeDistribution.prefix(6), id: \.type) { entry in
-                        HStack(spacing: 8) {
-                            RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                .fill(entry.type.tintColor)
-                                .frame(width: 10, height: 10)
-                            Text(entry.type.displayName)
-                                .font(.system(size: 12, weight: .regular))
-                                .foregroundStyle(AppTheme.Colors.label)
-                            Spacer()
-                            Text("\(entry.count)")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                .frame(height: 120)
+                .chartXAxis {
+                    AxisMarks(values: activityRange.stride) { _ in
+                        AxisValueLabel(format: activityRange.labelFormat, centered: true)
+                            .font(.system(size: 10))
+                            .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks { value in
+                        AxisValueLabel {
+                            if let n = value.as(Int.self) {
+                                Text("\(n)")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                            }
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                Text(activityRange.footnote)
+                    .font(.system(size: 10))
+                    .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+            }
+        }
+    }
+
+    private func legendDot(_ color: Color, _ label: String) -> some View {
+        HStack(spacing: 6) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            Text(label)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(AppTheme.Colors.secondaryLabel)
+        }
+    }
+
+    // MARK: - Breakdown by type (merged: File Types count + Storage by Type size)
+
+    private var breakdownByTypeSection: some View {
+        insightCard(title: "Breakdown by Type", symbol: "square.grid.2x2.fill") {
+            VStack(spacing: AppTheme.Spacing.medium) {
+                Picker("Breakdown mode", selection: $breakdownMode) {
+                    ForEach(BreakdownMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                if breakdownMode == .count {
+                    breakdownCountContent
+                } else {
+                    breakdownSizeContent
+                }
+            }
+        }
+    }
+
+    private var breakdownCountContent: some View {
+        let total = max(viewModel.fileTypeDistribution.reduce(0) { $0 + $1.count }, 1)
+        return HStack(alignment: .center, spacing: AppTheme.Spacing.xLarge) {
+            Chart(viewModel.fileTypeDistribution, id: \.type) { entry in
+                SectorMark(
+                    angle: .value("Count", entry.count),
+                    innerRadius: .ratio(0.54),
+                    angularInset: 2.5
+                )
+                .foregroundStyle(entry.type.tintColor)
+                .cornerRadius(5)
+            }
+            .frame(width: 110, height: 110)
+
+            VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
+                ForEach(viewModel.fileTypeDistribution, id: \.type) { entry in
+                    let pct = Int(round(Double(entry.count) / Double(total) * 100))
+                    HStack(spacing: 8) {
+                        RoundedRectangle(cornerRadius: 3, style: .continuous)
+                            .fill(entry.type.tintColor)
+                            .frame(width: 10, height: 10)
+                        Text(entry.type.displayName)
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundStyle(AppTheme.Colors.label)
+                        Spacer()
+                        Text("\(entry.count) · \(pct)%")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var breakdownSizeContent: some View {
+        Chart(viewModel.fileTypeSizeDistribution, id: \.type) { entry in
+            BarMark(
+                x: .value("Bytes", Double(entry.bytes) / 1_000_000.0),
+                y: .value("Type", entry.type.displayName)
+            )
+            .foregroundStyle(entry.type.tintColor)
+            .cornerRadius(4)
+            .annotation(position: .trailing, alignment: .leading) {
+                Text(entry.bytes.fileSizeString)
+                    .font(.system(size: 10))
+                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
+            }
+        }
+        .frame(height: CGFloat(viewModel.fileTypeSizeDistribution.count) * 30 + 10)
+        .chartXAxis(.hidden)
+        .chartYAxis {
+            AxisMarks { _ in
+                AxisValueLabel()
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppTheme.Colors.label)
             }
         }
     }
@@ -330,36 +617,7 @@ struct InsightsView: View {
         }
     }
 
-    // MARK: - Storage by file type (bytes)
-
-    private var fileTypeSizeChart: some View {
-        insightCard(title: "Storage by Type", symbol: "externaldrive.fill") {
-            Chart(viewModel.fileTypeSizeDistribution, id: \.type) { entry in
-                BarMark(
-                    x: .value("Bytes", Double(entry.bytes) / 1_000_000.0),
-                    y: .value("Type", entry.type.displayName)
-                )
-                .foregroundStyle(entry.type.tintColor)
-                .cornerRadius(4)
-                .annotation(position: .trailing, alignment: .leading) {
-                    Text(entry.bytes.fileSizeString)
-                        .font(.system(size: 10))
-                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                }
-            }
-            .frame(height: CGFloat(viewModel.fileTypeSizeDistribution.count) * 30 + 10)
-            .chartXAxis(.hidden)
-            .chartYAxis {
-                AxisMarks { _ in
-                    AxisValueLabel()
-                        .font(.system(size: 12))
-                        .foregroundStyle(AppTheme.Colors.label)
-                }
-            }
-        }
-    }
-
-    // MARK: - Tag activity heatmap
+    // MARK: - Tag activity heatmap (HIDDEN per redesign — kept for rollback, not rendered)
 
     private var tagHeatmapSection: some View {
         let maxCount = viewModel.tagHeatmap.map(\.count).max() ?? 1
@@ -415,6 +673,65 @@ struct InsightsView: View {
         .padding(AppTheme.Spacing.base)
         .background(AppTheme.Colors.secondaryBG)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
+    }
+}
+
+// MARK: - Segmented sections (iOS 17-compatible, no iOS 18+ APIs)
+
+enum InsightsSection: String, CaseIterable, Identifiable {
+    case overview, storage, tags, files
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .overview: return "Overview"
+        case .storage:  return "Storage"
+        case .tags:     return "Tags"
+        case .files:    return "Files"
+        }
+    }
+}
+
+// MARK: - Breakdown mode (persisted via @AppStorage, iOS 17-safe)
+
+enum BreakdownMode: String, CaseIterable, Identifiable {
+    case count, size
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .count: return "Count"
+        case .size:  return "Size"
+        }
+    }
+}
+
+// MARK: - Activity range chart config (iOS 16+ Charts APIs only)
+
+extension ActivityRange {
+    var unit: Calendar.Component {
+        switch self {
+        case .week7d, .month30d: return .day
+        case .year12m:            return .weekOfYear
+        }
+    }
+
+    var stride: AxisMarkValues {
+        switch self {
+        case .week7d:   return .stride(by: .day, count: 1)
+        case .month30d: return .stride(by: .day, count: 7)
+        case .year12m:  return .stride(by: .month, count: 2)
+        }
+    }
+
+    var labelFormat: Date.FormatStyle {
+        switch self {
+        case .week7d:   return .dateTime.weekday(.abbreviated)
+        case .month30d: return .dateTime.day().month(.abbreviated)
+        case .year12m:  return .dateTime.month(.abbreviated)
+        }
     }
 }
 
