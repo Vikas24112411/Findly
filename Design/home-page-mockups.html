@@ -1,0 +1,1117 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Findly Home — iOS 26 Liquid Glass Directions</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --accent: #1f90e4;
+      --accent-strong: #0878c9;
+      --accent-soft: #eaf5fd;
+      --canvas: #f2f3f5;
+      --surface: #ffffff;
+      --surface-2: #f5f5f7;
+      --surface-3: #ececf0;
+      --label: #171719;
+      --secondary: #68686f;
+      --tertiary: #8e8e93;
+      --separator: rgba(60, 60, 67, .16);
+      --border: rgba(60, 60, 67, .11);
+      --glass: rgba(250, 250, 252, .88);
+      --glass-fill: rgba(255, 255, 255, .56);
+      --glass-fill-strong: rgba(255, 255, 255, .72);
+      --glass-stroke: rgba(255, 255, 255, .82);
+      --glass-stroke-low: rgba(73, 92, 112, .15);
+      --glass-shadow: 0 10px 28px rgba(35, 55, 75, .13), inset 0 1px 0 rgba(255, 255, 255, .92), inset 0 -1px 0 rgba(255, 255, 255, .24);
+      --glass-blur: 24px;
+      --glass-saturation: 185%;
+      --shadow: 0 24px 70px rgba(24, 31, 40, .13), 0 2px 10px rgba(24, 31, 40, .08);
+      --phone-w: 393px;
+      --phone-h: 820px;
+      --phone-aspect: 393 / 820;
+      --pdf: #e74c3c;
+      --document: #3498db;
+      --image: #ff6b6b;
+      --video: #4ecdc4;
+      --audio: #45b7d1;
+      --note: #f39c12;
+      --link: #9b59b6;
+      --archive: #1abc9c;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+      font-synthesis: none;
+    }
+
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --accent: #42b0fa;
+      --accent-strong: #64bcf7;
+      --accent-soft: #102b3e;
+      --canvas: #111214;
+      --surface: #1c1c1e;
+      --surface-2: #2c2c2e;
+      --surface-3: #363638;
+      --label: #f4f4f6;
+      --secondary: #b1b1b7;
+      --tertiary: #8e8e93;
+      --separator: rgba(235, 235, 245, .16);
+      --border: rgba(235, 235, 245, .10);
+      --glass: rgba(28, 28, 30, .88);
+      --glass-fill: rgba(48, 50, 56, .54);
+      --glass-fill-strong: rgba(58, 60, 68, .72);
+      --glass-stroke: rgba(255, 255, 255, .25);
+      --glass-stroke-low: rgba(255, 255, 255, .09);
+      --glass-shadow: 0 14px 34px rgba(0, 0, 0, .34), inset 0 1px 0 rgba(255, 255, 255, .25), inset 0 -1px 0 rgba(255, 255, 255, .06);
+      --shadow: 0 26px 76px rgba(0, 0, 0, .42), 0 2px 10px rgba(0, 0, 0, .3);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      color: var(--label);
+      background:
+        radial-gradient(circle at 11% 0%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 30rem),
+        var(--canvas);
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, [tabindex]:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--accent) 70%, white);
+      outline-offset: 3px;
+    }
+    svg { display: block; }
+    .icon { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+    .review-shell { min-height: 100vh; }
+    .review-header {
+      position: sticky;
+      z-index: 50;
+      top: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 28px;
+      padding: 18px clamp(20px, 4vw, 64px);
+      border-bottom: 1px solid var(--separator);
+      background: color-mix(in srgb, var(--canvas) 86%, transparent);
+      backdrop-filter: blur(20px) saturate(160%);
+      -webkit-backdrop-filter: blur(20px) saturate(160%);
+    }
+    .brand { display: flex; align-items: center; gap: 13px; min-width: 210px; }
+    .brand-icon-wrap { position: relative; width: 42px; height: 42px; flex: 0 0 auto; }
+    .brand-icon {
+      width: 42px; height: 42px; border-radius: 10px; display: block;
+      box-shadow: 0 2px 7px rgba(0,0,0,.1);
+    }
+    .brand-fallback {
+      position: absolute; inset: 0; display: none; place-items: center; border-radius: 10px;
+      background: linear-gradient(145deg, #1777a5, #f18ca0 62%, #f5f5f7 63%);
+      color: #5d678f; font-size: 21px; font-weight: 800;
+    }
+    .brand-copy strong { display: block; font-size: 15px; letter-spacing: -.01em; }
+    .brand-copy span { display: block; margin-top: 2px; color: var(--secondary); font-size: 12px; }
+    .review-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+    .control-group {
+      display: inline-flex; align-items: center; gap: 3px; padding: 4px;
+      border: 1px solid var(--border); border-radius: 11px; background: var(--surface);
+      box-shadow: 0 1px 2px rgba(0,0,0,.03);
+    }
+    .control-btn {
+      min-width: 44px; min-height: 44px; padding: 0 11px; border: 0; border-radius: 8px;
+      background: transparent; color: var(--secondary); cursor: pointer; font-size: 12px; font-weight: 650;
+    }
+    .control-btn:hover { background: var(--surface-2); color: var(--label); }
+    .control-btn[aria-pressed="true"] { color: var(--label); background: var(--surface-3); box-shadow: inset 0 0 0 1px var(--border); }
+    .icon-control { display: inline-grid; place-items: center; width: 44px; padding: 0; font-size: 17px; }
+
+    main { padding: 42px clamp(20px, 5vw, 76px) 80px; }
+    .intro { max-width: 780px; margin-bottom: 32px; }
+    .eyebrow { color: var(--accent-strong); font-size: 12px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    .intro h1 { margin: 9px 0 10px; font-size: clamp(31px, 4vw, 52px); line-height: 1.04; letter-spacing: -.045em; }
+    .intro p { margin: 0; max-width: 680px; color: var(--secondary); font-size: 16px; line-height: 1.55; }
+
+    .overview-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; align-items: start; }
+    .concept-card {
+      min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 22px;
+      background: var(--surface); box-shadow: 0 8px 24px rgba(24, 31, 40, .05);
+    }
+    .concept-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 20px 16px; }
+    .concept-number { color: var(--accent-strong); font-size: 12px; font-weight: 750; letter-spacing: .06em; }
+    .concept-card h2 { margin: 5px 0 5px; font-size: 22px; letter-spacing: -.025em; }
+    .concept-card-head p { margin: 0; color: var(--secondary); font-size: 13px; line-height: 1.42; }
+    .open-concept {
+      min-width: 44px; min-height: 44px; display: grid; place-items: center; border: 0; border-radius: 50%;
+      background: var(--accent-soft); color: var(--accent-strong); cursor: pointer; font-size: 18px;
+    }
+    .mini-stage { padding: 18px; background: var(--surface-2); border-block: 1px solid var(--separator); }
+    .mini-stage .phone { width: min(100%, 294px); height: 636px; margin: 0 auto; box-shadow: 0 16px 40px rgba(20, 25, 32, .16); }
+    .mini-stage .phone-screen { --ui-scale: .82; }
+    .concept-notes { padding: 17px 20px 21px; }
+    .note-row { display: flex; gap: 10px; align-items: flex-start; margin-top: 10px; color: var(--secondary); font-size: 13px; line-height: 1.4; }
+    .note-row:first-child { margin-top: 0; }
+    .note-label { flex: 0 0 64px; color: var(--label); font-weight: 700; }
+
+    .focus-layout { display: grid; grid-template-columns: minmax(280px, 390px) minmax(460px, 1fr); gap: clamp(32px, 6vw, 88px); align-items: center; max-width: 1240px; margin: 0 auto; }
+    .focus-copy { align-self: center; }
+    .focus-count { color: var(--accent-strong); font-size: 13px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+    .focus-copy h2 { margin: 9px 0 12px; font-size: clamp(35px, 5vw, 60px); line-height: 1; letter-spacing: -.05em; }
+    .focus-lede { margin: 0 0 28px; color: var(--secondary); font-size: 17px; line-height: 1.52; }
+    .decision-list { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--separator); }
+    .decision-list li { padding: 16px 0; border-bottom: 1px solid var(--separator); }
+    .decision-list strong { display: block; margin-bottom: 5px; font-size: 13px; }
+    .decision-list span { color: var(--secondary); font-size: 14px; line-height: 1.45; }
+    .fit {
+      margin-top: 22px; padding: 16px; border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+      border-radius: 14px; background: var(--accent-soft); color: var(--secondary); font-size: 13px; line-height: 1.45;
+    }
+    .fit strong { color: var(--label); }
+    .edge-title { margin: 25px 0 10px; font-size: 12px; font-weight: 750; letter-spacing: .055em; text-transform: uppercase; color: var(--secondary); }
+    .edge-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .edge-state { min-width: 0; padding: 13px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+    .edge-state .edge-symbol { width: 32px; height: 32px; margin-top: 0; display: grid; place-items: center; border-radius: 10px; background: var(--accent-soft); color: var(--accent-strong); font-size: 15px; }
+    .edge-state.warning .edge-symbol { background: color-mix(in srgb, #f39c12 12%, var(--surface)); color: #b86500; }
+    html[data-theme="dark"] .edge-state.warning .edge-symbol { color: #ffb340; }
+    .edge-state strong { display: block; margin-top: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+    .edge-state span { display: block; margin-top: 4px; color: var(--secondary); font-size: 10px; line-height: 1.35; }
+    .focus-stage { display: grid; place-items: center; min-height: calc(var(--phone-h) + 70px); padding: 35px; border-radius: 32px; background: var(--surface-2); }
+
+    .phone {
+      position: relative; width: var(--phone-w); height: var(--phone-h); overflow: hidden;
+      border: 7px solid #121214; border-radius: 48px; background: var(--surface); box-shadow: var(--shadow);
+      transition: width .25s ease, height .25s ease;
+    }
+    html[data-theme="dark"] .phone { border-color: #050506; }
+    .phone::after { content: ""; position: absolute; inset: 0; z-index: 20; pointer-events: none; border-radius: 40px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.11); }
+    .phone-screen { position: absolute; inset: 0; overflow: hidden; border-radius: 40px; background: var(--surface); color: var(--label); }
+    .dynamic-island { position: absolute; z-index: 15; top: 11px; left: 50%; width: 106px; height: 30px; transform: translateX(-50%); border-radius: 18px; background: #050506; }
+    .status-bar { position: absolute; z-index: 14; top: 0; left: 0; right: 0; height: 51px; display: flex; align-items: center; justify-content: space-between; padding: 0 24px; font-size: 12px; font-weight: 700; }
+    .status-icons { display: flex; align-items: center; gap: 5px; }
+    .signal { display: flex; align-items: end; gap: 1.5px; height: 10px; }
+    .signal i { display: block; width: 2px; border-radius: 2px; background: currentColor; }
+    .signal i:nth-child(1) { height: 4px; } .signal i:nth-child(2) { height: 6px; } .signal i:nth-child(3) { height: 8px; } .signal i:nth-child(4) { height: 10px; }
+    .battery { width: 20px; height: 9px; border: 1.3px solid currentColor; border-radius: 3px; padding: 1px; position: relative; }
+    .battery::before { content: ""; display: block; width: 70%; height: 100%; border-radius: 1px; background: currentColor; }
+    .battery::after { content: ""; position: absolute; right: -3px; top: 2px; width: 1.5px; height: 3px; border-radius: 0 1px 1px 0; background: currentColor; opacity: .6; }
+    .screen-scroll { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; padding: 55px 0 112px; }
+    .screen-scroll::-webkit-scrollbar, .h-scroll::-webkit-scrollbar { display: none; }
+
+    .nav-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 18px 10px; }
+    .nav-title { margin: 0; font-size: 31px; line-height: 1.08; letter-spacing: -.04em; font-weight: 760; }
+    .nav-subtitle { margin: 4px 0 0; color: var(--secondary); font-size: 13px; }
+    .round-button { width: 44px; height: 44px; flex: 0 0 auto; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--label); font-size: 18px; }
+    .content-pad { padding-inline: 18px; }
+    .section { margin-top: 25px; }
+    .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 11px; }
+    .section-title { margin: 0; font-size: 19px; letter-spacing: -.022em; }
+    .section-link { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: flex-end; border: 0; background: none; color: var(--accent-strong); font-size: 13px; font-weight: 550; }
+
+    .search-box {
+      min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 0 14px;
+      border: 1px solid var(--border); border-radius: 14px; background: var(--surface-2); color: var(--secondary);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04); font-size: 15px;
+    }
+    .search-box.large { min-height: 61px; margin-top: 6px; border-radius: 17px; background: var(--surface); box-shadow: 0 8px 22px rgba(22, 31, 40, .08); }
+    .search-box .icon { font-size: 19px; }
+    .search-box span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .shortcut { margin-left: auto; padding: 3px 6px; border: 1px solid var(--separator); border-radius: 6px; color: var(--tertiary); font-size: 10px; font-weight: 650; }
+
+    .h-scroll { display: flex; gap: 11px; overflow-x: auto; padding: 2px 18px 5px; scroll-snap-type: x proximity; scrollbar-width: none; }
+    .h-scroll > * { scroll-snap-align: start; }
+    .continue-card {
+      flex: 0 0 218px; min-height: 150px; overflow: hidden; border: 1px solid var(--border); border-radius: 18px;
+      background: var(--surface); box-shadow: 0 5px 16px rgba(25, 32, 40, .06);
+    }
+    .card-preview { position: relative; height: 78px; padding: 13px; background: linear-gradient(145deg, #f5e1df, #fff8f7); }
+    html[data-theme="dark"] .card-preview { background: linear-gradient(145deg, #4a2829, #2c2020); }
+    .card-preview.blue { background: linear-gradient(145deg, #dceffc, #f5fbff); }
+    html[data-theme="dark"] .card-preview.blue { background: linear-gradient(145deg, #153750, #1c2830); }
+    .paper-lines { width: 64%; height: 42px; padding: 8px; border-radius: 5px; background: rgba(255,255,255,.84); box-shadow: 0 2px 7px rgba(0,0,0,.06); }
+    .paper-lines i { display: block; height: 3px; margin-bottom: 5px; border-radius: 2px; background: #bbc1c8; }
+    .paper-lines i:nth-child(2) { width: 74%; } .paper-lines i:nth-child(3) { width: 87%; }
+    .card-badge { position: absolute; right: 10px; top: 10px; display: inline-flex; align-items: center; gap: 4px; padding: 5px 7px; border-radius: 8px; background: rgba(255,255,255,.84); color: #353539; font-size: 9px; font-weight: 750; }
+    .continue-body { padding: 10px 12px 12px; }
+    .continue-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 680; }
+    .continue-meta { display: flex; align-items: center; gap: 5px; margin-top: 5px; color: var(--secondary); font-size: 10px; }
+    .dot { width: 3px; height: 3px; border-radius: 50%; background: currentColor; opacity: .65; }
+
+    .chip-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 3px; scrollbar-width: none; }
+    .chip {
+      min-height: 38px; display: inline-flex; align-items: center; gap: 7px; flex: 0 0 auto; padding: 0 12px;
+      border: 1px solid var(--border); border-radius: 20px; background: var(--surface); color: var(--label); font-size: 12px; font-weight: 590;
+    }
+    .chip.active { background: var(--label); color: var(--surface); border-color: var(--label); }
+    .chip-dot { width: 8px; height: 8px; border-radius: 3px; background: var(--chip-color, var(--accent)); }
+
+    .recent-searches { display: flex; flex-direction: column; border-radius: 16px; background: var(--surface-2); overflow: hidden; }
+    .search-history-row { min-height: 47px; display: flex; align-items: center; gap: 10px; padding: 0 13px; border-bottom: 1px solid var(--separator); color: var(--secondary); font-size: 13px; }
+    .search-history-row:last-child { border-bottom: 0; }
+    .search-history-row span { color: var(--label); }
+    .search-history-row .arrow { margin-left: auto; color: var(--tertiary); }
+
+    .file-list { border-radius: 17px; background: var(--surface); overflow: hidden; border: 1px solid var(--border); }
+    .file-row { min-height: 66px; display: flex; align-items: center; gap: 11px; padding: 10px 12px; border-bottom: 1px solid var(--separator); }
+    .file-row:last-child { border-bottom: 0; }
+    .file-glyph {
+      position: relative; width: 42px; height: 42px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 11px;
+      color: var(--type-color); background: color-mix(in srgb, var(--type-color) 13%, var(--surface)); font-size: 19px;
+    }
+    .file-glyph .mini-pin { position: absolute; right: -3px; bottom: -3px; display: grid; place-items: center; width: 16px; height: 16px; border: 2px solid var(--surface); border-radius: 50%; background: #f39c12; color: white; font-size: 8px; }
+    .file-copy { min-width: 0; flex: 1; }
+    .file-title { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 13px; line-height: 1.25; font-weight: 620; }
+    .file-meta { display: flex; align-items: center; gap: 5px; margin-top: 4px; color: var(--secondary); font-size: 10px; white-space: nowrap; }
+    .row-action { width: 32px; height: 44px; display: grid; place-items: center; flex: 0 0 auto; color: var(--tertiary); font-size: 15px; }
+    .sync-state { display: inline-flex; align-items: center; gap: 3px; }
+    .sync-state.warn { color: #bf6b00; }
+    html[data-theme="dark"] .sync-state.warn { color: #ffb340; }
+
+    .hero-resume {
+      margin-top: 10px; overflow: hidden; border-radius: 22px; background: var(--surface);
+      border: 1px solid var(--border); box-shadow: 0 10px 30px rgba(29, 45, 57, .09);
+    }
+    .hero-preview { position: relative; height: 182px; overflow: hidden; background: linear-gradient(140deg, #d8edf9 0%, #f5fbff 54%, #e9edf8 100%); }
+    html[data-theme="dark"] .hero-preview { background: linear-gradient(140deg, #173248, #20282f 54%, #252837); }
+    .hero-document { position: absolute; width: 154px; height: 196px; left: 50%; top: 27px; transform: translateX(-50%) rotate(-3deg); padding: 19px 16px; border-radius: 7px; background: #fff; box-shadow: 0 14px 34px rgba(25, 47, 68, .18); }
+    .hero-document b { display: block; color: #263b50; font-size: 10px; margin-bottom: 13px; }
+    .hero-document i { display: block; height: 4px; margin-bottom: 7px; border-radius: 4px; background: #d5dbe0; }
+    .hero-document i:nth-of-type(1) { width: 84%; } .hero-document i:nth-of-type(2) { width: 66%; } .hero-document i:nth-of-type(4) { width: 74%; }
+    .hero-type { position: absolute; left: 16px; top: 15px; display: flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 10px; background: rgba(255,255,255,.82); color: #b83b31; font-size: 10px; font-weight: 750; }
+    .hero-body { padding: 16px; }
+    .hero-kicker { color: var(--secondary); font-size: 11px; font-weight: 620; }
+    .hero-title { margin: 4px 0 5px; font-size: 18px; line-height: 1.2; letter-spacing: -.02em; }
+    .hero-meta { color: var(--secondary); font-size: 11px; }
+    .resume-button { min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; margin-top: 14px; border: 0; border-radius: 12px; background: var(--accent); color: white; font-size: 13px; font-weight: 700; }
+
+    .pinned-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+    .pin-tile { min-width: 0; padding: 11px; border: 1px solid var(--border); border-radius: 15px; background: var(--surface); }
+    .pin-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; color: var(--type-color); background: color-mix(in srgb, var(--type-color) 12%, var(--surface)); font-size: 16px; }
+    .pin-title { margin-top: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 650; }
+    .pin-meta { margin-top: 3px; color: var(--secondary); font-size: 9px; }
+    .notice { min-height: 46px; display: flex; align-items: center; gap: 9px; padding: 9px 11px; border: 1px solid color-mix(in srgb, #f39c12 28%, transparent); border-radius: 13px; background: color-mix(in srgb, #f39c12 9%, var(--surface)); color: var(--secondary); font-size: 11px; line-height: 1.3; }
+    .notice .icon { flex: 0 0 auto; color: #bf6b00; font-size: 17px; }
+    html[data-theme="dark"] .notice .icon { color: #ffb340; }
+
+    .segment { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 3px; border-radius: 10px; background: var(--surface-3); }
+    .segment span { min-height: 31px; display: grid; place-items: center; border-radius: 8px; color: var(--secondary); font-size: 11px; font-weight: 620; }
+    .segment .selected { background: var(--surface); color: var(--label); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+    .timeline-group { margin-top: 21px; }
+    .timeline-date { display: flex; align-items: center; justify-content: space-between; margin: 0 3px 8px; color: var(--secondary); font-size: 11px; font-weight: 690; text-transform: uppercase; letter-spacing: .045em; }
+    .timeline-count { font-weight: 520; letter-spacing: 0; text-transform: none; }
+
+    .compact-continue { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .compact-card { min-width: 0; display: flex; align-items: center; gap: 10px; padding: 11px; border: 1px solid var(--border); border-radius: 15px; background: var(--surface); }
+    .compact-card .file-glyph { width: 36px; height: 36px; border-radius: 10px; font-size: 16px; }
+    .compact-card-copy { min-width: 0; }
+    .compact-card-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 650; }
+    .compact-card-meta { margin-top: 3px; color: var(--secondary); font-size: 9px; }
+
+    .collection-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+    .collection-card { min-height: 147px; padding: 14px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); overflow: hidden; }
+    .collection-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .collection-symbol { width: 37px; height: 37px; display: grid; place-items: center; border-radius: 11px; background: color-mix(in srgb, var(--type-color) 12%, var(--surface)); color: var(--type-color); font-size: 18px; }
+    .collection-count { color: var(--secondary); font-size: 10px; font-weight: 620; }
+    .collection-title { margin: 10px 0 0; font-size: 14px; letter-spacing: -.01em; }
+    .collection-latest { margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--secondary); font-size: 10px; }
+    .thumb-stack { position: relative; height: 34px; margin-top: 10px; }
+    .thumb-stack i { position: absolute; top: 0; width: 40px; height: 30px; border: 2px solid var(--surface); border-radius: 7px; background: color-mix(in srgb, var(--type-color) var(--alpha, 20%), var(--surface-2)); }
+    .thumb-stack i:nth-child(1) { left: 0; } .thumb-stack i:nth-child(2) { left: 29px; --alpha: 32%; } .thumb-stack i:nth-child(3) { left: 58px; --alpha: 45%; }
+
+    .tag-strip { display: flex; gap: 9px; overflow-x: auto; scrollbar-width: none; }
+    .tag-pill { min-height: 40px; flex: 0 0 auto; display: flex; align-items: center; gap: 7px; padding: 0 12px; border: 1px solid color-mix(in srgb, var(--tag-color) 28%, transparent); border-radius: 20px; background: color-mix(in srgb, var(--tag-color) 8%, var(--surface)); font-size: 12px; font-weight: 620; }
+    .tag-pill .icon { color: var(--tag-color); }
+    .tag-pill small { color: var(--secondary); font-size: 9px; }
+    .tag-workspace { border: 1px solid var(--border); border-radius: 18px; background: var(--surface); overflow: hidden; }
+    .tag-parent { display: flex; align-items: center; gap: 11px; min-height: 61px; padding: 11px 13px; border-bottom: 1px solid var(--separator); }
+    .tag-parent:last-child { border-bottom: 0; }
+    .tag-parent-icon { width: 38px; height: 38px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 12px; background: color-mix(in srgb, var(--tag-color) 11%, var(--surface)); color: var(--tag-color); font-size: 17px; }
+    .tag-parent-copy { min-width: 0; flex: 1; }
+    .tag-parent-name { font-size: 13px; font-weight: 670; }
+    .subtags { display: flex; gap: 5px; margin-top: 5px; overflow: hidden; }
+    .subtag { padding: 3px 6px; border-radius: 6px; background: var(--surface-2); color: var(--secondary); font-size: 9px; white-space: nowrap; }
+    .tag-count { color: var(--secondary); font-size: 10px; }
+    .selected-tag-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .selected-tag-head .chip { min-height: 32px; padding-inline: 10px; }
+    .selected-tag-head span:last-child { color: var(--secondary); font-size: 11px; }
+
+    .tabbar {
+      position: absolute; z-index: 12; left: 0; right: 0; bottom: 0; height: 91px; display: grid;
+      grid-template-columns: repeat(4, 1fr); align-items: start; padding: 10px 10px 21px;
+      border-top: 1px solid var(--separator); background: var(--glass); backdrop-filter: blur(20px) saturate(170%); -webkit-backdrop-filter: blur(20px) saturate(170%);
+    }
+    .tab { min-width: 44px; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 0; background: transparent; color: var(--tertiary); font-size: 9px; }
+    .tab .icon { font-size: 20px; }
+    .tab.active { color: var(--accent-strong); font-weight: 650; }
+    .fab { position: absolute; z-index: 14; right: 18px; bottom: 99px; width: 54px; height: 54px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--accent); color: white; box-shadow: 0 8px 22px rgba(31, 144, 228, .35); font-size: 24px; }
+    .home-indicator { position: absolute; z-index: 16; bottom: 7px; left: 50%; width: 116px; height: 4px; transform: translateX(-50%); border-radius: 4px; background: var(--label); opacity: .82; }
+
+    .screen-spotlight .screen-scroll { background: linear-gradient(180deg, var(--accent-soft), var(--surface) 245px); }
+    .spotlight-intro { padding: 18px 18px 4px; }
+    .spotlight-intro .mini-brand { display: flex; align-items: center; gap: 8px; color: var(--accent-strong); font-size: 12px; font-weight: 720; }
+    .spotlight-intro h1 { margin: 14px 0 15px; max-width: 260px; font-size: 35px; line-height: 1.02; letter-spacing: -.048em; }
+    .screen-resume .nav-head { padding-bottom: 5px; }
+    .screen-resume .nav-title { font-size: 29px; }
+    .screen-timeline .file-list { border-radius: 15px; }
+    .screen-collections .screen-scroll { background: var(--surface-2); }
+    .screen-collections .nav-head, .screen-collections .content-pad { position: relative; z-index: 1; }
+    .screen-tags .screen-scroll { background: linear-gradient(180deg, color-mix(in srgb, #9b59b6 8%, var(--surface)), var(--surface) 210px); }
+
+    /* iOS 26 — Liquid Glass is the floating functional layer, not the content layer. */
+    .phone-screen {
+      isolation: isolate;
+      background: color-mix(in srgb, var(--surface) 90%, #d8efff);
+    }
+    .phone-screen::before,
+    .phone-screen::after {
+      content: "";
+      position: absolute;
+      z-index: 0;
+      pointer-events: none;
+      border-radius: 50%;
+      filter: blur(2px);
+      opacity: .88;
+    }
+    .phone-screen::before {
+      width: 290px;
+      height: 290px;
+      right: -130px;
+      top: 120px;
+      background: radial-gradient(circle at 38% 38%, rgba(74, 186, 255, .24), rgba(74, 186, 255, 0) 68%);
+    }
+    .phone-screen::after {
+      width: 250px;
+      height: 250px;
+      left: -126px;
+      bottom: 84px;
+      background: radial-gradient(circle at 58% 48%, rgba(240, 131, 164, .18), rgba(240, 131, 164, 0) 69%);
+    }
+    html[data-theme="dark"] .phone-screen::before { opacity: .72; }
+    html[data-theme="dark"] .phone-screen::after { opacity: .52; }
+    .screen-scroll {
+      z-index: 1;
+      background: transparent;
+    }
+    .screen-scroll.screen-spotlight {
+      background:
+        radial-gradient(circle at 88% 10%, rgba(67, 174, 248, .20), transparent 34%),
+        radial-gradient(circle at 5% 32%, rgba(242, 133, 162, .13), transparent 30%);
+    }
+    .screen-scroll.screen-resume {
+      background: radial-gradient(circle at 90% 18%, rgba(78, 205, 196, .14), transparent 31%);
+    }
+    .screen-scroll.screen-timeline {
+      background: radial-gradient(circle at 8% 22%, rgba(155, 89, 182, .10), transparent 28%);
+    }
+    .screen-scroll.screen-collections {
+      background:
+        radial-gradient(circle at 88% 14%, rgba(52, 152, 219, .17), transparent 30%),
+        transparent;
+    }
+    .screen-scroll.screen-tags {
+      background:
+        radial-gradient(circle at 92% 16%, rgba(155, 89, 182, .17), transparent 31%),
+        radial-gradient(circle at 4% 52%, rgba(31, 144, 228, .10), transparent 28%);
+    }
+
+    .control-group,
+    .round-button,
+    .search-box,
+    .chip,
+    .tag-pill,
+    .fab,
+    .tabbar,
+    .search-tab,
+    .card-badge,
+    .hero-type,
+    .resume-button {
+      position: relative;
+      overflow: hidden;
+      border-color: var(--glass-stroke-low);
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.34), rgba(255,255,255,.04) 46%, rgba(124,190,235,.08)),
+        var(--glass-fill);
+      box-shadow: var(--glass-shadow);
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+    }
+    .control-group::before,
+    .round-button::before,
+    .search-box::before,
+    .chip::before,
+    .tag-pill::before,
+    .fab::before,
+    .tabbar::before,
+    .search-tab::before,
+    .card-badge::before,
+    .hero-type::before,
+    .resume-button::before {
+      content: "";
+      position: absolute;
+      z-index: 0;
+      pointer-events: none;
+      inset: 0;
+      border-radius: inherit;
+      background:
+        linear-gradient(128deg, rgba(255,255,255,.58), transparent 26%, transparent 70%, rgba(126,196,242,.16)),
+        linear-gradient(180deg, rgba(255,255,255,.34), transparent 38%);
+      opacity: .72;
+    }
+    .control-group > *,
+    .round-button > *,
+    .search-box > *,
+    .chip > *,
+    .tag-pill > *,
+    .fab > *,
+    .tabbar > *,
+    .search-tab > *,
+    .card-badge > *,
+    .hero-type > *,
+    .resume-button > * { position: relative; z-index: 1; }
+
+    .review-header {
+      background: color-mix(in srgb, var(--canvas) 60%, transparent);
+      backdrop-filter: blur(28px) saturate(170%);
+      -webkit-backdrop-filter: blur(28px) saturate(170%);
+    }
+    .control-group { border: 1px solid var(--glass-stroke); border-radius: 15px; }
+    .control-btn { position: relative; z-index: 1; border-radius: 11px; }
+    .control-btn[aria-pressed="true"] {
+      color: var(--label);
+      background: color-mix(in srgb, var(--surface) 72%, transparent);
+      box-shadow: 0 1px 8px rgba(27, 38, 49, .12), inset 0 1px 0 rgba(255,255,255,.48);
+    }
+    .open-concept {
+      border: 1px solid var(--glass-stroke);
+      background: linear-gradient(145deg, rgba(255,255,255,.62), rgba(255,255,255,.22)), var(--glass-fill);
+      box-shadow: var(--glass-shadow);
+      backdrop-filter: blur(18px) saturate(180%);
+      -webkit-backdrop-filter: blur(18px) saturate(180%);
+    }
+
+    .round-button {
+      border: 1px solid var(--glass-stroke);
+      border-radius: 50%;
+      background: linear-gradient(145deg, rgba(255,255,255,.46), rgba(255,255,255,.08)), var(--glass-fill);
+    }
+    .search-box,
+    .search-box.large {
+      min-height: 56px;
+      border: 1px solid var(--glass-stroke);
+      border-radius: 22px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,.06) 56%, rgba(31,144,228,.10)),
+        var(--glass-fill-strong);
+    }
+    .search-box.large { min-height: 64px; border-radius: 25px; box-shadow: 0 14px 36px rgba(30, 72, 102, .16), inset 0 1px 0 rgba(255,255,255,.9); }
+    .shortcut { border-color: color-mix(in srgb, var(--label) 18%, transparent); background: rgba(255,255,255,.13); }
+    .chip,
+    .tag-pill { border: 1px solid var(--glass-stroke); background: var(--glass-fill); }
+    .chip.active {
+      color: white;
+      border-color: rgba(255,255,255,.5);
+      background: linear-gradient(145deg, rgba(75,178,244,.84), rgba(18,126,203,.78));
+      box-shadow: 0 8px 22px rgba(31,144,228,.23), inset 0 1px 0 rgba(255,255,255,.55);
+    }
+    .segment {
+      padding: 4px;
+      border: 1px solid var(--glass-stroke-low);
+      border-radius: 16px;
+      background: var(--glass-fill);
+      box-shadow: var(--glass-shadow);
+      backdrop-filter: blur(20px) saturate(175%);
+      -webkit-backdrop-filter: blur(20px) saturate(175%);
+    }
+    .segment span { min-height: 34px; border-radius: 12px; }
+    .segment .selected {
+      background: color-mix(in srgb, var(--surface) 74%, transparent);
+      box-shadow: 0 2px 9px rgba(28,40,53,.14), inset 0 1px 0 rgba(255,255,255,.55);
+    }
+    .card-badge,
+    .hero-type { border: 1px solid rgba(255,255,255,.68); color: #30343a; }
+
+    .tabbar {
+      position: absolute;
+      left: 11px;
+      right: 84px;
+      bottom: 16px;
+      height: 72px;
+      padding: 7px 7px 8px;
+      border: 1px solid var(--glass-stroke);
+      border-radius: 31px;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.42), rgba(255,255,255,.08) 48%, rgba(68,165,226,.08)),
+        var(--glass-fill-strong);
+      box-shadow: 0 15px 36px rgba(28, 48, 67, .20), inset 0 1px 0 rgba(255,255,255,.92), inset 0 -1px 0 rgba(255,255,255,.19);
+    }
+    .tab { min-height: 56px; border-radius: 22px; }
+    .tab.active {
+      color: var(--accent-strong);
+      background: color-mix(in srgb, var(--accent) 13%, transparent);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.22);
+    }
+    .search-tab {
+      position: absolute;
+      z-index: 12;
+      right: 11px;
+      bottom: 16px;
+      width: 64px;
+      height: 72px;
+      min-width: 64px;
+      min-height: 72px;
+      padding: 7px 5px 8px;
+      border: 1px solid var(--glass-stroke);
+      border-radius: 31px;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.42), rgba(255,255,255,.08) 48%, rgba(68,165,226,.08)),
+        var(--glass-fill-strong);
+      box-shadow: 0 15px 36px rgba(28, 48, 67, .20), inset 0 1px 0 rgba(255,255,255,.92), inset 0 -1px 0 rgba(255,255,255,.19);
+    }
+    .fab {
+      position: absolute;
+      right: 18px;
+      bottom: 100px;
+      width: 58px;
+      height: 58px;
+      border: 1px solid rgba(255,255,255,.58);
+      background:
+        linear-gradient(145deg, rgba(114,203,255,.9), rgba(13,126,211,.82)),
+        var(--accent);
+      box-shadow: 0 13px 30px rgba(10,112,187,.34), inset 0 1px 0 rgba(255,255,255,.7), inset 0 -1px 0 rgba(0,72,126,.20);
+    }
+    .home-indicator { bottom: 5px; }
+    .screen-scroll { padding-bottom: 124px; }
+    .resume-button {
+      border: 1px solid rgba(255,255,255,.55);
+      background: linear-gradient(145deg, rgba(91,190,250,.94), rgba(10,119,199,.88));
+      box-shadow: 0 9px 24px rgba(31,144,228,.25), inset 0 1px 0 rgba(255,255,255,.66);
+    }
+    .card-badge,
+    .hero-type { position: absolute; }
+
+    @media (hover: hover) {
+      .round-button,
+      .open-concept,
+      .fab,
+      .resume-button,
+      .chip,
+      .tag-pill { transition: transform .2s ease, filter .2s ease; }
+      .round-button:hover,
+      .open-concept:hover,
+      .chip:hover,
+      .tag-pill:hover { transform: scale(1.035); filter: brightness(1.04); }
+      .fab:hover,
+      .resume-button:hover { transform: scale(1.025); filter: brightness(1.04); }
+      .round-button:active,
+      .open-concept:active,
+      .fab:active,
+      .resume-button:active,
+      .chip:active,
+      .tag-pill:active { transform: scale(.965); }
+    }
+
+    .hidden { display: none !important; }
+    .focus-view[aria-hidden="false"] { display: block; }
+
+    @media (max-width: 980px) {
+      .review-header { align-items: flex-start; flex-direction: column; gap: 14px; }
+      .review-actions { justify-content: flex-start; }
+      .focus-layout { grid-template-columns: 1fr; }
+      .focus-copy { max-width: 620px; }
+      .focus-stage { min-height: calc(var(--phone-h) + 48px); padding: 24px; }
+    }
+    @media (max-width: 620px) {
+      .review-header { position: relative; padding: 16px; }
+      .review-actions { width: 100%; }
+      .control-group { max-width: 100%; overflow-x: auto; }
+      main { padding: 30px 14px 56px; }
+      .overview-grid { grid-template-columns: 1fr; }
+      .focus-stage { padding: 16px 0; margin-inline: -14px; border-radius: 0; overflow: hidden; }
+      .focus-stage .phone { width: min(var(--phone-w), calc(100vw - 28px)); height: auto; aspect-ratio: var(--phone-aspect); margin-inline: auto; }
+      .focus-copy h2 { font-size: 42px; }
+      .device-controls { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+    @media (prefers-reduced-transparency: reduce) {
+      .review-header,
+      .control-group,
+      .round-button,
+      .search-box,
+      .chip,
+      .tag-pill,
+      .fab,
+      .tabbar,
+      .search-tab,
+      .card-badge,
+      .hero-type,
+      .resume-button,
+      .segment {
+        background: var(--surface);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        border-color: var(--separator);
+        box-shadow: 0 2px 8px rgba(0,0,0,.12);
+      }
+      .phone-screen::before,
+      .phone-screen::after { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <svg aria-hidden="true" width="0" height="0" style="position:absolute">
+    <defs>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.09A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.09A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.09A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.12.38.34.72.64.98.3.26.68.4 1.08.4H21v4h-.09A1.7 1.7 0 0 0 19.4 15Z"/></symbol>
+      <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></symbol>
+      <symbol id="i-tag" viewBox="0 0 24 24"><path d="M20 13 13 20 4 11V4h7l9 9Z"/><circle cx="8.5" cy="8.5" r="1.2"/></symbol>
+      <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v5h5M9 12h6M9 16h6"/></symbol>
+      <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10h4v10M10 20V4h4v16M16 20v-7h4v7"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M14 7l5 5-5 5"/></symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24"><path d="m9 3 6 6M7 9l8 8M14 4l6 6-3 2-5 5-2 3-6-6 3-2 5-5 2-3ZM8 16l-5 5"/></symbol>
+      <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.8 4.6a5.4 5.4 0 0 0-7.6 0L12 5.8l-1.2-1.2a5.4 5.4 0 0 0-7.6 7.6L12 21l8.8-8.8a5.4 5.4 0 0 0 0-7.6Z"/></symbol>
+      <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M17.5 19H7a5 5 0 0 1-.5-10 6 6 0 0 1 11.4 1.5A4.3 4.3 0 0 1 17.5 19Z"/><path d="m9 14 2 2 4-4"/></symbol>
+      <symbol id="i-warning" viewBox="0 0 24 24"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5M12 17.5h.01"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7V5Z"/></symbol>
+      <symbol id="i-photo" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="m5 18 5-5 3 3 2-2 4 4"/></symbol>
+      <symbol id="i-wave" viewBox="0 0 24 24"><path d="M4 12v2M8 8v8M12 4v16M16 7v10M20 10v4"/></symbol>
+      <symbol id="i-note" viewBox="0 0 24 24"><path d="M5 3h14v18H5zM8 8h8M8 12h8M8 16h5"/></symbol>
+      <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.2"/></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v12H3z"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.5 15.5A9 9 0 0 1 8.5 3.6 9 9 0 1 0 20.5 15.5Z"/></symbol>
+      <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol>
+      <symbol id="i-expand" viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></symbol>
+      <symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V4h6v3M3 12h18M10 12v2h4v-2"/></symbol>
+      <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4V3Z"/></symbol>
+    </defs>
+  </svg>
+
+  <div class="review-shell">
+    <header class="review-header">
+      <div class="brand">
+        <span class="brand-icon-wrap" aria-hidden="true">
+          <img id="appIcon" class="brand-icon" src="../Findly/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon_Light.png" alt="">
+          <span id="brandFallback" class="brand-fallback">⌕</span>
+        </span>
+        <span class="brand-copy"><strong>Findly Home</strong><span>iOS 26 · Liquid Glass</span></span>
+      </div>
+      <div class="review-actions" aria-label="Mockup review controls">
+        <div class="control-group" aria-label="View mode">
+          <button class="control-btn" data-view="overview" aria-pressed="true">Overview</button>
+          <button class="control-btn" data-view="focus" aria-pressed="false">Focus</button>
+        </div>
+        <div class="control-group concept-controls" aria-label="Choose concept">
+          <button class="control-btn" data-concept="0" aria-pressed="true">01</button>
+          <button class="control-btn" data-concept="1" aria-pressed="false">02</button>
+          <button class="control-btn" data-concept="2" aria-pressed="false">03</button>
+          <button class="control-btn" data-concept="3" aria-pressed="false">04</button>
+          <button class="control-btn" data-concept="4" aria-pressed="false">05</button>
+        </div>
+        <div class="control-group device-controls" aria-label="Device width">
+          <button class="control-btn" data-device="320" aria-pressed="false">320</button>
+          <button class="control-btn" data-device="393" aria-pressed="true">393</button>
+          <button class="control-btn" data-device="430" aria-pressed="false">430</button>
+        </div>
+        <button id="themeToggle" class="control-group icon-control" type="button" aria-label="Switch to dark appearance" aria-pressed="false">
+          <svg class="icon"><use href="#i-moon"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <section id="overviewView">
+        <div class="intro">
+          <div class="eyebrow">iOS 26 · Find &amp; resume</div>
+          <h1>Five Liquid Glass directions for Findly Home.</h1>
+          <p>Every concept separates a rich content layer from floating glass controls and navigation. Query, continuity, time, type, and tags remain the five distinct paths into the vault.</p>
+        </div>
+        <div id="overviewGrid" class="overview-grid"></div>
+      </section>
+
+      <section id="focusView" class="focus-view hidden" aria-hidden="true">
+        <div class="focus-layout">
+          <aside id="focusCopy" class="focus-copy"></aside>
+          <div class="focus-stage"><div id="focusMount"></div></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const icon = (name, label = '') => `<svg class="icon" ${label ? `role="img" aria-label="${label}"` : 'aria-hidden="true"'}><use href="#i-${name}"/></svg>`;
+
+      const fileIcons = {
+        pdf: 'file', document: 'file', image: 'photo', video: 'play', audio: 'wave', note: 'note', link: 'link', archive: 'folder'
+      };
+
+      const fileData = {
+        report: { type: 'pdf', title: 'Q4 Report.pdf', meta: '2 MB · Opened 12 min ago', tags: 'Work', pin: true },
+        roadmap: { type: 'document', title: 'Product Roadmap 2026.key', meta: '8.4 MB · Opened yesterday', tags: 'Product' },
+        itinerary: { type: 'pdf', title: 'Mumbai Weekend Itinerary — Reservations & Notes.pdf', meta: '4.8 MB · Added today', tags: 'Travel' },
+        interview: { type: 'audio', title: 'Client Interview.m4a', meta: '38 min · Opened Monday', tags: 'Work' },
+        photo: { type: 'image', title: 'Autumn Light.heic', meta: '6.1 MB · Added yesterday', tags: 'Personal', favorite: true },
+        references: { type: 'link', title: 'Design References.webloc', meta: 'Link · Opened Friday', tags: 'Design' },
+        launch: { type: 'note', title: 'Launch Checklist', meta: 'Note · Edited 2h ago', tags: 'Product', pin: true },
+        receipts: { type: 'archive', title: 'Tax Receipts 2025.zip', meta: '24 MB · Waiting to sync', tags: 'Finance', warn: true }
+      };
+
+      const statusBar = () => `
+        <div class="dynamic-island" aria-hidden="true"></div>
+        <div class="status-bar" aria-hidden="true">
+          <span>9:41</span>
+          <span class="status-icons"><span class="signal"><i></i><i></i><i></i><i></i></span><span>5G</span><span class="battery"></span></span>
+        </div>`;
+
+      const tabbar = () => `
+        <button class="fab" type="button" aria-label="Add to vault">${icon('plus')}</button>
+        <nav class="tabbar" aria-label="Findly primary tabs">
+          <button class="tab active" type="button" aria-current="page">${icon('home')}<span>Home</span></button>
+          <button class="tab" type="button">${icon('tag')}<span>Tags</span></button>
+          <button class="tab" type="button">${icon('file')}<span>Files</span></button>
+          <button class="tab" type="button">${icon('chart')}<span>Insights</span></button>
+        </nav>
+        <button class="tab search-tab" type="button" aria-label="Search">${icon('search')}<span>Search</span></button>
+        <span class="home-indicator" aria-hidden="true"></span>`;
+
+      const searchBox = (large = false, copy = 'Search titles, descriptions, tags') => `
+        <div class="search-box${large ? ' large' : ''}" role="search" aria-label="${copy}">
+          ${icon('search')}<span>${copy}</span><span class="shortcut">⌘K</span>
+        </div>`;
+
+      const navHead = (title, subtitle = '') => `
+        <header class="nav-head">
+          <div><h1 class="nav-title">${title}</h1>${subtitle ? `<p class="nav-subtitle">${subtitle}</p>` : ''}</div>
+          <button type="button" class="round-button" aria-label="Settings">${icon('settings')}</button>
+        </header>`;
+
+      const fileGlyph = item => `
+        <span class="file-glyph" style="--type-color:var(--${item.type})">
+          ${icon(fileIcons[item.type])}
+          ${item.pin ? `<span class="mini-pin">${icon('pin')}</span>` : ''}
+        </span>`;
+
+      const fileRow = item => `
+        <article class="file-row">
+          ${fileGlyph(item)}
+          <div class="file-copy">
+            <div class="file-title">${item.title}</div>
+            <div class="file-meta"><span>${item.tags}</span><span class="dot"></span><span class="sync-state${item.warn ? ' warn' : ''}">${item.warn ? icon('warning') + ' Pending' : icon('cloud') + item.meta}</span></div>
+          </div>
+          <span class="row-action" aria-hidden="true">${icon('chevron')}</span>
+        </article>`;
+
+      const continueCard = (item, blue = false) => `
+        <article class="continue-card">
+          <div class="card-preview${blue ? ' blue' : ''}">
+            <div class="paper-lines"><i></i><i></i><i></i></div>
+            <span class="card-badge">${icon(fileIcons[item.type])}${item.type.toUpperCase()}</span>
+          </div>
+          <div class="continue-body"><div class="continue-title">${item.title}</div><div class="continue-meta"><span>${item.tags}</span><span class="dot"></span><span>${item.meta.split(' · ').pop()}</span></div></div>
+        </article>`;
+
+      const phone = content => `<div class="phone"><div class="phone-screen">${statusBar()}${content}${tabbar()}</div></div>`;
+
+      const spotlight = () => phone(`
+        <div class="screen-scroll screen-spotlight">
+          <div class="spotlight-intro">
+            <div class="mini-brand">${icon('search')} FINDLY</div>
+            <h1>What are you looking for?</h1>
+            ${searchBox(true, 'Search your vault')}
+          </div>
+          <section class="section content-pad">
+            <div class="section-head"><h2 class="section-title">Recent searches</h2><button class="section-link">Clear</button></div>
+            <div class="recent-searches">
+              <div class="search-history-row">${icon('clock')}<span>quarterly report</span><span class="arrow">${icon('arrow')}</span></div>
+              <div class="search-history-row">${icon('clock')}<span>travel reservations</span><span class="arrow">${icon('arrow')}</span></div>
+            </div>
+          </section>
+          <section class="section">
+            <div class="section-head content-pad"><h2 class="section-title">Continue</h2><button class="section-link">See All</button></div>
+            <div class="h-scroll">${continueCard(fileData.report)}${continueCard(fileData.roadmap, true)}</div>
+          </section>
+          <section class="section content-pad">
+            <div class="section-head"><h2 class="section-title">Browse by type</h2></div>
+            <div class="chip-row">
+              <span class="chip"><i class="chip-dot" style="--chip-color:var(--image)"></i>Photos</span>
+              <span class="chip"><i class="chip-dot" style="--chip-color:var(--document)"></i>Documents</span>
+              <span class="chip"><i class="chip-dot" style="--chip-color:var(--audio)"></i>Audio</span>
+              <span class="chip"><i class="chip-dot" style="--chip-color:var(--link)"></i>Links</span>
+            </div>
+          </section>
+          <section class="section content-pad">
+            <div class="section-head"><h2 class="section-title">Recently added</h2><button class="section-link">See All</button></div>
+            <div class="file-list">${fileRow(fileData.itinerary)}${fileRow(fileData.photo)}${fileRow(fileData.receipts)}</div>
+          </section>
+        </div>`);
+
+      const resume = () => phone(`
+        <div class="screen-scroll screen-resume">
+          ${navHead('Good morning.', 'Ready when you are.')}
+          <div class="content-pad">${searchBox(false, 'Search Findly')}</div>
+          <div class="content-pad">
+            <section class="hero-resume">
+              <div class="hero-preview">
+                <span class="hero-type">${icon('file')} PDF</span>
+                <div class="hero-document"><b>Q4 PERFORMANCE REPORT</b><i></i><i></i><i></i><i></i><i></i></div>
+              </div>
+              <div class="hero-body">
+                <div class="hero-kicker">PICK UP WHERE YOU LEFT OFF</div>
+                <h2 class="hero-title">Q4 Report.pdf</h2>
+                <div class="hero-meta">Page 18 · Opened 12 minutes ago</div>
+                <button class="resume-button" type="button">${icon('play')} Resume reading</button>
+              </div>
+            </section>
+          </div>
+          <section class="section content-pad">
+            <div class="section-head"><h2 class="section-title">Pinned</h2><button class="section-link">Edit</button></div>
+            <div class="pinned-grid">
+              <article class="pin-tile" style="--type-color:var(--note)"><div class="pin-icon">${icon('note')}</div><div class="pin-title">Launch Checklist</div><div class="pin-meta">Edited 2h ago</div></article>
+              <article class="pin-tile" style="--type-color:var(--document)"><div class="pin-icon">${icon('file')}</div><div class="pin-title">Roadmap 2026</div><div class="pin-meta">Yesterday</div></article>
+              <article class="pin-tile" style="--type-color:var(--link)"><div class="pin-icon">${icon('link')}</div><div class="pin-title">References</div><div class="pin-meta">Friday</div></article>
+            </div>
+          </section>
+          <section class="section content-pad">
+            <div class="notice">${icon('warning')}<span><strong>1 item is waiting to sync.</strong><br>Findly will retry when your connection improves.</span></div>
+          </section>
+          <section class="section content-pad">
+            <div class="section-head"><h2 class="section-title">Recently opened</h2><button class="section-link">See All</button></div>
+            <div class="file-list">${fileRow(fileData.interview)}${fileRow(fileData.references)}${fileRow(fileData.photo)}</div>
+          </section>
+        </div>`);
+
+      const timeline = () => phone(`
+        <div class="screen-scroll screen-timeline">
+          ${navHead('Findly')}
+          <div class="content-pad">${searchBox(false, 'Search files and tags')}</div>
+          <div class="section content-pad">
+            <div class="segment" role="group" aria-label="File timeline filter"><span class="selected">Recent</span><span>Pinned</span><span>Favorites</span></div>
+          </div>
+          <section class="timeline-group content-pad">
+            <div class="timeline-date"><span>Today</span><span class="timeline-count">4 items</span></div>
+            <div class="file-list">${fileRow(fileData.report)}${fileRow(fileData.itinerary)}${fileRow(fileData.launch)}${fileRow(fileData.receipts)}</div>
+          </section>
+          <section class="timeline-group content-pad">
+            <div class="timeline-date"><span>Yesterday</span><span class="timeline-count">2 items</span></div>
+            <div class="file-list">${fileRow(fileData.roadmap)}${fileRow(fileData.photo)}</div>
+          </section>
+          <section class="timeline-group content-pad">
+            <div class="timeline-date"><span>Earlier</span><span class="timeline-count">2 items</span></div>
+            <div class="file-list">${fileRow(fileData.interview)}${fileRow(fileData.references)}</div>
+          </section>
+        </div>`);
+
+      const compactCard = item => `<article class="compact-card">${fileGlyph(item)}<div class="compact-card-copy"><div class="compact-card-title">${item.title}</div><div class="compact-card-meta">${item.meta.split(' · ').pop()}</div></div></article>`;
+
+      const collectionCard = (type, title, count, latest, iconName) => `
+        <article class="collection-card" style="--type-color:var(--${type})">
+          <div class="collection-top"><span class="collection-symbol">${icon(iconName)}</span><span class="collection-count">${count}</span></div>
+          <h3 class="collection-title">${title}</h3><div class="collection-latest">${latest}</div>
+          <div class="thumb-stack" aria-hidden="true"><i></i><i></i><i></i></div>
+        </article>`;
+
+      const collections = () => phone(`
+        <div class="screen-scroll screen-collections">
+          ${navHead('Your Library', '142 items · Synced just now')}
+          <div class="content-pad">${searchBox(false, 'Search your library')}</div>
+          <section class="section content-pad">
+            <div class="section-head"><h2 class="section-title">Continue</h2><button class="section-link">See All</button></div>
+            <div class="compact-continue">${compactCard(fileData.report)}${compactCard(fileData.interview)}</div>
+          </section>
+          <section class="section content-pad">
+            <div class="section-head"><h2 class="section-title">Smart Collections</h2><button class="section-link">Edit</button></div>
+            <div class="collection-grid">
+              ${collectionCard('image', 'Photos', '38 items', 'Autumn Light.heic', 'photo')}
+              ${collectionCard('document', 'Documents', '46 items', 'Product Roadmap…', 'file')}
+              ${collectionCard('audio', 'Audio', '12 items', 'Client Interview.m4a', 'wave')}
+              ${collectionCard('link', 'Links', '21 items', 'Design References…', 'link')}
+              ${collectionCard('note', 'Notes', '17 items', 'Launch Checklist', 'note')}
+              ${collectionCard('archive', 'Archives', '8 items', 'Tax Receipts 2025.zip', 'folder')}
+            </div>
+          </section>
+        </div>`);
+
+      const tagPill = (name, count, color, iconName = 'tag') => `<span class="tag-pill" style="--tag-color:${color}">${icon(iconName)}<span>${name}</span><small>${count}</small></span>`;
+      const tagParent = (name, count, color, iconName, subs) => `
+        <article class="tag-parent" style="--tag-color:${color}">
+          <span class="tag-parent-icon">${icon(iconName)}</span>
+          <div class="tag-parent-copy"><div class="tag-parent-name">${name}</div><div class="subtags">${subs.map(s => `<span class="subtag">${s}</span>`).join('')}</div></div>
+          <span class="tag-count">${count} files</span><span class="row-action">${icon('chevron')}</span>
+        </article>`;
+
+      const tags = () => phone(`
+        <div class="screen-scroll screen-tags">
+          ${navHead('Findly')}
+          <div class="content-pad">${searchBox(false, 'Search by title, tag, or detail')}</div>
+          <section class="section content-pad">
+            <div class="section-head"><h2 class="section-title">Continue</h2></div>
+            <div class="compact-continue">${compactCard(fileData.report)}${compactCard(fileData.roadmap)}</div>
+          </section>
+          <section class="section content-pad">
+            <div class="section-head"><h2 class="section-title">Recent Tags</h2><button class="section-link">All Tags</button></div>
+            <div class="tag-strip">
+              ${tagPill('Work', 31, '#3498db', 'briefcase')}${tagPill('Travel', 12, '#1abc9c')}${tagPill('Design', 18, '#9b59b6')}${tagPill('Saved', 9, '#f39c12', 'bookmark')}
+            </div>
+          </section>
+          <section class="section content-pad">
+            <div class="section-head"><h2 class="section-title">Explore your vault</h2></div>
+            <div class="tag-workspace">
+              ${tagParent('Work', 31, '#3498db', 'briefcase', ['Reports', 'Clients', 'Research'])}
+              ${tagParent('Personal', 28, '#ff6b6b', 'heart', ['Travel', 'Photos', 'Finance'])}
+              ${tagParent('Ideas', 16, '#9b59b6', 'bookmark', ['Design', 'Reading'])}
+            </div>
+          </section>
+          <section class="section content-pad">
+            <div class="selected-tag-head"><span class="chip active">${icon('briefcase')} Work</span><span>31 files</span></div>
+            <div class="file-list">${fileRow(fileData.report)}${fileRow(fileData.interview)}${fileRow(fileData.roadmap)}</div>
+          </section>
+        </div>`);
+
+      const concepts = [
+        {
+          name: 'Spotlight', short: 'Query-first retrieval', render: spotlight,
+          lede: 'Makes search the unmistakable starting point, then keeps recent intent and continuation within one thumb-length.',
+          strength: 'Fastest route when a person remembers a title, tag, or phrase.',
+          tradeoff: 'Less immediate overview of the whole vault.',
+          fit: 'Low–medium effort. Reorders existing Home data and reuses the current search service, filters, and item cards.'
+        },
+        {
+          name: 'Resume', short: 'Continuity-first home', render: resume,
+          lede: 'Treats the last meaningful file as the hero and turns Home into a calm place to continue ongoing work.',
+          strength: 'Excellent for repeated documents, projects, and listening sessions.',
+          tradeoff: 'The hero consumes space when no strong continuation exists.',
+          fit: 'Medium effort. Uses existing last-opened metadata; richer previews would benefit from persisted reading or playback position.'
+        },
+        {
+          name: 'Timeline', short: 'Time-based memory', render: timeline,
+          lede: 'Replaces competing shelves with a compact chronological stream and a familiar native segmented filter.',
+          strength: 'High information density with predictable vertical scanning.',
+          tradeoff: 'Less visual distinction between important and routine files.',
+          fit: 'Low effort. Closely matches current queries and row components, with grouping added in the view model.'
+        },
+        {
+          name: 'Smart Collections', short: 'Type-based retrieval', render: collections,
+          lede: 'Turns file types into stable destinations while preserving recent continuity and an always-visible search entry point.',
+          strength: 'Makes a large, mixed vault feel understandable at a glance.',
+          tradeoff: 'A category tap adds one step for people seeking a specific recent file.',
+          fit: 'Medium effort. Builds on FileType and existing counts; collection previews need lightweight aggregation.'
+        },
+        {
+          name: 'Tag Lens', short: 'Knowledge-led retrieval', render: tags,
+          lede: 'Connects search, recent tags, hierarchy, and matching files without turning Home into a graph visualization.',
+          strength: 'Best expression of Findly’s nested tagging and knowledge-vault advantage.',
+          tradeoff: 'Relies on users maintaining useful tags.',
+          fit: 'Medium effort. Reuses the tag hierarchy and search filters; the Home query should cap and cache tag summaries.'
+        }
+      ];
+
+      const overviewGrid = document.querySelector('#overviewGrid');
+      const focusMount = document.querySelector('#focusMount');
+      const focusCopy = document.querySelector('#focusCopy');
+      const overviewView = document.querySelector('#overviewView');
+      const focusView = document.querySelector('#focusView');
+      const themeToggle = document.querySelector('#themeToggle');
+      const state = { view: 'overview', concept: 0, device: 393, theme: 'light' };
+
+      function buildOverview() {
+        overviewGrid.innerHTML = concepts.map((concept, index) => `
+          <article class="concept-card">
+            <div class="concept-card-head">
+              <div><div class="concept-number">0${index + 1} · ${concept.short}</div><h2>${concept.name}</h2><p>${concept.lede}</p></div>
+              <button class="open-concept" type="button" data-open-concept="${index}" aria-label="Open ${concept.name} in focus view">${icon('expand')}</button>
+            </div>
+            <div class="mini-stage">${concept.render()}</div>
+            <div class="concept-notes">
+              <div class="note-row"><span class="note-label">Strength</span><span>${concept.strength}</span></div>
+              <div class="note-row"><span class="note-label">Tradeoff</span><span>${concept.tradeoff}</span></div>
+            </div>
+          </article>`).join('');
+      }
+
+      function renderFocus() {
+        const concept = concepts[state.concept];
+        focusMount.innerHTML = concept.render();
+        focusCopy.innerHTML = `
+          <div class="focus-count">0${state.concept + 1} of 05 · ${concept.short}</div>
+          <h2>${concept.name}</h2>
+          <p class="focus-lede">${concept.lede}</p>
+          <ul class="decision-list">
+            <li><strong>Why it works</strong><span>${concept.strength}</span></li>
+            <li><strong>What to watch</strong><span>${concept.tradeoff}</span></li>
+          </ul>
+          <div class="fit"><strong>Implementation fit</strong><br>${concept.fit}</div>
+          <div class="edge-title">Supporting states</div>
+          <div class="edge-grid" aria-label="Shared empty and sync states">
+            <article class="edge-state"><span class="edge-symbol">${icon('plus')}</span><strong>Empty vault</strong><span>Guide the first add with one clear action.</span></article>
+            <article class="edge-state warning"><span class="edge-symbol">${icon('warning')}</span><strong>Sync delayed</strong><span>Keep files available and explain automatic retry.</span></article>
+          </div>`;
+        document.querySelectorAll('[data-concept]').forEach(btn => btn.setAttribute('aria-pressed', String(Number(btn.dataset.concept) === state.concept)));
+      }
+
+      function setView(view) {
+        state.view = view;
+        const focused = view === 'focus';
+        overviewView.classList.toggle('hidden', focused);
+        focusView.classList.toggle('hidden', !focused);
+        focusView.setAttribute('aria-hidden', String(!focused));
+        document.querySelectorAll('[data-view]').forEach(btn => btn.setAttribute('aria-pressed', String(btn.dataset.view === view)));
+        if (focused) renderFocus();
+      }
+
+      function setDevice(width) {
+        state.device = width;
+        const heights = { 320: 693, 393: 820, 430: 852 };
+        document.documentElement.style.setProperty('--phone-w', `${width}px`);
+        document.documentElement.style.setProperty('--phone-h', `${heights[width]}px`);
+        document.documentElement.style.setProperty('--phone-aspect', `${width} / ${heights[width]}`);
+        document.querySelectorAll('[data-device]').forEach(btn => btn.setAttribute('aria-pressed', String(Number(btn.dataset.device) === width)));
+      }
+
+      function setTheme(theme) {
+        state.theme = theme;
+        document.documentElement.dataset.theme = theme;
+        const dark = theme === 'dark';
+        themeToggle.setAttribute('aria-pressed', String(dark));
+        themeToggle.setAttribute('aria-label', dark ? 'Switch to light appearance' : 'Switch to dark appearance');
+        themeToggle.innerHTML = icon(dark ? 'sun' : 'moon');
+        const appIcon = document.querySelector('#appIcon');
+        appIcon.src = dark ? '../Findly/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon_Dark.png' : '../Findly/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon_Light.png';
+      }
+
+      document.addEventListener('click', event => {
+        const viewButton = event.target.closest('[data-view]');
+        if (viewButton) setView(viewButton.dataset.view);
+
+        const conceptButton = event.target.closest('[data-concept]');
+        if (conceptButton) { state.concept = Number(conceptButton.dataset.concept); setView('focus'); }
+
+        const openButton = event.target.closest('[data-open-concept]');
+        if (openButton) { state.concept = Number(openButton.dataset.openConcept); setView('focus'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+
+        const deviceButton = event.target.closest('[data-device]');
+        if (deviceButton) setDevice(Number(deviceButton.dataset.device));
+      });
+
+      themeToggle.addEventListener('click', () => setTheme(state.theme === 'light' ? 'dark' : 'light'));
+      document.querySelector('#appIcon').addEventListener('error', event => {
+        event.currentTarget.style.display = 'none';
+        document.querySelector('#brandFallback').style.display = 'grid';
+      });
+
+      buildOverview();
+      renderFocus();
+      setDevice(393);
+    })();
+  </script>
+</body>
+</html>

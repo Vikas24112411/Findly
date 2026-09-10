@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Findly Home — Native Redesigns (4 directions)</title>
+<style>
+:root{
+  color-scheme:light;
+  --accent:#1F90E4; --accent-strong:#0F7ACB;
+  --canvas:#F2F2F7; --card:#FFFFFF; --card2:#FFFFFF;
+  --label:#000000; --sec:#6E6E73; --tert:#AEAEB2;
+  --hair:rgba(60,60,67,.18); --fill:#E5E5EA; --search:#E3E3E8;
+  --tabbar:rgba(249,249,249,.94);
+  --pdf:#E74C3C; --doc:#3498DB; --img:#FF6B6B; --vid:#4ECDC4;
+  --aud:#45B7D1; --note:#F39C12; --link:#9B59B6; --arc:#1ABC9C;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Helvetica Neue",sans-serif;
+}
+html[data-theme="dark"]{
+  color-scheme:dark;
+  --canvas:#000000; --card:#1C1C1E; --card2:#1C1C1E;
+  --label:#FFFFFF; --sec:#98989F; --tert:#636366;
+  --hair:rgba(255,255,255,.14); --fill:#2C2C2E; --search:#2C2C2E;
+  --tabbar:rgba(28,28,30,.94);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--canvas);color:var(--label);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit}
+.top{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:14px clamp(16px,4vw,56px);border-bottom:1px solid var(--hair);
+  background:color-mix(in srgb,var(--canvas) 82%,transparent);
+  backdrop-filter:blur(20px) saturate(160%);-webkit-backdrop-filter:blur(20px) saturate(160%)}
+.brand{display:flex;align-items:center;gap:12px}
+.mdot{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:#fff;font-weight:800;font-size:19px;
+  background:linear-gradient(145deg,#1F90E4,#7AB8F5)}
+.brand strong{display:block;font-size:15px;letter-spacing:-.01em}
+.brand span{display:block;font-size:12px;color:var(--sec)}
+.controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.pill{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:20px;
+  border:1px solid var(--hair);background:var(--card);font-size:13px;font-weight:600;cursor:pointer}
+.pill[aria-pressed="true"]{background:var(--label);color:var(--canvas);border-color:var(--label)}
+main{padding:34px clamp(16px,4vw,60px) 90px;max-width:1440px;margin:0 auto}
+.eyebrow{color:var(--accent-strong);font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+h1.hero{margin:8px 0 10px;font-size:clamp(30px,4vw,50px);letter-spacing:-.04em;line-height:1.03}
+.lede{margin:0;max-width:760px;color:var(--sec);font-size:16px;line-height:1.55}
+.analysis{margin-top:26px;display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px}
+.acard{background:var(--card);border:1px solid var(--hair);border-radius:18px;padding:18px}
+.acard h3{margin:0 0 8px;font-size:15px}
+.acard p,.acard li{font-size:13px;line-height:1.5;color:var(--sec)}
+.acard strong{color:var(--label)}
+.acard ul{margin:8px 0 0;padding-left:18px}
+table.cmp{width:100%;border-collapse:collapse;margin-top:16px;background:var(--card);border:1px solid var(--hair);border-radius:16px;overflow:hidden;font-size:13px}
+table.cmp th,table.cmp td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--hair);vertical-align:top}
+table.cmp th{background:color-mix(in srgb,var(--fill) 45%,var(--card));font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--sec)}
+table.cmp tr:last-child td{border-bottom:0}
+.badge{display:inline-block;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:700;
+  background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent-strong)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:26px;margin-top:28px;align-items:start}
+.concept{background:var(--card);border:1px solid var(--hair);border-radius:22px;overflow:hidden}
+.chead{padding:20px 20px 14px;border-bottom:1px solid var(--hair)}
+.cnum{font-size:12px;font-weight:800;letter-spacing:.06em;color:var(--accent-strong)}
+.chead h2{margin:4px 0 6px;font-size:23px;letter-spacing:-.02em}
+.chead p{margin:0;font-size:13px;line-height:1.5;color:var(--sec)}
+.cmeta{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.tagchip{font-size:11px;font-weight:700;padding:5px 10px;border-radius:20px;background:var(--fill);color:var(--sec)}
+.stage{padding:22px;background:color-mix(in srgb,var(--fill) 40%,var(--canvas));display:grid;place-items:center}
+.cfoot{padding:16px 20px 20px;border-top:1px solid var(--hair);font-size:13px;color:var(--sec);line-height:1.5}
+.cfoot strong{color:var(--label)}
+.cfoot code{font-size:12px}
+/* ---- iPhone ---- */
+.phone{position:relative;width:393px;max-width:100%;height:852px;overflow:hidden;background:var(--canvas);
+  border:11px solid #101013;border-radius:54px;box-shadow:0 24px 70px rgba(0,0,0,.22)}
+html[data-theme="dark"] .phone{border-color:#000}
+.island{position:absolute;top:12px;left:50%;transform:translateX(-50%);width:112px;height:30px;border-radius:18px;background:#000;z-index:30}
+.sbar{position:absolute;top:0;left:0;right:0;height:52px;z-index:29;display:flex;align-items:center;justify-content:space-between;
+  padding:6px 28px 0;font-size:13px;font-weight:700;background:color-mix(in srgb,var(--canvas) 88%,transparent);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.scr{position:absolute;inset:0;overflow-y:auto;scrollbar-width:none;padding:56px 0 120px}
+.scr::-webkit-scrollbar{display:none}
+.nhead{padding:10px 20px 6px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.nhead .kick{font-size:12px;font-weight:700;color:var(--sec);letter-spacing:.02em}
+.nhead h2{margin:2px 0 0;font-size:34px;line-height:1.05;letter-spacing:-.03em;font-weight:800}
+.nhead .sub{margin:5px 0 0;font-size:13px;color:var(--sec)}
+.gear{width:38px;height:38px;border-radius:50%;border:0;background:var(--fill);display:grid;place-items:center;font-size:17px;flex:0 0 auto}
+.sfield{margin:10px 20px 0;height:40px;border-radius:12px;background:var(--search);display:flex;align-items:center;gap:8px;
+  padding:0 12px;color:var(--sec);font-size:15px}
+.sfield.big{min-height:52px;border-radius:14px;background:var(--card);border:1px solid var(--hair);
+  box-shadow:0 6px 18px rgba(0,0,0,.06);color:var(--sec);font-size:15px}
+.sec{margin-top:24px}
+.sech{display:flex;align-items:baseline;justify-content:space-between;padding:0 20px;margin-bottom:10px}
+.sech h3{margin:0;font-size:20px;letter-spacing:-.02em;font-weight:700}
+.sech button{border:0;background:none;color:var(--accent);font-size:14px;font-weight:500;min-height:32px}
+.inset{margin:0 16px;background:var(--card);border-radius:14px;overflow:hidden;border:.5px solid var(--hair)}
+.row{min-height:64px;display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:.5px solid var(--hair);text-align:left;width:100%;background:none;border-left:0;border-right:0;border-top:0}
+.row:last-child{border-bottom:0}
+.glyph{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;font-size:19px;flex:0 0 auto;
+  color:var(--tc);background:color-mix(in srgb,var(--tc) 14%,var(--card))}
+.rt{flex:1;min-width:0}
+.rt b{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rt span{display:block;margin-top:3px;font-size:12px;color:var(--sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chev{color:var(--tert);font-size:15px}
+.hero-card{margin:12px 16px 0;background:var(--card);border:.5px solid var(--hair);border-radius:18px;overflow:hidden}
+.hero-art{height:130px;background:linear-gradient(140deg,#D8EDF9,#F5FBFF 55%,#E9EDF8);position:relative}
+html[data-theme="dark"] .hero-art{background:linear-gradient(140deg,#173248,#20282F 60%,#252837)}
+.doc{position:absolute;left:50%;top:22px;transform:translateX(-50%) rotate(-3deg);width:120px;height:140px;background:#fff;border-radius:8px;
+  box-shadow:0 12px 28px rgba(0,0,0,.18);padding:14px 12px}
+.doc b{display:block;font-size:8px;color:#263B50;margin-bottom:10px}
+.doc i{display:block;height:4px;border-radius:4px;background:#D5DBE0;margin-bottom:6px}
+.hero-body{padding:16px}
+.kick2{font-size:11px;font-weight:800;letter-spacing:.07em;color:var(--sec)}
+.hero-body h4{margin:5px 0 4px;font-size:19px;letter-spacing:-.01em}
+.hero-body p{margin:0;font-size:12px;color:var(--sec)}
+.cta{margin-top:14px;min-height:48px;width:100%;border:0;border-radius:12px;background:var(--accent);color:#fff;font-size:15px;font-weight:700}
+.pin3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:0 16px}
+.pintile{background:var(--card);border:.5px solid var(--hair);border-radius:14px;padding:12px;min-width:0}
+.pintile .glyph{width:34px;height:34px;font-size:16px;border-radius:10px}
+.pintile b{display:block;margin-top:10px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pintile span{display:block;margin-top:2px;font-size:11px;color:var(--sec)}
+.notice{margin:0 16px;min-height:52px;display:flex;gap:10px;align-items:flex-start;padding:12px;border-radius:14px;font-size:12px;line-height:1.4;
+  background:color-mix(in srgb,#F39C12 10%,var(--card));border:.5px solid color-mix(in srgb,#F39C12 35%,transparent);color:var(--sec)}
+.hchips{display:flex;gap:8px;overflow-x:auto;padding:2px 16px 4px;scrollbar-width:none}
+.hchips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;min-height:38px;display:inline-flex;align-items:center;gap:7px;padding:0 13px;border-radius:20px;
+  background:var(--card);border:.5px solid var(--hair);font-size:13px;font-weight:600}
+.chip.on{background:var(--label);color:var(--canvas);border-color:var(--label)}
+.dot{width:8px;height:8px;border-radius:3px;background:var(--tc,var(--accent))}
+.typegrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:0 16px}
+.tcell{background:var(--card);border:.5px solid var(--hair);border-radius:14px;padding:12px 6px;text-align:center}
+.tcell .glyph{width:36px;height:36px;margin:0 auto;font-size:17px}
+.tcell b{display:block;margin-top:8px;font-size:12px}
+.tcell span{display:block;font-size:11px;color:var(--sec)}
+.sumcard{margin:0 16px;background:var(--card);border:.5px solid var(--hair);border-radius:16px;padding:14px 6px;display:grid;grid-template-columns:repeat(4,1fr)}
+.stat{text-align:center;padding:4px}
+.stat .ic{width:30px;height:30px;margin:0 auto;border-radius:9px;display:grid;place-items:center;font-size:14px;color:var(--tc);background:color-mix(in srgb,var(--tc) 13%,var(--card))}
+.stat b{display:block;margin-top:7px;font-size:14px}
+.stat span{display:block;font-size:10px;color:var(--sec);margin-top:2px}
+.colgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px}
+.colcard{background:var(--card);border:.5px solid var(--hair);border-radius:16px;padding:13px;min-height:128px}
+.colcard .top{display:flex;align-items:center;justify-content:space-between}
+.colcard .sym{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:17px;color:var(--tc);background:color-mix(in srgb,var(--tc) 13%,var(--card))}
+.colcard h4{margin:10px 0 2px;font-size:14px}
+.colcard p{margin:0;font-size:11px;color:var(--sec);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stack{display:flex;margin-top:10px}
+.stack i{width:38px;height:26px;border-radius:6px;border:2px solid var(--card);margin-left:-10px;background:color-mix(in srgb,var(--tc) 22%,var(--fill))}
+.stack i:first-child{margin-left:0}
+.seg{margin:14px 16px 0;padding:2px;background:var(--fill);border-radius:10px;display:grid;grid-template-columns:1fr 1fr 1fr}
+.seg span{min-height:32px;display:grid;place-items:center;font-size:13px;font-weight:600;color:var(--sec);border-radius:8px}
+.seg .s{background:var(--card);color:var(--label);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.dhead{padding:18px 20px 6px;font-size:12px;font-weight:700;color:var(--sec);letter-spacing:.04em;display:flex;justify-content:space-between}
+/* identical native tab bar on every concept */
+.tabbar{position:absolute;left:0;right:0;bottom:0;height:86px;z-index:28;display:grid;grid-template-columns:repeat(5,1fr);
+  padding:8px 4px 22px;background:var(--tabbar);border-top:.5px solid var(--hair);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.tab{border:0;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  font-size:10px;color:var(--tert);min-height:52px}
+.tab i{font-style:normal;font-size:22px;line-height:1}
+.tab.on{color:var(--accent-strong);font-weight:600}
+.fab{position:absolute;right:16px;bottom:102px;z-index:29;width:56px;height:56px;border-radius:50%;border:0;
+  background:var(--accent);color:#fff;font-size:26px;font-weight:400;display:grid;place-items:center;
+  box-shadow:0 8px 20px rgba(31,144,228,.4)}
+.homebar{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:120px;height:5px;border-radius:4px;background:var(--label);opacity:.85;z-index:30}
+.empty{margin:30px 40px;text-align:center;color:var(--sec);font-size:13px}
+@media(max-width:480px){.phone{width:100%;height:auto;aspect-ratio:393/852}.scr{padding-bottom:130px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="mdot">F</span><div><strong>Findly Home — native redesigns</strong><span>4 directions · same Tab Bar + FAB everywhere</span></div></div>
+  <div class="controls">
+    <button class="pill" id="themeBtn" aria-pressed="false">🌙 Dark</button>
+    <a class="pill" href="#c1" style="text-decoration:none">01 Continue</a>
+    <a class="pill" href="#c2" style="text-decoration:none">02 Find</a>
+    <a class="pill" href="#c3" style="text-decoration:none">03 Library</a>
+    <a class="pill" href="#c4" style="text-decoration:none">04 Timeline</a>
+  </div>
+</header>
+<main>
+  <div class="eyebrow">Home screen audit → redesign</div>
+  <h1 class="hero">Stop scrolling shelves.<br>Start continuing, finding, tidying.</h1>
+  <p class="lede">Findly's core jobs are <b>capture → re-find → resume → organise → check health</b>.
+  The current Home shows <b>Recently Added / Recent / Most Used / Pinned / Favorites</b> as five identical horizontal shelves,
+  pushes type + tag filters to the bottom, and has <b>no search entry</b> (search lives in another tab).
+  Each concept below fixes that with <b>native iOS patterns only</b> — large title, search field, inset grouped lists,
+  segmented control, grids — and keeps the <b>exact same bottom Tab Bar</b> (Home · Tags · Files · Insights · Search) plus the blue <b>+ FAB</b>.</p>
+
+  <div class="analysis">
+    <div class="acard"><h3>🔍 What's wrong today <span class="badge">HomeView.swift</span></h3>
+      <ul><li>5 shelves, same <strong>ItemCardView grid</strong> — nothing looks more important.</li>
+      <li><strong>Recently Added vs Recent</strong> (added vs opened) is confusing.</li>
+      <li>Type chips + tag pills at the <strong>bottom</strong>, far from Search tab logic.</li>
+      <li><strong>No resume</strong> of last file, no sync/storage signal, weak empty state.</li></ul></div>
+    <div class="acard"><h3>🧭 Principles used</h3>
+      <ul><li><strong>Native first:</strong> <code>NavigationStack</code>, <code>.searchable</code>, inset grouped <code>List</code>, <code>Picker(.segmented)</code>.</li>
+      <li><strong>One primary job per screen</strong> — hero element answers "why am I here?".</li>
+      <li><strong>Tab Bar never changes</strong> — Home earns its place, doesn't duplicate Files/Search/Insights.</li>
+      <li><strong>Reuse, don't rebuild:</strong> same ViewModel queries + <code>ItemCardView(.row)</code>.</li></ul></div>
+    <div class="acard"><h3>⭐ Recommendation</h3>
+      <p><strong>Ship 01 Continue First.</strong> It has the fastest path to the #1 job (resume last file),
+      keeps Pinned + Recent in native rows, and surfaces sync issues inline. Add <strong>04 Timeline's segmented filter</strong>
+      as a phase-2 iteration. Use <strong>02</strong> only if vault &gt; 500 items / search dominates.</p></div>
+  </div>
+
+  <table class="cmp" aria-label="Concept comparison">
+    <tr><th>Concept</th><th>Primary job</th><th>Hero</th><th>Best for</th><th>Effort</th></tr>
+    <tr><td><strong>01 Continue First</strong> ⭐</td><td>Resume last work</td><td>Resume card + Pinned + Recent list</td><td>Daily active, repeat docs/audio</td><td>Low — reuses lastOpenedAt, row cards</td></tr>
+    <tr><td><strong>02 Find First</strong></td><td>Retrieve anything</td><td>Big search + type grid + tags</td><td>Large vaults, search-heavy</td><td>Low — reuses SearchService + filters</td></tr>
+    <tr><td><strong>03 Library Health</strong></td><td>Overview + tidy</td><td>Stats + collections + Needs Attention</td><td>Organisers, storage anxiety</td><td>Med — aggregates counts</td></tr>
+    <tr><td><strong>04 Timeline Today</strong></td><td>Time-based recall</td><td>Segmented + Today/Yesterday groups</td><td>High capture rate, simple IA</td><td>Lowest — one list, grouped dates</td></tr>
+  </table>
+
+<div class="grid">
+<!-- ============ C1 ============ -->
+<article class="concept" id="c1">
+  <div class="chead"><div class="cnum">01 · CONTINUITY-FIRST ⭐ RECOMMENDED</div><h2>Continue First</h2>
+  <p>Good-evening greeting, one-tap <b>Resume</b> hero, Pinned grid, native Recent list, inline sync notice. Fewest taps to get back to work.</p>
+  <div class="cmeta"><span class="tagchip">Native large title</span><span class="tagchip">Inset list rows</span><span class="tagchip">Low effort</span></div></div>
+  <div class="stage"><div class="phone"><div class="island"></div>
+    <div class="sbar"><span>9:41</span><span>5G ▂▄ ▮</span></div>
+    <div class="scr">
+      <div class="nhead"><div><div class="kick">TUESDAY 9 SEPTEMBER</div><h2>Good evening.</h2><div class="sub">Ready when you are.</div></div><button class="gear">⚙</button></div>
+      <div class="sfield">🔍&nbsp; Search titles, tags, descriptions</div>
+      <div class="hero-card"><div class="hero-art"><div class="doc"><b>Q4 PERFORMANCE</b><i></i><i style="width:70%"></i><i style="width:85%"></i><i style="width:60%"></i></div></div>
+        <div class="hero-body"><div class="kick2">PICK UP WHERE YOU LEFT OFF</div><h4>Q4 Report.pdf</h4><p>Page 18 · Opened 12 min ago · Work</p>
+        <button class="cta">▶&nbsp; Resume reading</button></div></div>
+      <div class="sec"><div class="sech"><h3>Pinned</h3><button>Edit</button></div>
+        <div class="pin3">
+          <div class="pintile"><span class="glyph" style="--tc:var(--note)">📝</span><b>Launch Checklist</b><span>Edited 2h ago</span></div>
+          <div class="pintile"><span class="glyph" style="--tc:var(--doc)">📄</span><b>Roadmap 2026</b><span>Yesterday</span></div>
+          <div class="pintile"><span class="glyph" style="--tc:var(--link)">🔗</span><b>References</b><span>Friday</span></div>
+        </div></div>
+      <div class="sec"><div class="notice">⚠️<span><b>1 item waiting to sync.</b><br>Kept on this device — retry is automatic.</span></div></div>
+      <div class="sec"><div class="sech"><h3>Recently opened</h3><button>See All</button></div>
+        <div class="inset">
+          <button class="row"><span class="glyph" style="--tc:var(--aud)">🎙</span><span class="rt"><b>Client Interview.m4a</b><span>Work · 38 min · Monday</span></span><span class="chev">›</span></button>
+          <button class="row"><span class="glyph" style="--tc:var(--link)">🔗</span><span class="rt"><b>Design References.webloc</b><span>Design · Friday</span></span><span class="chev">›</span></button>
+          <button class="row"><span class="glyph" style="--tc:var(--img)">🖼</span><span class="rt"><b>Autumn Light.heic</b><span>Personal · Yesterday</span></span><span class="chev">›</span></button>
+        </div></div>
+    </div>
+    <button class="fab">+</button>
+    <nav class="tabbar"><button class="tab on"><i>⌂</i>Home</button><button class="tab"><i>🏷</i>Tags</button><button class="tab"><i>🗎</i>Files</button><button class="tab"><i>📊</i>Insights</button><button class="tab"><i>🔍</i>Search</button></nav>
+    <div class="homebar"></div>
+  </div></div>
+  <div class="cfoot"><strong>Why easier:</strong> resume is 1 tap; Pinned vs Recent visually distinct (tiles vs rows); sync explained, not hidden.<br>
+  <strong>SwiftUI:</strong> <code>lastOpenedAt</code> hero + <code>ItemCardView(.row)</code> list + existing <code>HomeViewModel.pinnedItems/recentItems</code>. Search field deep-links to Search tab (<code>pendingSearchConfig</code>). Empty vault → hero becomes “Add your first file”.</div>
+</article>
+
+<!-- ============ C2 ============ -->
+<article class="concept" id="c2">
+  <div class="chead"><div class="cnum">02 · QUERY-FIRST</div><h2>Find First</h2>
+  <p>Search is the hero. Recent queries, <b>type grid with counts</b>, top tags, then recently added rows. Mirrors Files/Spotlight mental model.</p>
+  <div class="cmeta"><span class="tagchip">Native search field</span><span class="tagchip">Icon grid</span><span class="tagchip">Low effort</span></div></div>
+  <div class="stage"><div class="phone"><div class="island"></div>
+    <div class="sbar"><span>9:41</span><span>5G ▂▄ ▮</span></div>
+    <div class="scr">
+      <div class="nhead"><div><h2>Findly</h2><div class="sub">What are you looking for?</div></div><button class="gear">⚙</button></div>
+      <div class="sfield big">🔍&nbsp; Search your vault &nbsp;<span style="margin-left:auto;font-size:11px;border:1px solid var(--hair);border-radius:6px;padding:2px 6px">⌘K</span></div>
+      <div class="sec"><div class="sech"><h3>Recent searches</h3><button>Clear</button></div>
+        <div class="inset">
+          <button class="row" style="min-height:52px"><span style="color:var(--sec)">🕘</span><span class="rt"><b style="font-weight:500">quarterly report</b></span><span class="chev">↗</span></button>
+          <button class="row" style="min-height:52px"><span style="color:var(--sec)">🕘</span><span class="rt"><b style="font-weight:500">travel reservations</b></span><span class="chev">↗</span></button>
+        </div></div>
+      <div class="sec"><div class="sech"><h3>Browse by type</h3><button>See All</button></div>
+        <div class="typegrid">
+          <div class="tcell"><span class="glyph" style="--tc:var(--img)">🖼</span><b>Images</b><span>38</span></div>
+          <div class="tcell"><span class="glyph" style="--tc:var(--doc)">📄</span><b>Docs</b><span>46</span></div>
+          <div class="tcell"><span class="glyph" style="--tc:var(--aud)">🎙</span><b>Audio</b><span>12</span></div>
+          <div class="tcell"><span class="glyph" style="--tc:var(--pdf)">📕</span><b>PDFs</b><span>24</span></div>
+          <div class="tcell"><span class="glyph" style="--tc:var(--note)">📝</span><b>Notes</b><span>17</span></div>
+          <div class="tcell"><span class="glyph" style="--tc:var(--link)">🔗</span><b>Links</b><span>21</span></div>
+          <div class="tcell"><span class="glyph" style="--tc:var(--vid)">🎬</span><b>Video</b><span>9</span></div>
+          <div class="tcell"><span class="glyph" style="--tc:var(--arc)">🗜</span><b>Archives</b><span>8</span></div>
+        </div></div>
+      <div class="sec"><div class="sech"><h3>Top tags</h3><button>All Tags</button></div>
+        <div class="hchips"><span class="chip"><span class="dot" style="--tc:var(--doc)"></span>Work · 31</span><span class="chip"><span class="dot" style="--tc:var(--arc)"></span>Travel · 12</span><span class="chip"><span class="dot" style="--tc:var(--link)"></span>Design · 18</span><span class="chip"><span class="dot" style="--tc:var(--note)"></span>Finance · 7</span></div></div>
+      <div class="sec"><div class="sech"><h3>Recently added</h3><button>See All</button></div>
+        <div class="inset">
+          <button class="row"><span class="glyph" style="--tc:var(--pdf)">📕</span><span class="rt"><b>Mumbai Itinerary.pdf</b><span>Travel · Added today</span></span><span class="chev">›</span></button>
+          <button class="row"><span class="glyph" style="--tc:var(--img)">🖼</span><span class="rt"><b>Autumn Light.heic</b><span>Personal · Yesterday</span></span><span class="chev">›</span></button>
+        </div></div>
+    </div>
+    <button class="fab">+</button>
+    <nav class="tabbar"><button class="tab on"><i>⌂</i>Home</button><button class="tab"><i>🏷</i>Tags</button><button class="tab"><i>🗎</i>Files</button><button class="tab"><i>📊</i>Insights</button><button class="tab"><i>🔍</i>Search</button></nav>
+    <div class="homebar"></div>
+  </div></div>
+  <div class="cfoot"><strong>Why easier:</strong> type → tap filters Search (today that needs 2 tabs); recent queries save retyping; counts set expectations.<br>
+  <strong>SwiftUI:</strong> sticky <code>.searchable</code> proxy + <code>SearchHistoryEntry</code> rows + <code>FileType.allCases</code> grid → <code>onSearch([type],nil)</code>. No new queries.</div>
+</article>
+
+<!-- ============ C3 ============ -->
+<article class="concept" id="c3">
+  <div class="chead"><div class="cnum">03 · OVERVIEW + HYGIENE</div><h2>Library Health</h2>
+  <p>Vault-at-a-glance <b>stats</b>, stable <b>collections by type</b>, and a <b>Needs Attention</b> list. Home becomes the calm dashboard; Files/Search stay for depth.</p>
+  <div class="cmeta"><span class="tagchip">Dashboard card</span><span class="tagchip">Collections</span><span class="tagchip">Medium effort</span></div></div>
+  <div class="stage"><div class="phone"><div class="island"></div>
+    <div class="sbar"><span>9:41</span><span>5G ▂▄ ▮</span></div>
+    <div class="scr">
+      <div class="nhead"><div><h2>Library</h2><div class="sub">142 items · Synced just now</div></div><button class="gear">⚙</button></div>
+      <div class="sfield">🔍&nbsp; Search your library</div>
+      <div class="sec"><div class="sumcard">
+        <div class="stat"><span class="ic" style="--tc:var(--accent)">🗎</span><b>142</b><span>Files</span></div>
+        <div class="stat"><span class="ic" style="--tc:var(--note)">🏷</span><b>24</b><span>Tags</span></div>
+        <div class="stat"><span class="ic" style="--tc:var(--vid)">💾</span><b>1.2 GB</b><span>Storage</span></div>
+        <div class="stat"><span class="ic" style="--tc:var(--pdf)">⏳</span><b>1</b><span>Pending</span></div>
+      </div></div>
+      <div class="sec"><div class="sech"><h3>Collections</h3><button>Edit</button></div>
+        <div class="colgrid">
+          <div class="colcard" style="--tc:var(--img)"><div class="top"><span class="sym">🖼</span><span style="font-size:11px;color:var(--sec)">38</span></div><h4>Photos</h4><p>Autumn Light.heic</p><div class="stack"><i></i><i></i><i></i></div></div>
+          <div class="colcard" style="--tc:var(--doc)"><div class="top"><span class="sym">📄</span><span style="font-size:11px;color:var(--sec)">46</span></div><h4>Documents</h4><p>Roadmap 2026.key</p><div class="stack"><i></i><i></i><i></i></div></div>
+          <div class="colcard" style="--tc:var(--aud)"><div class="top"><span class="sym">🎙</span><span style="font-size:11px;color:var(--sec)">12</span></div><h4>Audio</h4><p>Client Interview.m4a</p><div class="stack"><i></i><i></i><i></i></div></div>
+          <div class="colcard" style="--tc:var(--link)"><div class="top"><span class="sym">🔗</span><span style="font-size:11px;color:var(--sec)">21</span></div><h4>Links</h4><p>Design References</p><div class="stack"><i></i><i></i><i></i></div></div>
+        </div></div>
+      <div class="sec"><div class="sech"><h3>Needs attention</h3><button>Details</button></div>
+        <div class="inset">
+          <button class="row"><span class="glyph" style="--tc:var(--note)">🏷</span><span class="rt"><b>Untagged files</b><span>Add tags to find them later</span></span><b>5</b><span class="chev">›</span></button>
+          <button class="row"><span class="glyph" style="--tc:var(--accent)">👁</span><span class="rt"><b>Never opened</b><span>Review or remove</span></span><b>12</b><span class="chev">›</span></button>
+          <button class="row"><span class="glyph" style="--tc:var(--pdf)">⏳</span><span class="rt"><b>Sync delayed</b><span>1 file · automatic retry</span></span><b>1</b><span class="chev">›</span></button>
+        </div></div>
+    </div>
+    <button class="fab">+</button>
+    <nav class="tabbar"><button class="tab on"><i>⌂</i>Home</button><button class="tab"><i>🏷</i>Tags</button><button class="tab"><i>🗎</i>Files</button><button class="tab"><i>📊</i>Insights</button><button class="tab"><i>🔍</i>Search</button></nav>
+    <div class="homebar"></div>
+  </div></div>
+  <div class="cfoot"><strong>Why easier:</strong> answers “is my vault OK?” in 3 seconds; collections give stable destinations; hygiene links straight to Insights actions.<br>
+  <strong>SwiftUI:</strong> reuses <code>InsightsViewModel</code> (totals + <code>untagged/neverOpened/stale</code>) + <code>FileType</code> counts. Gate hygiene rows behind existing experiment flag.</div>
+</article>
+
+<!-- ============ C4 ============ -->
+<article class="concept" id="c4">
+  <div class="chead"><div class="cnum">04 · TIME-BASED · SIMPLEST BUILD</div><h2>Timeline Today</h2>
+  <p>One chronological stream with a native <b>segmented filter</b> (Recent / Pinned / Favorites). Highest density, most predictable scan.</p>
+  <div class="cmeta"><span class="tagchip">Segmented control</span><span class="tagchip">Grouped dates</span><span class="tagchip">Lowest effort</span></div></div>
+  <div class="stage"><div class="phone"><div class="island"></div>
+    <div class="sbar"><span>9:41</span><span>5G ▂▄ ▮</span></div>
+    <div class="scr">
+      <div class="nhead"><div><h2>Home</h2><div class="sub">8 files this week</div></div><button class="gear">⚙</button></div>
+      <div class="sfield">🔍&nbsp; Search files and tags</div>
+      <div class="seg"><span class="s">Recent</span><span>Pinned</span><span>Favorites</span></div>
+      <div class="hchips" style="margin-top:10px"><span class="chip on">All</span><span class="chip"><span class="dot" style="--tc:var(--pdf)"></span>PDFs</span><span class="chip"><span class="dot" style="--tc:var(--img)"></span>Images</span><span class="chip"><span class="dot" style="--tc:var(--aud)"></span>Audio</span></div>
+      <div class="dhead"><span>TODAY</span><span>4 items</span></div>
+      <div class="inset">
+        <button class="row"><span class="glyph" style="--tc:var(--pdf)">📕</span><span class="rt"><b>Q4 Report.pdf</b><span>Work · 12 min ago</span></span><span class="chev">›</span></button>
+        <button class="row"><span class="glyph" style="--tc:var(--note)">📝</span><span class="rt"><b>Launch Checklist</b><span>Product · 2h ago 📌</span></span><span class="chev">›</span></button>
+        <button class="row"><span class="glyph" style="--tc:var(--pdf)">📕</span><span class="rt"><b>Mumbai Itinerary.pdf</b><span>Travel · Added today</span></span><span class="chev">›</span></button>
+      </div>
+      <div class="dhead"><span>YESTERDAY</span><span>2 items</span></div>
+      <div class="inset">
+        <button class="row"><span class="glyph" style="--tc:var(--doc)">📄</span><span class="rt"><b>Product Roadmap 2026.key</b><span>Product · Yesterday</span></span><span class="chev">›</span></button>
+        <button class="row"><span class="glyph" style="--tc:var(--img)">🖼</span><span class="rt"><b>Autumn Light.heic</b><span>Personal · Yesterday ♥</span></span><span class="chev">›</span></button>
+      </div>
+      <div class="dhead"><span>EARLIER</span><span>2 items</span></div>
+      <div class="inset">
+        <button class="row"><span class="glyph" style="--tc:var(--aud)">🎙</span><span class="rt"><b>Client Interview.m4a</b><span>Work · Monday</span></span><span class="chev">›</span></button>
+        <button class="row"><span class="glyph" style="--tc:var(--link)">🔗</span><span class="rt"><b>Design References.webloc</b><span>Design · Friday</span></span><span class="chev">›</span></button>
+      </div>
+    </div>
+    <button class="fab">+</button>
+    <nav class="tabbar"><button class="tab on"><i>⌂</i>Home</button><button class="tab"><i>🏷</i>Tags</button><button class="tab"><i>🗎</i>Files</button><button class="tab"><i>📊</i>Insights</button><button class="tab"><i>🔍</i>Search</button></nav>
+    <div class="homebar"></div>
+  </div></div>
+  <div class="cfoot"><strong>Why easier:</strong> one scroll direction, no competing carousels; segmented control is a familiar native pattern; pin/fav affordances inline (📌 ♥).<br>
+  <strong>SwiftUI:</strong> single <code>List</code> grouped by <code>Calendar.isDateInToday/Yesterday</code> over existing <code>recentItems+pinnedItems+favoriteItems</code>. Empty state uses native <code>ContentUnavailableView</code>.</div>
+</article>
+</div>
+
+<p class="lede" style="margin-top:30px">Tab Bar contract (identical on all four): <b>Home ⌂ · Tags 🏷 · Files 🗎 · Insights 📊 · Search 🔍</b> — native <code>TabView</code> order from <code>ContentView.swift</code>, active tint <code>#1F90E4</code>, plus 56pt <b>+ FAB</b> above the bar (hidden on Search, as today). Nothing else floats — content stays native grouped-list white on <code>systemGroupedBackground</code>.</p>
+</main>
+<script>
+const btn=document.getElementById('themeBtn');
+btn.onclick=()=>{const h=document.documentElement;const d=h.dataset.theme!=='dark';h.dataset.theme=d?'dark':'light';btn.textContent=d?'☀️ Light':'🌙 Dark';btn.setAttribute('aria-pressed',d)};
+</script>
+</body>
+</html>
