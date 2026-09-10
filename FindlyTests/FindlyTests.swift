@@ -1238,3 +1238,227 @@ struct HomeEssentialsTests {
         #expect(try context.fetch(HomeCollection.opened.descriptor()).first?.title == "Unopened")
     }
 }
+
+@Suite("Note Preview")
+struct NotePreviewTests {
+    @Test("Only plain text notes use the text reader")
+    func routing() {
+        #expect(NotePreviewLoader.supports(fileType: .note, originalFileName: "Note.TXT"))
+        #expect(!NotePreviewLoader.supports(fileType: .note, originalFileName: "Note.rtf"))
+        #expect(!NotePreviewLoader.supports(fileType: .note, originalFileName: "Note.md"))
+        #expect(!NotePreviewLoader.supports(fileType: .document, originalFileName: "Note.txt"))
+    }
+
+    @Test("UTF-8 content retains Unicode and whitespace", arguments: ["", "  Hello 🌍\nతెలుగు\n\tlast line\n"])
+    func readsText(content: String) async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".txt")
+        defer { try? FileManager.default.removeItem(at: url) }
+        try Data(content.utf8).write(to: url)
+        let result = try await NotePreviewLoader.load(url: url)
+        #expect(result == content)
+    }
+
+    @Test("Missing and invalid UTF-8 files fail rather than showing blank content")
+    func failures() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".txt")
+        await #expect(throws: (any Error).self) { try await NotePreviewLoader.load(url: url) }
+        defer { try? FileManager.default.removeItem(at: url) }
+        try Data([0xFF, 0xFF]).write(to: url)
+        await #expect(throws: (any Error).self) { try await NotePreviewLoader.load(url: url) }
+    }
+}
+
+@Suite("File Preview Toolbar")
+@MainActor
+struct FilePreviewToolbarTests {
+    @Test("Toolbar adapts to both themes, narrow screens, and accessibility text", arguments: [ColorScheme.light, .dark])
+    func adaptiveFootprint(scheme: ColorScheme) throws {
+        for width: CGFloat in [320, 393, 844] {
+            for typeSize in [DynamicTypeSize.large, .accessibility5] {
+                for active in [false, true] {
+                    let renderer = ImageRenderer(content: FilePreviewToolbar(
+                        isFavorite: active, isPinned: active, isInspectorVisible: active,
+                        canShare: !active, isDeleting: active,
+                        onShare: {}, onFavorite: {}, onInfo: {}, onPin: {}, onDelete: {}
+                    )
+                    .frame(width: width)
+                    .background(scheme == .light ? Color.white : Color.black)
+                    .environment(\.colorScheme, scheme)
+                    .environment(\.dynamicTypeSize, typeSize))
+                    renderer.scale = 1
+                    let image = try #require(renderer.uiImage)
+                    #expect(abs(image.size.width - width) < 0.5)
+                    #expect(image.size.height >= 64)
+                    #expect(image.size.height <= 100)
+                    if width == 320 {
+                        Attachment.record(try #require(image.pngData()), named: "toolbar-\(scheme)-\(typeSize)-\(active).png")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Suite("File Preview Header")
+@MainActor
+struct FilePreviewHeaderTests {
+    @Test("Floating header fits long filenames in both themes", arguments: [ColorScheme.light, .dark])
+    func longFilename(scheme: ColorScheme) throws {
+        for typeSize in [DynamicTypeSize.large, .accessibility5] {
+            let renderer = ImageRenderer(content: FilePreviewHeader(
+                title: "A very long filename containing project notes and meeting recordings.txt",
+                controlHeight: typeSize == .large ? 44 : 96,
+                onClose: {}
+            )
+            .frame(width: 320)
+            .background(scheme == .light ? Color.white : Color.black)
+            .environment(\.colorScheme, scheme)
+            .environment(\.dynamicTypeSize, typeSize))
+            renderer.scale = 1
+            let image = try #require(renderer.uiImage)
+            #expect(image.size.width == 320)
+            #expect(image.size.height >= 64)
+            Attachment.record(try #require(image.pngData()), named: "header-\(scheme)-\(typeSize).png")
+        }
+    }
+}
+
+@Suite("Media Playback")
+@MainActor
+struct MediaPlaybackTests {
+    @Test("Time labels use Photos-style m:ss and h:mm:ss")
+    func timeLabels() {
+        #expect(MediaTimeFormatter.string(from: 0) == "0:00")
+        #expect(MediaTimeFormatter.string(from: 5.4) == "0:05")
+        #expect(MediaTimeFormatter.string(from: 65) == "1:05")
+        #expect(MediaTimeFormatter.string(from: 600) == "10:00")
+        #expect(MediaTimeFormatter.string(from: 3661) == "1:01:01")
+        #expect(MediaTimeFormatter.string(from: -3) == "0:00")
+        #expect(MediaTimeFormatter.string(from: .nan) == "0:00")
+        #expect(MediaTimeFormatter.string(from: .infinity) == "0:00")
+    }
+
+    @Test("Scrub fractions clamp to the timeline")
+    func scrubMath() {
+        #expect(MediaTimeFormatter.fraction(current: 30, duration: 120) == 0.25)
+        #expect(MediaTimeFormatter.fraction(current: -5, duration: 120) == 0)
+        #expect(MediaTimeFormatter.fraction(current: 200, duration: 120) == 1)
+        #expect(MediaTimeFormatter.fraction(current: 10, duration: 0) == 0)
+        #expect(MediaTimeFormatter.time(forFraction: 0.5, duration: 120) == 60)
+        #expect(MediaTimeFormatter.time(forFraction: 2, duration: 120) == 120)
+        #expect(MediaTimeFormatter.time(forFraction: 0.5, duration: 0) == 0)
+    }
+
+    @Test("Pause-at-end and replay restart from zero")
+    func pauseAtEnd() {
+        let controller = MediaPlayerController()
+        controller.duration = 120
+        controller.currentTime = 120
+        // No player attached: toggles are safe no-ops, mute still flips.
+        controller.togglePlay()
+        #expect(!controller.isPlaying)
+        controller.toggleMute()
+        #expect(controller.isMuted)
+        controller.beginScrub()
+        #expect(controller.isScrubbing)
+        controller.scrub(to: 0.5)
+        #expect(controller.currentTime == 60)
+        controller.endScrub()
+        #expect(!controller.isScrubbing)
+        controller.teardown()
+        #expect(controller.duration == 0)
+        #expect(!controller.isMuted)
+    }
+
+    @Test("Scrubber renders its Photos-style bar in both themes", arguments: [ColorScheme.light, .dark])
+    func scrubberFootprint(scheme: ColorScheme) throws {
+        let controller = MediaPlayerController()
+        controller.duration = 125
+        controller.currentTime = 30
+        let renderer = ImageRenderer(content: MediaScrubberView(controller: controller)
+            .frame(width: 360)
+            .background(scheme == .light ? Color.white : Color.black)
+            .environment(\.colorScheme, scheme))
+        renderer.scale = 1
+        let image = try #require(renderer.uiImage)
+        #expect(abs(image.size.width - 360) < 0.5)
+        #expect(image.size.height >= 34)
+        #expect(image.size.height <= 100)
+    }
+}
+
+@Suite("Viewer Dismiss Drag")
+struct DismissDragTests {
+    @Test("Only mostly-downward drags produce an offset")
+    func downwardOffset() {
+        #expect(DismissDragEvaluator.offset(for: CGSize(width: 0, height: 200)) == 200)
+        #expect(DismissDragEvaluator.offset(for: CGSize(width: 30, height: 100)) == 100)
+        #expect(DismissDragEvaluator.offset(for: CGSize(width: 0, height: -50)) == 0)
+        #expect(DismissDragEvaluator.offset(for: CGSize(width: 200, height: 40)) == 0)
+        #expect(DismissDragEvaluator.offset(for: CGSize(width: 100, height: 100)) == 0)
+    }
+
+    @Test("Dismiss needs distance and a clearly vertical drag")
+    func dismissThreshold() {
+        #expect(DismissDragEvaluator.shouldDismiss(translation: CGSize(width: 0, height: 200)))
+        #expect(DismissDragEvaluator.shouldDismiss(translation: CGSize(width: 40, height: 200)))
+        #expect(!DismissDragEvaluator.shouldDismiss(translation: CGSize(width: 0, height: 100)))
+        #expect(!DismissDragEvaluator.shouldDismiss(translation: CGSize(width: 0, height: -200)))
+        #expect(!DismissDragEvaluator.shouldDismiss(translation: CGSize(width: 150, height: 200)))
+        // Horizontal scrub-seeks never dismiss.
+        #expect(!DismissDragEvaluator.shouldDismiss(translation: CGSize(width: 250, height: 20)))
+    }
+
+    @Test("Chrome fades while pulling and never fully vanishes")
+    func dragFade() {
+        #expect(DismissDragEvaluator.fade(for: 0) == 1)
+        #expect(DismissDragEvaluator.fade(for: -40) == 1)
+        let mid = DismissDragEvaluator.fade(for: 160)
+        #expect(mid < 1 && mid > 0.15)
+        #expect(DismissDragEvaluator.fade(for: 1000) == 0.15)
+    }
+}
+
+@Suite("Preview Content Tap")
+@MainActor
+struct PreviewContentTapTests {
+    @Test("Playback controls and their child views are excluded")
+    func controlsAreExcluded() {
+        let slider = UISlider()
+        let sliderChild = UIView()
+        slider.addSubview(sliderChild)
+        #expect(!PreviewTapCoordinator.acceptsTarget(sliderChild))
+        #expect(!PreviewTapCoordinator.acceptsTarget(UIButton(type: .system)))
+        #expect(PreviewTapCoordinator.acceptsTarget(UIImageView()))
+    }
+
+    @Test("Editing, selected text, and accessible links keep normal taps")
+    func textInteraction() {
+        let text = UITextView()
+        text.text = "A note with selectable text"
+        #expect(!PreviewTapCoordinator.acceptsTarget(text))
+        text.isEditable = false
+        text.selectedRange = NSRange(location: 0, length: 0)
+        #expect(PreviewTapCoordinator.acceptsTarget(text))
+        text.selectedRange = NSRange(location: 0, length: 6)
+        #expect(!PreviewTapCoordinator.acceptsTarget(text))
+        let link = UILabel()
+        link.accessibilityTraits.insert(.link)
+        #expect(!PreviewTapCoordinator.acceptsTarget(link))
+    }
+
+    @Test("Single taps wait for zoom, scroll, and selection gestures")
+    func gesturePriority() {
+        let delegate = PreviewTapCoordinator()
+        let contentTap = UITapGestureRecognizer()
+        let doubleTap = UITapGestureRecognizer()
+        doubleTap.numberOfTapsRequired = 2
+        for other in [doubleTap, UIPanGestureRecognizer(), UIPinchGestureRecognizer(), UILongPressGestureRecognizer()] {
+            #expect(delegate.gestureRecognizer(contentTap, shouldRequireFailureOf: other))
+            #expect(!delegate.gestureRecognizer(contentTap, shouldRecognizeSimultaneouslyWith: other))
+        }
+        let nativeTap = UITapGestureRecognizer()
+        #expect(!delegate.gestureRecognizer(contentTap, shouldRequireFailureOf: nativeTap))
+        #expect(delegate.gestureRecognizer(contentTap, shouldRecognizeSimultaneouslyWith: nativeTap))
+    }
+}

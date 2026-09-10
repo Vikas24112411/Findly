@@ -98,6 +98,9 @@ enum AppTheme {
         static let standard: SwiftUI.Animation = .spring(response: 0.45, dampingFraction: 0.8)
         static let slow:     SwiftUI.Animation = .spring(response: 0.6,  dampingFraction: 0.85)
         static let snappy:   SwiftUI.Animation = .spring(response: 0.25, dampingFraction: 0.9)
+        /// Slower sheet-style motion for the file-info (metadata) panel open,
+        /// close, and detent changes — deliberately slower than `snappy`.
+        static let inspector: SwiftUI.Animation = .spring(response: 0.5, dampingFraction: 0.85)
     }
 
     // MARK: - Icon sizes
