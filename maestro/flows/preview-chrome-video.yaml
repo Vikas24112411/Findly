@@ -1,0 +1,90 @@
+# Chrome hide/show + inspector-dismiss for video (Photos-style custom player).
+# Pattern mirrors the note flow: screenshots carry the hidden evidence
+# (AX tree keeps hidden views), the delete-zone alert carries the shown
+# evidence. No probe taps on content (every content tap toggles).
+# NOTE: Findly uses a custom Photos-style player (no AVPlayerViewController
+# controls). The slim scrubber (Seek slider + Pause + Mute) sits stacked
+# above the Findly toolbar and hides/shows together with it, so the two can
+# never overlap. Center taps at 50%,40% avoid the center play affordance.
+# Prerequisite: a video in the simulator library, e.g.
+#   xcrun simctl addmedia booted /tmp/findly-test-video.mp4
+appId: com.findlyvikas.app
+---
+- launchApp
+
+# --- Import the test video via the Files tab if it is not there yet ---
+- assertVisible: "Home"
+- tapOn: "Files"
+- runFlow:
+    when:
+      notVisible: "Video"
+    commands:
+      - tapOn: "Add item"
+      - assertVisible: "Add to Vault"
+      - tapOn: "Photo / Video"
+      - tapOn:
+          text: "Allow Full Access"
+          optional: true
+      - tapOn:
+          point: "17%,23%"
+      - tapOn: "Add"
+      - assertVisible: "Save"
+      - tapOn: "Save"
+
+# --- Open the video: chrome starts visible with Photos-style scrubber ---
+- tapOn: "Files"
+- assertVisible: "Video"
+- tapOn: "Video"
+- assertVisible: "Close file"
+- assertVisible: "Share file"
+- assertVisible: "Pause"
+- assertVisible: "Seek"
+- assertVisible: "Mute"
+- assertNotVisible: "Opening file"
+- takeScreenshot: video-chrome-shown
+
+# --- Tap content: chrome + scrubber hide together ---
+- tapOn:
+    point: "50%,40%"
+- takeScreenshot: video-chrome-hidden
+
+# --- Tap content: chrome + scrubber return, still interactive ---
+- tapOn:
+    point: "50%,40%"
+- takeScreenshot: video-chrome-reshown
+- assertVisible: "Pause"
+- assertVisible: "Seek"
+- tapOn:
+    point: "90%,93%"
+- assertVisible: "Cancel"
+- tapOn: "Cancel"
+
+# --- Scrubber controls work without toggling chrome ---
+- tapOn: "Pause"
+- assertVisible: "Play"
+- tapOn: "Play"
+- assertVisible: "Pause"
+
+# --- Inspector: icon opens, background tap closes (option 3) ---
+- tapOn: "File information"
+- assertVisible: "Close file"
+- tapOn:
+    point: "50%,25%"
+- assertVisible: "Share file"
+
+# --- Inspector: icon opens, icon closes (option 2) ---
+- tapOn: "File information"
+- assertVisible: "Close file"
+- tapOn: "File information"
+- assertVisible: "Share file"
+
+# --- Close viewer with drag-down (Photos-style), back to Files ---
+- swipe:
+    direction: DOWN
+    duration: 600
+- runFlow:
+    when:
+      notVisible: "Video"
+    commands:
+      - tapOn: "Close file"
+- assertVisible: "Video"

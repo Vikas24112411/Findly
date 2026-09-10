@@ -1,0 +1,18 @@
+appId: com.findlyvikas.app
+---
+- launchApp:
+    clearState: true
+# Onboarding (first launch only — skip if already completed)
+- assertVisible:
+    text: "Where should Findly"
+    optional: true
+- tapOn:
+    text: "Get Started"
+    optional: true
+# Main tabs
+- assertVisible: "Home"
+- tapOn: "Tags"
+- tapOn: "Files"
+- tapOn: "Insights"
+- tapOn: "Search"
+- assertVisible: "Search"

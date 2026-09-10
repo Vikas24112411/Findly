@@ -1,0 +1,64 @@
+# Verifies the inspector (metadata) panel layers BETWEEN the preview
+# content and the floating toolbar: a single toolbar instance stays on top,
+# no duplicate toolbar is re-rendered inside the panel.
+# Fails before the fix if the toolbar disappears behind the sheet or if the
+# toolbar is only visible as a re-rendered copy inside the sheet.
+appId: com.findlyvikas.app
+---
+- launchApp
+
+# --- Create the test note only if the vault is empty ---
+- runFlow:
+    when:
+      visible: "Your vault is empty"
+    commands:
+      - tapOn: "Add item"
+      - assertVisible: "Add to Vault"
+      - tapOn: "Note"
+      - assertVisible: "New Note"
+      - tapOn: "Title"
+      - inputText: "Chrome Test"
+      - tapOn:
+          point: "50%,40%"
+      - inputText: "Layering verification body."
+      - tapOn: "Next"
+      - assertVisible: "Save"
+      - tapOn: "Save"
+
+# --- Open the note via the Files tab ---
+- assertVisible: "Home"
+- tapOn: "Files"
+- assertVisible: "Chrome Test"
+- tapOn: "Chrome Test"
+- assertVisible: "Close file"
+- assertVisible: "Share file"
+- assertNotVisible: "Opening file"
+- takeScreenshot: layering-chrome-shown
+
+# --- Open inspector: panel content appears, toolbar stays visible on top ---
+- tapOn: "File information"
+- assertVisible: "File Info"
+- assertVisible: "Tags"
+- assertVisible: "Share file"
+- assertVisible: "File information"
+- takeScreenshot: layering-inspector-open
+
+# --- Toolbar is live while panel is open: info icon toggles panel closed ---
+# If the toolbar were covered by the sheet (and only a copy re-rendered),
+# this tap would hit the copy or fail; after the fix it hits the single
+# toolbar above the panel.
+- tapOn: "File information"
+- assertVisible: "Share file"
+- takeScreenshot: layering-inspector-closed-by-icon
+
+# --- Reopen, then background tap dismisses panel, toolbar persists ---
+- tapOn: "File information"
+- assertVisible: "File Info"
+- tapOn:
+    point: "50%,25%"
+- assertVisible: "Share file"
+- takeScreenshot: layering-inspector-closed-by-tap
+
+# --- Close viewer, back to Files ---
+- tapOn: "Close file"
+- assertVisible: "Chrome Test"

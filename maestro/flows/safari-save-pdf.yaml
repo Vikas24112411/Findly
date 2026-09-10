@@ -1,0 +1,15 @@
+# Saves the already-open Safari PDF into Files. Run after:
+#   xcrun simctl openurl booted http://<mac-ip>:8123/findly-test-doc.pdf
+appId: com.apple.mobilesafari
+---
+- launchApp
+# Dismiss the Safari tip card if present (X at its top-right).
+- tapOn:
+    point: "89%,68%"
+    optional: true
+# Open the ••• page menu (bottom-right).
+- tapOn:
+    point: "89%,96%"
+- tapOn: "Share"
+- tapOn: "Save to Files"
+- tapOn: "Save"

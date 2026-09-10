@@ -1,0 +1,45 @@
+# Decisive Quick Look chrome test: only ONE content tap before probing.
+# - If the tap hides chrome, the delete-zone tap passes through to content
+#   (no alert) and toggles chrome back on.
+# - If the tap does nothing, the delete-zone tap hits the Delete button
+#   and the alert opens -> assertNotVisible "Cancel" FAILS (bug caught).
+# Second delete-zone tap then proves the chrome is shown and interactive.
+appId: com.findlyvikas.app
+---
+- launchApp
+
+# --- Open the image: chrome starts visible ---
+# NOTE: tapOn-by-text on the card unreliably activates the row button,
+# so open via coordinates (first card in Recently opened).
+- assertVisible: "Home"
+- tapOn:
+    point: "50%,30%"
+- assertVisible: "Close file"
+- assertVisible: "Share file"
+- assertNotVisible: "Opening file"
+- takeScreenshot: image-chrome-shown
+
+# --- ONE content tap, then probe the delete zone ---
+- tapOn:
+    point: "50%,45%"
+- takeScreenshot: image-after-one-tap
+- tapOn:
+    point: "90%,93%"
+- assertNotVisible: "Cancel"
+
+# --- Chrome must be back on now (probe toggled it): prove interactivity ---
+- tapOn:
+    point: "90%,93%"
+- assertVisible: "Cancel"
+- tapOn: "Cancel"
+
+# --- Close viewer with drag-down (Photos-style), back home ---
+- swipe:
+    direction: DOWN
+    duration: 600
+- runFlow:
+    when:
+      notVisible: "Recently opened"
+    commands:
+      - tapOn: "Close file"
+- assertVisible: "Recently opened"

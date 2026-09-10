@@ -1,0 +1,14 @@
+# Minimal tap probe: open photo, tap center twice, screenshot each.
+appId: com.findlyvikas.app
+---
+- launchApp
+- assertVisible: "Home"
+- tapOn: "Photo"
+- assertVisible: "Share file"
+- takeScreenshot: tap-probe-0
+- tapOn:
+    point: "50%,45%"
+- takeScreenshot: tap-probe-1
+- tapOn:
+    point: "50%,45%"
+- takeScreenshot: tap-probe-2

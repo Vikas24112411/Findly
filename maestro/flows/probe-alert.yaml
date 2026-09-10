@@ -1,0 +1,11 @@
+# Probe: which alert strings does Maestro match?
+appId: com.findlyvikas.app
+---
+- launchApp
+- assertVisible: "Home"
+- tapOn: "Chrome Test"
+- assertVisible: "Share file"
+- tapOn:
+    point: "90%,93%"
+- takeScreenshot: probe-alert
+- assertVisible: "Delete File?"

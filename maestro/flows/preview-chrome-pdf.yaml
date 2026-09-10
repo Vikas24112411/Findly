@@ -1,0 +1,69 @@
+# Chrome hide/show + inspector-dismiss for PDF (local PDFKit path).
+# Prerequisite: findly-test-doc.pdf saved in the simulator Files app
+# (e.g. via Safari download), so it appears in the document picker.
+appId: com.findlyvikas.app
+---
+- launchApp
+
+# --- Import the test PDF via the Files tab if it is not there yet ---
+- assertVisible: "Home"
+- tapOn: "Files"
+- runFlow:
+    when:
+      notVisible: "findly-test-doc"
+    commands:
+      - tapOn: "Add item"
+      - assertVisible: "Add to Vault"
+      - tapOn: "File"
+      - tapOn:
+          text: "Recents"
+          optional: true
+      - tapOn: "findly-test-doc"
+      - tapOn: "findly-test-doc"
+      # Fallback: tap the file thumbnail (icon view selects on artwork).
+      - tapOn:
+          point: "20%,25%"
+      - assertVisible: "Save"
+      - tapOn: "Save"
+
+# --- Open the PDF: chrome starts visible ---
+- tapOn: "Files"
+- assertVisible: "findly-test-doc"
+- tapOn: "findly-test-doc"
+- assertVisible: "Close file"
+- assertVisible: "Share file"
+- assertNotVisible: "Opening file"
+- takeScreenshot: pdf-chrome-shown
+
+# --- ONE content tap, then probe the delete zone (decisive) ---
+# If the tap hid chrome, this passes through (no alert) and toggles back on.
+# If the tap did nothing, it hits Delete and the alert opens -> FAIL (bug).
+- tapOn:
+    point: "50%,45%"
+- takeScreenshot: pdf-chrome-hidden
+- tapOn:
+    point: "90%,93%"
+- assertNotVisible: "Cancel"
+
+# --- Chrome must be back on (probe toggled it): prove interactivity ---
+- tapOn:
+    point: "90%,93%"
+- assertVisible: "Cancel"
+- tapOn: "Cancel"
+
+# --- Inspector: icon opens, background tap closes (option 3) ---
+- tapOn: "File information"
+- assertVisible: "Close file"
+- tapOn:
+    point: "50%,25%"
+- assertVisible: "Share file"
+
+# --- Inspector: icon opens, icon closes (option 2) ---
+- tapOn: "File information"
+- assertVisible: "Close file"
+- tapOn: "File information"
+- assertVisible: "Share file"
+
+# --- Close viewer, back to Files ---
+- tapOn: "Close file"
+- assertVisible: "findly-test-doc"

@@ -1,0 +1,26 @@
+# Measures tap-toggle reliability: 6 content taps, screenshot after each.
+appId: com.findlyvikas.app
+---
+- launchApp
+- assertVisible: "Home"
+- tapOn: "Chrome Test"
+- assertVisible: "Share file"
+- takeScreenshot: toggle-0-shown
+- tapOn:
+    point: "50%,45%"
+- takeScreenshot: toggle-1
+- tapOn:
+    point: "50%,45%"
+- takeScreenshot: toggle-2
+- tapOn:
+    point: "50%,45%"
+- takeScreenshot: toggle-3
+- tapOn:
+    point: "50%,45%"
+- takeScreenshot: toggle-4
+- tapOn:
+    point: "50%,45%"
+- takeScreenshot: toggle-5
+- tapOn:
+    point: "50%,45%"
+- takeScreenshot: toggle-6

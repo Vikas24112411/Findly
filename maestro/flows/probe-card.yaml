@@ -1,0 +1,8 @@
+# Probe: open first Photo card by coordinates, screenshot result.
+appId: com.findlyvikas.app
+---
+- launchApp
+- assertVisible: "Home"
+- tapOn:
+    point: "50%,30%"
+- takeScreenshot: probe-card-tap

@@ -1,0 +1,68 @@
+# Verifies tap-to-hide/show of viewer chrome on a note.
+# SwiftUI opacity-hidden views stay in the accessibility tree, so the
+# hidden state is captured with takeScreenshot (verified from the PNGs)
+# while the shown state is verified behaviorally: tapping the
+# delete-button zone while chrome is shown opens the confirmation.
+# NOTE: every content tap toggles, so probe taps must not land on content.
+appId: com.findlyvikas.app
+---
+- launchApp
+
+# --- Create the test note only if the vault is empty ---
+- runFlow:
+    when:
+      visible: "Your vault is empty"
+    commands:
+      - tapOn: "Add item"
+      - assertVisible: "Add to Vault"
+      - tapOn: "Note"
+      - assertVisible: "New Note"
+      - tapOn: "Title"
+      - inputText: "Chrome Test"
+      - tapOn:
+          point: "50%,40%"
+      - inputText: "Tap hide show verification body."
+      - tapOn: "Next"
+      - assertVisible: "Save"
+      - tapOn: "Save"
+
+# --- Open the note via the Files tab (full list, stable target) ---
+- assertVisible: "Home"
+- tapOn: "Files"
+- assertVisible: "Chrome Test"
+- tapOn: "Chrome Test"
+- assertVisible: "Close file"
+- assertVisible: "Share file"
+- assertNotVisible: "Opening file"
+- takeScreenshot: chrome-shown
+
+# --- Tap content: chrome hides (screenshot verified; any tap would toggle) ---
+- tapOn:
+    point: "50%,45%"
+- takeScreenshot: chrome-hidden
+
+# --- Tap content: chrome returns, still interactive ---
+- tapOn:
+    point: "50%,45%"
+- takeScreenshot: chrome-reshown
+- tapOn:
+    point: "90%,93%"
+- assertVisible: "Cancel"
+- tapOn: "Cancel"
+
+# --- Inspector: icon opens, background tap closes (option 3) ---
+- tapOn: "File information"
+- assertVisible: "Close file"
+- tapOn:
+    point: "50%,25%"
+- assertVisible: "Share file"
+
+# --- Inspector: icon opens, icon closes (option 2) ---
+- tapOn: "File information"
+- assertVisible: "Close file"
+- tapOn: "File information"
+- assertVisible: "Share file"
+
+# --- Close viewer, back to Files ---
+- tapOn: "Close file"
+- assertVisible: "Chrome Test"
