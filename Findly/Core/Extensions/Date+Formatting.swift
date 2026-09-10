@@ -11,7 +11,21 @@ extension Date {
         return formatter.localizedString(for: self, relativeTo: Date())
     }
 
-    /// Short version: "now", "5m", "2h", "1d", "3mo"
+    /// Compact version without the "ago" suffix for fixed-width trailing
+    /// timestamp columns: "now", "5m", "2h", "1d", "3mo"
+    var compactRelativeString: String {
+        let seconds = Date().timeIntervalSince(self)
+        switch seconds {
+        case ..<60:         return "now"
+        case ..<3600:       return "\(Int(seconds / 60))m"
+        case ..<86400:      return "\(Int(seconds / 3600))h"
+        case ..<2592000:    return "\(Int(seconds / 86400))d"
+        case ..<31536000:   return "\(Int(seconds / 2592000))mo"
+        default:            return "\(Int(seconds / 31536000))y"
+        }
+    }
+
+    /// Short version: "now", "5m ago", "2h ago", "1d ago", "3mo ago"
     var shortRelativeString: String {
         let seconds = Date().timeIntervalSince(self)
         switch seconds {

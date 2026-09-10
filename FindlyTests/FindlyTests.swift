@@ -1180,3 +1180,61 @@ struct ExperimentalFeaturesTests {
 private final class ObservationCounter {
     var count = 0
 }
+
+// MARK: - Home essentials collections
+
+@Suite("Home Essentials")
+@MainActor
+struct HomeEssentialsTests {
+    @Test("Home preview limits do not truncate View all collections")
+    func completeCollections() throws {
+        let container = try ModelContainer(
+            for: Item.self, Tag.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let context = container.mainContext
+        for index in 0..<25 {
+            let item = Item(title: "File \(index)", fileType: .pdf)
+            item.isPinned = true
+            item.isFavorite = index < 15
+            item.createdAt = Date(timeIntervalSince1970: Double(index))
+            item.modifiedAt = item.createdAt
+            context.insert(item)
+        }
+        try context.save()
+
+        #expect(try context.fetch(HomeCollection.added.descriptor(limit: 2)).count == 2)
+        #expect(try context.fetch(HomeCollection.added.descriptor()).count == 25)
+        #expect(try context.fetch(HomeCollection.pinned.descriptor()).count == 25)
+        #expect(try context.fetch(HomeCollection.favorites.descriptor()).count == 15)
+        #expect(try context.fetch(HomeCollection.added.descriptor()).first?.title == "File 24")
+    }
+
+    @Test("Opened, frequent, and pinned collections follow item changes")
+    func collectionMembershipAndOrdering() throws {
+        let container = try ModelContainer(
+            for: Item.self, Tag.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let context = container.mainContext
+        let older = Item(title: "Older", fileType: .note)
+        let newer = Item(title: "Newer", fileType: .pdf)
+        let unopened = Item(title: "Unopened", fileType: .link)
+        for item in [older, newer, unopened] { context.insert(item) }
+        older.lastOpenedAt = Date(timeIntervalSince1970: 100)
+        older.viewCount = 7
+        older.isPinned = true
+        newer.lastOpenedAt = Date(timeIntervalSince1970: 200)
+        newer.viewCount = 1
+        try context.save()
+
+        #expect(try context.fetch(HomeCollection.opened.descriptor()).map(\.title) == ["Newer", "Older"])
+        #expect(try context.fetch(HomeCollection.frequent.descriptor()).map(\.title) == ["Older", "Newer"])
+        older.isPinned = false
+        unopened.isPinned = true
+        unopened.markOpened()
+        try context.save()
+        #expect(try context.fetch(HomeCollection.pinned.descriptor()).map(\.title) == ["Unopened"])
+        #expect(try context.fetch(HomeCollection.opened.descriptor()).first?.title == "Unopened")
+    }
+}
