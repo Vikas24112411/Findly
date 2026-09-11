@@ -169,19 +169,37 @@ struct InsightsView: View {
 
     // MARK: - Needs attention (hygiene to-do list)
 
+    @ViewBuilder
     private var hygieneSection: some View {
-        insightCard(title: "Needs Attention", symbol: "checklist") {
-            if viewModel.hygieneIsTidy && viewModel.totalItems > 0 {
-                HStack(spacing: AppTheme.Spacing.medium) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(AppTheme.Colors.syncSynced)
-                    Text("All tidy — everything is tagged and recently opened.")
-                        .font(AppTheme.Typography.subheadline)
-                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                }
-                .padding(.vertical, AppTheme.Spacing.xSmall)
-            } else {
+        if viewModel.hygieneIsTidy && viewModel.totalItems > 0 {
+            // Slim tidy state (Option 1): single-line row, retains the
+            // header checklist icon, low-emphasis trailing status.
+            HStack(spacing: 6) {
+                Image(systemName: "checklist")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                Text("Needs Attention")
+                    .font(AppTheme.Typography.headline)
+                    .foregroundStyle(AppTheme.Colors.label)
+                    .lineLimit(1)
+                Spacer(minLength: AppTheme.Spacing.small)
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AppTheme.Colors.syncSynced)
+                    .accessibilityHidden(true)
+                Text("All tidy")
+                    .font(AppTheme.Typography.footnote)
+                    .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, AppTheme.Spacing.base)
+            .padding(.vertical, AppTheme.Spacing.medium)
+            .background(AppTheme.Colors.secondaryBG)
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Needs Attention, All tidy")
+        } else {
+            insightCard(title: "Needs Attention", symbol: "checklist") {
                 VStack(spacing: 0) {
                     hygieneRow(
                         title: "Untagged files",
