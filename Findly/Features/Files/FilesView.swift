@@ -206,7 +206,7 @@ struct FilesView: View {
         ScrollView(.horizontal) {
             HStack(spacing: AppTheme.Spacing.small) {
                 ForEach(FileType.allCases.filter(viewModel.selectedFileTypes.contains), id: \.self) { type in
-                    filterChip(title: type.displayName, symbol: type.sfSymbol, tint: type.tintColor) {
+                    filterChip(title: type.displayName, symbol: type.sfSymbol) {
                         viewModel.removeFileType(type)
                     }
                 }
@@ -214,8 +214,7 @@ struct FilesView: View {
                 if viewModel.filterDateStart != nil || viewModel.filterDateEnd != nil {
                     filterChip(
                         title: viewModel.dateFilterSummary,
-                        symbol: "calendar",
-                        tint: AppTheme.Colors.accent
+                        symbol: "calendar"
                     ) {
                         viewModel.clearDateFilter()
                     }
@@ -234,7 +233,6 @@ struct FilesView: View {
     private func filterChip(
         title: String,
         symbol: String,
-        tint: Color,
         onRemove: @escaping () -> Void
     ) -> some View {
         Button(action: onRemove) {
@@ -246,10 +244,10 @@ struct FilesView: View {
                     .font(.caption2.weight(.bold))
             }
             .font(AppTheme.Typography.caption1.weight(.semibold))
-            .foregroundStyle(tint)
+            .foregroundStyle(AppTheme.Colors.secondaryLabel)
             .padding(.horizontal, AppTheme.Spacing.medium)
             .frame(minHeight: 44)
-            .background(tint.opacity(0.11))
+            .background(AppTheme.Colors.secondaryBG)
             .clipShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -275,12 +273,17 @@ struct FilesView: View {
             Group {
                 switch viewModel.layoutStyle {
                 case .list:
-                    LazyVStack(spacing: AppTheme.Spacing.medium) {
+                    LazyVStack(spacing: 0) {
                         ForEach(viewModel.items) { item in
                             itemCell(item, style: .row)
-                                .padding(.horizontal, AppTheme.Spacing.base)
+                            if item.id != viewModel.items.last?.id {
+                                Divider().padding(.leading, 68)
+                            }
                         }
                     }
+                    .background(AppTheme.Colors.secondaryBG)
+                    .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large))
+                    .padding(.horizontal, AppTheme.Spacing.base)
                 case .grid:
                     LazyVGrid(
                         columns: [
@@ -316,7 +319,7 @@ struct FilesView: View {
                 fileViewer.open(item)
             }
         } label: {
-            ItemCardView(
+            FilesItemView(
                 item: item,
                 style: style,
                 isSelectMode: viewModel.isSelectMode,
@@ -340,6 +343,125 @@ struct FilesView: View {
                 .frame(height: 1)
                 .onAppear { viewModel.loadNextPage() }
         }
+    }
+}
+
+/// Quiet library presentation, following the compact rows in Home collections.
+private struct FilesItemView: View {
+    let item: Item
+    let style: ItemCardView.Style
+    let isSelectMode: Bool
+    let isSelected: Bool
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .caption2) private var statusSlotSize: CGFloat = 16
+
+    private var subtitle: String {
+        var parts = [item.fileType.displayName]
+        if let tag = item.tags.first {
+            parts.append(item.tags.count > 1 ? "\(tag.name) +\(item.tags.count - 1)" : tag.name)
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private var icon: some View {
+        Image(systemName: item.fileType.sfSymbol)
+            .font(.title3)
+            .foregroundStyle(item.fileType.tintColor)
+            .frame(width: 40, height: 44)
+            .background(AppTheme.Colors.tertiaryBG,
+                        in: RoundedRectangle(cornerRadius: AppTheme.Radius.small))
+            .accessibilityHidden(true)
+    }
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: AppTheme.Spacing.xSmall) {
+            Text(item.title)
+                .font(AppTheme.Typography.subheadline.weight(.medium))
+                .foregroundStyle(AppTheme.Colors.label)
+                .fixedSize(horizontal: false, vertical: true)
+            Text(subtitle)
+                .font(AppTheme.Typography.caption1)
+                .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                .fixedSize(horizontal: false, vertical: true)
+            if dynamicTypeSize.isAccessibilitySize || style == .grid {
+                metadata
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var metadata: some View {
+        VStack(alignment: style == .row && !dynamicTypeSize.isAccessibilitySize ? .trailing : .leading,
+               spacing: AppTheme.Spacing.xSmall) {
+            Text(item.modifiedAt.compactRelativeString)
+                .monospacedDigit()
+                .fixedSize()
+                .accessibilityLabel("Modified \(item.modifiedAt.relativeString)")
+                .font(AppTheme.Typography.caption2)
+                .foregroundStyle(AppTheme.Colors.secondaryLabel)
+            HStack(spacing: AppTheme.Spacing.xSmall) {
+                if item.syncStatus != .synced && item.syncStatus != .localOnly {
+                    SyncStatusBadge(status: item.syncStatus, compactMode: true)
+                        .frame(width: statusSlotSize, height: statusSlotSize)
+                }
+                if item.isPinned {
+                    Image(systemName: "pin.fill")
+                        .frame(width: statusSlotSize, height: statusSlotSize)
+                        .accessibilityLabel("Pinned")
+                }
+                if item.isFavorite {
+                    Image(systemName: "heart.fill")
+                        .frame(width: statusSlotSize, height: statusSlotSize)
+                        .accessibilityLabel("Favorite")
+                }
+            }
+            .frame(minHeight: statusSlotSize)
+            .font(.caption2)
+            .foregroundStyle(AppTheme.Colors.secondaryLabel)
+        }
+    }
+
+    private var selection: some View {
+        Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+            .font(.title3)
+            .foregroundStyle(isSelected ? AppTheme.Colors.accent : AppTheme.Colors.secondaryLabel)
+            .accessibilityHidden(true)
+    }
+
+    var body: some View {
+        Group {
+            if style == .row {
+                HStack(alignment: .top, spacing: AppTheme.Spacing.medium) {
+                    if isSelectMode { selection }
+                    icon
+                    details
+                    if !dynamicTypeSize.isAccessibilitySize { metadata }
+                    if !isSelectMode {
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+                            .accessibilityHidden(true)
+                    }
+                }
+            } else {
+                VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
+                    HStack {
+                        icon
+                        Spacer()
+                        if isSelectMode { selection }
+                    }
+                    details
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+        .padding(AppTheme.Spacing.medium)
+        .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
+        .background(isSelected ? AppTheme.Colors.accent.opacity(0.08) : AppTheme.Colors.secondaryBG)
+        .clipShape(RoundedRectangle(cornerRadius: style == .grid ? AppTheme.Radius.large : 0))
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 
@@ -607,7 +729,7 @@ private struct FilesFilterSheetView: View {
                 }
             }
             .font(AppTheme.Typography.caption1.weight(.semibold))
-            .foregroundStyle(isSelected ? type.tintColor : AppTheme.Colors.secondaryLabel)
+            .foregroundStyle(isSelected ? AppTheme.Colors.accent : AppTheme.Colors.secondaryLabel)
             .padding(.horizontal, AppTheme.Spacing.small)
             .frame(
                 minWidth: fillWidth ? nil : 92,
@@ -615,11 +737,11 @@ private struct FilesFilterSheetView: View {
                 minHeight: 44,
                 alignment: .leading
             )
-            .background(isSelected ? type.tintColor.opacity(0.13) : AppTheme.Colors.tertiaryBG)
+            .background(isSelected ? AppTheme.Colors.accent.opacity(0.08) : AppTheme.Colors.tertiaryBG)
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous)
-                    .stroke(isSelected ? type.tintColor.opacity(0.45) : .clear, lineWidth: 1)
+                    .stroke(isSelected ? AppTheme.Colors.accent.opacity(0.35) : .clear, lineWidth: 1)
             }
         }
         .buttonStyle(.plain)
