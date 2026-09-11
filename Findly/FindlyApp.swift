@@ -4,6 +4,8 @@ import GoogleSignIn
 @main
 struct FindlyApp: App {
 
+    @AppStorage("appLockEnabled") private var appLockEnabled = false
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var appContainer: AppContainer? = nil
     @Environment(\.scenePhase) private var scenePhase
 
@@ -24,6 +26,26 @@ struct FindlyApp: App {
                     .environment(appContainer.experimentalFeatures)
                     .modelContainer(appContainer.persistence.container)
                     .tint(AppTheme.Colors.accent)
+                    .task {
+                        await appContainer.publishShareCatalog()
+                        appContainer.onAppBecomeActive()
+                    }
+                    .onChange(of: appLockEnabled) { _, enabled in
+                        UserDefaults(suiteName: ShareInbox.groupID)?.set(enabled, forKey: "appLockEnabled")
+                        Task { await appContainer.publishShareCatalog() }
+                    }
+                    .onChange(of: hasCompletedOnboarding) { _, completed in
+                        if completed { Task { await appContainer.receiveSharedFiles() } }
+                    }
+                    .alert("Shared File Pending", isPresented: Binding(
+                        get: { appContainer.shareImportError != nil },
+                        set: { if !$0 { appContainer.shareImportError = nil } }
+                    )) {
+                        Button("Retry") { Task { await appContainer.receiveSharedFiles() } }
+                        Button("Later", role: .cancel) { appContainer.shareImportError = nil }
+                    } message: {
+                        Text(appContainer.shareImportError ?? "")
+                    }
                     .onOpenURL { url in
                         // Required for Google Sign-In callback
                         GIDSignIn.sharedInstance.handle(url)

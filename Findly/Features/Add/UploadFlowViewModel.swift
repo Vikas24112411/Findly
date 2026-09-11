@@ -35,7 +35,7 @@ final class ItemFormViewModel {
         localStorage: LocalFileService,
         isAuthenticated: Bool
     ) async {
-        guard let upload = pendingUpload else { return }
+        guard !isSaving, savedItem == nil, let upload = pendingUpload else { return }
         isSaving = true
         saveError = nil
 

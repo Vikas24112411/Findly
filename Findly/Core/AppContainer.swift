@@ -22,6 +22,38 @@ final class AppContainer {
     let tokenRefresher: TokenRefresher
     let export = ExportService()
     let importService = ImportService()
+    private let shareImporter = ShareInboxImporter()
+    var shareImportError: String?
+
+    func publishShareCatalog() async {
+        UserDefaults(suiteName: ShareInbox.groupID)?.set(UserDefaults.standard.bool(forKey: "appLockEnabled"), forKey: "appLockEnabled")
+        guard UserDefaults.standard.bool(forKey: "hasCompletedOnboarding"),
+              let inbox = try? ShareInbox() else { return }
+        do {
+            let tags = try persistence.container.mainContext.fetch(FetchDescriptor<Tag>())
+            let catalog = ShareCatalog(
+                tags: tags.map { SharedTag(id: $0.id, name: $0.name, colorHex: $0.colorHex, sfSymbol: $0.sfSymbol) }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending },
+                requiresUnlock: UserDefaults.standard.bool(forKey: "appLockEnabled"),
+                appearanceMode: UserDefaults.standard.string(forKey: "appearanceMode")
+            )
+            try await Task.detached { try inbox.publish(catalog) }.value
+        } catch {
+            // Sharing will report an unavailable catalog; the main vault remains usable.
+        }
+    }
+
+    func receiveSharedFiles() async {
+        guard UserDefaults.standard.bool(forKey: "hasCompletedOnboarding"),
+              let inbox = try? ShareInbox() else { return }
+        do {
+            _ = try await shareImporter.importFiles(inbox: inbox, container: persistence.container,
+                                                    storage: localStorage, authenticated: auth.isAuthenticated)
+            shareImportError = nil
+        } catch {
+            shareImportError = "A shared file couldn’t be added to your vault. It is still saved and will be retried when you open Findly again. " + error.localizedDescription
+        }
+        await publishShareCatalog()
+    }
     let periodicBackup: PeriodicBackupService
 
     /// App-wide experimental feature flags. Owned here and injected into
@@ -83,8 +115,9 @@ final class AppContainer {
 
     func onAppBecomeActive() {
         Task {
-            _ = await periodicBackup.backupIfDue()
             await auth.restorePreviousSignIn()
+            await receiveSharedFiles()
+            _ = await periodicBackup.backupIfDue()
             if auth.isAuthenticated {
                 tokenRefresher.start(authService: auth)
                 if UserDefaults.standard.bool(forKey: "autoSyncEnabled") {
@@ -95,6 +128,7 @@ final class AppContainer {
     }
 
     func onAppBackground() {
+        Task { await publishShareCatalog() }
         BackgroundSyncTask.schedule()
         periodicBackup.scheduleNextBackgroundRun()
     }
