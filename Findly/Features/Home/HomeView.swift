@@ -173,7 +173,7 @@ struct HomeView: View {
             collectionHeader(.pinned, actionLabel: "View all")
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: AppTheme.Spacing.medium) {
-                    ForEach(pinnedItems) { item in
+                    ForEach(pinnedItems.filter(\.isAvailableForPresentation), id: \.persistentModelID) { item in
                         Button { fileViewer.open(item) } label: {
                             HomePinnedCard(item: item)
                                 .frame(width: pinnedCardWidth)
@@ -192,7 +192,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
             collectionHeader(collection)
             VStack(spacing: 0) {
-                ForEach(items) { item in
+                ForEach(items.filter(\.isAvailableForPresentation), id: \.persistentModelID) { item in
                     Button { fileViewer.open(item) } label: {
                         HomeFileRow(item: item, collection: collection)
                             .padding(AppTheme.Spacing.medium)
@@ -200,7 +200,7 @@ struct HomeView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityHint("Opens file")
-                    if item.id != items.last?.id {
+                    if item.persistentModelID != items.last?.persistentModelID {
                         Divider().padding(.leading, 64)
                     }
                 }
@@ -431,7 +431,7 @@ private struct HomeCollectionView: View {
 
     var body: some View {
         List {
-            ForEach(items) { item in
+            ForEach(items.filter(\.isAvailableForPresentation), id: \.persistentModelID) { item in
                 Button { fileViewer.open(item) } label: {
                     HomeFileRow(item: item, collection: collection)
                 }
@@ -465,6 +465,12 @@ private struct HomePinnedCard: View {
     }
 
     var body: some View {
+        if item.isAvailableForPresentation {
+            content
+        }
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
             RoundedRectangle(cornerRadius: AppTheme.Radius.small)
                 .fill(item.fileType.tintColor.opacity(0.1))
@@ -549,6 +555,12 @@ private struct HomeFileRow: View {
     }
 
     var body: some View {
+        if item.isAvailableForPresentation {
+            content
+        }
+    }
+
+    private var content: some View {
         HStack(spacing: AppTheme.Spacing.medium) {
             HomeFileIcon(item: item)
             VStack(alignment: .leading, spacing: AppTheme.Spacing.xSmall) {
@@ -586,6 +598,12 @@ private struct HomeFileIcon: View {
     let item: Item
 
     var body: some View {
+        if item.isAvailableForPresentation {
+            content
+        }
+    }
+
+    private var content: some View {
         Image(systemName: item.fileType.sfSymbol)
             .font(.title3)
             .foregroundStyle(item.fileType.tintColor)

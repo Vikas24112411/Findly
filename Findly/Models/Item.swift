@@ -80,6 +80,10 @@ final class Item {
 
     // MARK: - Computed helpers
 
+    /// Check lifecycle metadata before reading any persisted attributes in a view.
+    /// After a delete is saved, isDeleted resets but modelContext becomes nil.
+    var isAvailableForPresentation: Bool { modelContext != nil && !isDeleted }
+
     var localFileAvailable: Bool { localFilePath != nil }
     var isUploaded: Bool         { googleDriveFileID != nil }
     var isSynced: Bool           { syncStatus == .synced }

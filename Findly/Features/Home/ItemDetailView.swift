@@ -10,6 +10,7 @@ final class FileViewerCoordinator {
     var selectedItem: Item?
 
     func open(_ item: Item) {
+        guard item.isAvailableForPresentation else { return }
         selectedItem = item
     }
 
@@ -83,6 +84,12 @@ struct FileViewerView: View {
     @State private var imageZoomed = false
 
     var body: some View {
+        if item.isAvailableForPresentation {
+            content
+        }
+    }
+
+    private var content: some View {
         GeometryReader { geometry in
             ZStack(alignment: .bottom) {
                 previewContent

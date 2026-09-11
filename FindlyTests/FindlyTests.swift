@@ -1462,3 +1462,35 @@ struct PreviewContentTapTests {
         #expect(delegate.gestureRecognizer(contentTap, shouldRecognizeSimultaneouslyWith: nativeTap))
     }
 }
+
+@Suite("Deleted item presentation")
+@MainActor
+struct DeletedItemPresentationTests {
+    @Test("Repeated deletions reject retained items before and after saving")
+    func repeatedDeletions() throws {
+        let container = try ModelContainer(
+            for: Item.self, Tag.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let context = container.mainContext
+        let coordinator = FileViewerCoordinator()
+        let items = (0..<20).map { Item(title: "File \($0)", fileType: .note) }
+        for item in items { context.insert(item) }
+        try context.save()
+
+        for item in items {
+            #expect(item.isAvailableForPresentation)
+            coordinator.open(item)
+            #expect(coordinator.selectedItem === item)
+            context.delete(item)
+            #expect(!item.isAvailableForPresentation)
+            try context.save()
+            #expect(!item.isAvailableForPresentation)
+            coordinator.close()
+            coordinator.open(item)
+            #expect(coordinator.selectedItem == nil)
+            #expect(items.filter(\.isAvailableForPresentation).allSatisfy { $0 !== item })
+        }
+        #expect(items.filter(\.isAvailableForPresentation).isEmpty)
+    }
+}
