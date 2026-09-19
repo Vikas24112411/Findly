@@ -7,6 +7,7 @@ enum ImportError: Error, LocalizedError {
     case notAFindlyVault
     case unsupportedVersion(Int)
     case corruptManifest
+    case missingFile(String)
 
     var errorDescription: String? {
         switch self {
@@ -16,6 +17,8 @@ enum ImportError: Error, LocalizedError {
             return "This vault was exported with a newer version of Findly (format v\(v)) and cannot be imported."
         case .corruptManifest:
             return "The vault manifest is missing or corrupt. The file may be damaged."
+        case .missingFile(let title):
+            return "This backup is incomplete: the original file for ‘\(title)’ is missing. Your current vault has not been changed."
         }
     }
 }
@@ -44,18 +47,8 @@ final class ImportService {
         let reader = ZipReader(zipData: zipData)
         let entries = try reader.entries()
 
-        // 2. Locate and decode manifest.
-        guard let manifestEntry = entries.first(where: { $0.name == "manifest.json" }) else {
-            throw ImportError.notAFindlyVault
-        }
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        guard let manifest = try? decoder.decode(ExportManifest.self, from: manifestEntry.data) else {
-            throw ImportError.corruptManifest
-        }
-        guard manifest.version == 1 else {
-            throw ImportError.unsupportedVersion(manifest.version)
-        }
+        // Validate every file before writing anything or replacing existing records.
+        let manifest = try reader.validatedManifest(entries: entries)
 
         // 3. Write primary files to localStorage; keep thumbnails in memory.
         //    Files are written BEFORE the wipe so a failure here leaves existing SwiftData
@@ -185,13 +178,52 @@ final class ImportService {
 // Reads the local-file-header stream written by ZipWriter.
 // Compression method must be STORE (0); no decompression is performed.
 
-private struct ZipReader {
+struct ZipReader {
 
     let zipData: Data
 
     enum ZipReadError: Error, LocalizedError {
         case invalidData
         var errorDescription: String? { "The ZIP archive is corrupt or truncated." }
+    }
+
+    static func isSafeFileName(_ name: String) -> Bool {
+        !name.isEmpty && name != "." && name != ".."
+            && !name.contains("/") && !name.contains("\\") && !name.contains("\0")
+    }
+
+    func validatedManifest(entries suppliedEntries: [ZipEntry]? = nil) throws -> ExportManifest {
+        let entries = try suppliedEntries ?? self.entries()
+        let names = entries.map(\.name)
+        guard Set(names).count == names.count, names.allSatisfy(Self.isSafeFileName) else {
+            throw ImportError.corruptManifest
+        }
+        guard let entry = entries.first(where: { $0.name == "manifest.json" }) else {
+            throw ImportError.notAFindlyVault
+        }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let manifest = try decoder.decode(ExportManifest.self, from: entry.data)
+        guard manifest.version == 1 else { throw ImportError.unsupportedVersion(manifest.version) }
+        let nameSet = Set(names)
+        for item in manifest.items {
+            guard let path = item.localFilePath, Self.isSafeFileName(path),
+                  path != "manifest.json", !path.hasSuffix("_thumb.jpg"),
+                  nameSet.contains(path) else {
+                throw ImportError.missingFile(item.title)
+            }
+        }
+        guard Set(manifest.items.map(\.id)).count == manifest.items.count,
+              Set(manifest.tags.map(\.id)).count == manifest.tags.count,
+              Set(manifest.searchHistory.map(\.id)).count == manifest.searchHistory.count else {
+            throw ImportError.corruptManifest
+        }
+        let tagIDs = Set(manifest.tags.map(\.id))
+        guard manifest.items.allSatisfy({ Set($0.tagIDs).isSubset(of: tagIDs) }),
+              manifest.tags.allSatisfy({ Set($0.parentIDs).isSubset(of: tagIDs) }) else {
+            throw ImportError.corruptManifest
+        }
+        return manifest
     }
 
     func entries() throws -> [ZipEntry] {
@@ -206,13 +238,15 @@ private struct ZipReader {
 
             // Expect a local file header.
             guard sig == 0x04034b50 else {
-                offset += 1
-                continue
+                throw ZipReadError.invalidData
             }
 
             guard offset + 30 <= zipData.count else { throw ZipReadError.invalidData }
 
+            guard readUInt16(at: offset + 8) == 0,
+                  readUInt16(at: offset + 6) & 0x0009 == 0 else { throw ZipReadError.invalidData }
             let compressedSize = Int(readUInt32(at: offset + 18))
+            guard compressedSize == Int(readUInt32(at: offset + 22)) else { throw ZipReadError.invalidData }
             let nameLen        = Int(readUInt16(at: offset + 26))
             let extraLen       = Int(readUInt16(at: offset + 28))
 
@@ -228,12 +262,35 @@ private struct ZipReader {
             }
 
             let fileData = Data(zipData[dataStart ..< (dataStart + compressedSize)])
+            guard Self.crc32(fileData) == readUInt32(at: offset + 14) else {
+                throw ZipReadError.invalidData
+            }
             result.append(ZipEntry(name: name, data: fileData))
 
             offset = dataStart + compressedSize
         }
 
+        // Require a complete end record rather than accepting a truncated local stream.
+        guard zipData.count >= 22 else { throw ZipReadError.invalidData }
+        let end = zipData.count - 22
+        guard readUInt32(at: end) == 0x06054b50,
+              Int(readUInt16(at: end + 10)) == result.count,
+              Int(readUInt32(at: end + 16)) == offset,
+              offset + Int(readUInt32(at: end + 12)) == end else {
+            throw ZipReadError.invalidData
+        }
         return result
+    }
+
+    private static func crc32(_ data: Data) -> UInt32 {
+        var crc: UInt32 = 0xFFFF_FFFF
+        for byte in data {
+            crc ^= UInt32(byte)
+            for _ in 0..<8 {
+                crc = (crc & 1 == 0) ? crc >> 1 : (crc >> 1) ^ 0xEDB8_8320
+            }
+        }
+        return crc ^ 0xFFFF_FFFF
     }
 
     // MARK: - Little-endian reads
@@ -253,7 +310,7 @@ private struct ZipReader {
     }
 }
 
-private struct ZipEntry {
+struct ZipEntry {
     let name: String
     let data: Data
 }

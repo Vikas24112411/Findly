@@ -7,17 +7,33 @@ import Foundation
 /// one entry per file named `<UUID>.<ext>` and an optional `<UUID>_thumb.jpg` sidecar.
 /// This layout is understood by `ImportService` for full-fidelity restore.
 actor ExportService {
-
     // MARK: - Public interface
 
     /// Creates a ZIP archive of the full vault (files + metadata manifest) and returns its URL.
     /// The caller is responsible for deleting the temp file when done.
+    @MainActor
     func exportVault(
         items: [Item],
         tags: [Tag],
         searchHistory: [SearchHistoryEntry],
         localStorage: LocalFileService,
         onProgress: (@MainActor @Sendable (Double) -> Void)? = nil
+    ) async throws -> URL {
+        let availableItems = items.filter(\.isAvailableForPresentation)
+        // Snapshot metadata before suspending; later edits cannot change this archive.
+        let manifest = buildManifest(items: availableItems, tags: tags, searchHistory: searchHistory)
+        let thumbnails = Dictionary(uniqueKeysWithValues: availableItems.compactMap { item in
+            item.thumbnailData.map { (item.id, $0) }
+        })
+        return try await writeArchive(manifest: manifest, thumbnails: thumbnails,
+                                      localStorage: localStorage, onProgress: onProgress)
+    }
+
+    private func writeArchive(
+        manifest: ExportManifest,
+        thumbnails: [UUID: Data],
+        localStorage: LocalFileService,
+        onProgress: (@MainActor @Sendable (Double) -> Void)?
     ) async throws -> URL {
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("Findly_Export_\(UUID().uuidString).zip")
@@ -35,43 +51,36 @@ actor ExportService {
 
         var writer = ZipWriter(fileHandle: fileHandle)
 
-        // Pass 1: determine which items have files that actually exist on disk.
-        // This is done upfront so the manifest accurately reflects what will be in the ZIP.
-        var exportedPaths: Set<String> = []
-        for item in items {
-            try Task.checkCancellation()
-            guard let relativePath = item.localFilePath else { continue }
-            let url = await localStorage.fileURL(relativePath: relativePath)
-            if FileManager.default.fileExists(atPath: url.path) {
-                exportedPaths.insert(relativePath)
-            }
-        }
-
-        // Write manifest first so it is easy to locate during import.
-        // localFilePath is set only for items whose file was confirmed to exist.
-        let manifest = buildManifest(items: items, tags: tags, searchHistory: searchHistory,
-                                     exportedPaths: exportedPaths)
+        // Every item must have a readable original, including items synced to Drive.
+        // A cloud reference alone is not a self-contained backup.
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         let manifestData = try encoder.encode(manifest)
         try writer.addFile(name: "manifest.json", data: manifestData)
 
         // Pass 2: write each item's primary file and thumbnail sidecar.
-        let total = max(1, exportedPaths.count)
+        let total = max(1, manifest.items.count)
         var done = 0
 
-        for item in items {
+        for item in manifest.items {
             try Task.checkCancellation()
             guard let relativePath = item.localFilePath,
-                  exportedPaths.contains(relativePath) else { continue }
+                  ZipReader.isSafeFileName(relativePath) else {
+                throw VaultBackupError.unavailable(item.title)
+            }
             let url = await localStorage.fileURL(relativePath: relativePath)
-            guard let data = try? Data(contentsOf: url) else { continue }
+            let data: Data
+            do {
+                data = try Data(contentsOf: url)
+            } catch {
+                throw VaultBackupError.unreadable(item.title, error.localizedDescription)
+            }
             // Archive entry name == localFilePath so import can restore by path directly.
             try writer.addFile(name: relativePath, data: data)
 
             // Thumbnail lives only in SwiftData (@Attribute(.externalStorage)),
             // not as a sidecar file on disk — write it directly from the model.
-            if let thumbData = item.thumbnailData {
+            if let thumbData = thumbnails[item.id] {
                 let thumbName = "\(item.id.uuidString)_thumb.jpg"
                 try writer.addFile(name: thumbName, data: thumbData)
             }
@@ -82,17 +91,20 @@ actor ExportService {
 
         try Task.checkCancellation()
         try writer.finalize()
+        try fileHandle.synchronize()
+        // Read back the completed archive before it can replace a previous backup.
+        _ = try ZipReader(zipData: Data(contentsOf: tempURL)).validatedManifest()
         succeeded = true
         return tempURL
     }
 
     // MARK: - Manifest builder
 
+    @MainActor
     private func buildManifest(
         items: [Item],
         tags: [Tag],
-        searchHistory: [SearchHistoryEntry],
-        exportedPaths: Set<String>
+        searchHistory: [SearchHistoryEntry]
     ) -> ExportManifest {
         let exportTags = tags.map { tag in
             ExportTag(
@@ -112,8 +124,7 @@ actor ExportService {
                 fileType: item.fileType,
                 fileSize: item.fileSize,
                 originalFileName: item.originalFileName,
-                // Only reference the path if the file was actually written to the ZIP.
-                localFilePath: exportedPaths.contains(item.localFilePath ?? "") ? item.localFilePath : nil,
+                localFilePath: item.localFilePath,
                 googleDriveFileID: item.googleDriveFileID,
                 syncStatus: item.syncStatus,
                 createdAt: item.createdAt,
@@ -140,6 +151,20 @@ actor ExportService {
             tags: exportTags,
             searchHistory: exportHistory
         )
+    }
+}
+
+enum VaultBackupError: LocalizedError {
+    case unavailable(String)
+    case unreadable(String, String)
+
+    var errorDescription: String? {
+        switch self {
+        case .unavailable(let title):
+            return "Backup incomplete: the original file for ‘\(title)’ is unavailable. Restore or download it before backing up. The previous backup has not been replaced."
+        case .unreadable(let title, let reason):
+            return "Backup incomplete: could not read ‘\(title)’. \(reason) The previous backup has not been replaced."
+        }
     }
 }
 
@@ -232,7 +257,9 @@ private struct ZipWriter {
 
     mutating func addFile(name: String, data: Data) throws {
         // Guard against 4 GB overflow before writing anything.
-        guard currentOffset <= Int(UInt32.max) else { throw ZipError.archiveTooLarge }
+        guard currentOffset <= Int(UInt32.max), data.count <= Int(UInt32.max) else {
+            throw ZipError.archiveTooLarge
+        }
 
         let nameData = name.data(using: .utf8) ?? Data()
         let crc = crc32(data)

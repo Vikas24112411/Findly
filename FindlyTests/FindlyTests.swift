@@ -1494,3 +1494,109 @@ struct DeletedItemPresentationTests {
         #expect(items.filter(\.isAvailableForPresentation).isEmpty)
     }
 }
+
+@Suite("Backup completeness")
+@MainActor
+struct BackupCompletenessTests {
+    @Test("Failed backup preserves previous archive and success timestamp")
+    func preservesPreviousBackup() async throws {
+        let root = FileManager.default.temporaryDirectory.appending(component: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let storage = try LocalFileService(baseDirectory: root.appending(component: "files"))
+        let destination = root.appending(component: "backups")
+        try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        let persistence = PersistenceController(inMemory: true)
+        let item = Item(title: "Biodata", fileType: .image)
+        persistence.container.mainContext.insert(item)
+        let path = try await storage.write(data: Data("original".utf8), itemID: item.id, fileExtension: "jpg")
+        item.localFilePath = path
+        try persistence.container.mainContext.save()
+        let suite = "BackupCompleteness-\(UUID())"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let service = PeriodicBackupService(exportService: ExportService(), localStorage: storage,
+            modelContainer: persistence.container, scheduler: FakeBackupTaskScheduler(), defaults: defaults)
+        try service.setDestination(destination)
+        #expect(await service.backupNow())
+        let archive = destination.appending(component: PeriodicBackupService.backupFileName)
+        let previous = try Data(contentsOf: archive)
+        let lastSuccess = service.lastSuccess
+        try await storage.delete(relativePath: path)
+        #expect(!(await service.backupNow()))
+        #expect(service.lastSuccess == lastSuccess)
+        #expect(service.latestError?.contains("Biodata") == true)
+        #expect(try Data(contentsOf: archive) == previous)
+    }
+
+    @Test("Missing, unreadable, and cloud-only originals fail export")
+    func unavailableOriginals() async throws {
+        let folder = FileManager.default.temporaryDirectory.appending(component: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let storage = try LocalFileService(baseDirectory: folder)
+        let persistence = PersistenceController(inMemory: true)
+        let item = Item(title: "Biodata", fileType: .image)
+        persistence.container.mainContext.insert(item)
+        for path in [nil, "missing.jpg", "directory.jpg"] as [String?] {
+            item.localFilePath = path
+            item.googleDriveFileID = "remote-reference-is-not-a-backup"
+            if path == "directory.jpg" {
+                try FileManager.default.createDirectory(at: folder.appending(component: "directory.jpg"), withIntermediateDirectories: true)
+            }
+            do {
+                let archive = try await ExportService().exportVault(items: [item], tags: [], searchHistory: [], localStorage: storage)
+                try? FileManager.default.removeItem(at: archive)
+                Issue.record("Incomplete export incorrectly succeeded")
+            } catch {
+                #expect(error.localizedDescription.contains("Biodata"))
+            }
+        }
+    }
+
+    @Test("Missing archive entry is rejected even when metadata references it")
+    func missingEntry() async throws {
+        let folder = FileManager.default.temporaryDirectory.appending(component: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let storage = try LocalFileService(baseDirectory: folder)
+        let persistence = PersistenceController(inMemory: true)
+        let item = Item(title: "Biodata", fileType: .image)
+        persistence.container.mainContext.insert(item)
+        item.localFilePath = try await storage.write(data: Data("original".utf8), itemID: item.id, fileExtension: "jpg")
+        let archive = try await ExportService().exportVault(items: [item], tags: [], searchHistory: [], localStorage: storage)
+        defer { try? FileManager.default.removeItem(at: archive) }
+        let reader = ZipReader(zipData: try Data(contentsOf: archive))
+        let entries = try reader.entries().filter { $0.name == "manifest.json" }
+        #expect(throws: (any Error).self) { try reader.validatedManifest(entries: entries) }
+    }
+
+    @Test("Corrupt and truncated archives leave existing files and metadata intact")
+    func corruptImport() async throws {
+        let folder = FileManager.default.temporaryDirectory.appending(component: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let storage = try LocalFileService(baseDirectory: folder)
+        let persistence = PersistenceController(inMemory: true)
+        let context = persistence.container.mainContext
+        let item = Item(title: "Keep me", fileType: .pdf)
+        context.insert(item)
+        let original = Data("unique-original-payload".utf8)
+        let path = try await storage.write(data: original, itemID: item.id, fileExtension: "pdf")
+        item.localFilePath = path
+        try context.save()
+        let archive = try await ExportService().exportVault(items: [item], tags: [], searchHistory: [], localStorage: storage)
+        defer { try? FileManager.default.removeItem(at: archive) }
+        let valid = try Data(contentsOf: archive)
+        var damaged = valid
+        let range = try #require(damaged.range(of: original))
+        damaged[range.lowerBound] ^= 1
+        for data in [damaged, Data(valid.dropLast(22))] {
+            try data.write(to: archive)
+            do {
+                try await ImportService().importVault(from: archive, localStorage: storage, context: context)
+                Issue.record("Invalid import incorrectly succeeded")
+            } catch {
+                #expect(try context.fetchCount(FetchDescriptor<Item>()) == 1)
+                #expect(item.title == "Keep me")
+                #expect(try await storage.read(relativePath: path) == original)
+            }
+        }
+    }
+}
