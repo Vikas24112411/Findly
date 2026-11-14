@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Findly — Bottom search bar</title>
+<style>
+.study{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif);color:var(--foreground,#17191e);font-size:14px;line-height:1.45}
+.study *{box-sizing:border-box}
+.study h2{font-size:17px;margin:0 0 2px}
+.study .sub{color:var(--muted-foreground,#686c75);margin:0 0 14px;font-size:13px}
+.study section+section{margin-top:34px}
+.row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;justify-items:center;align-items:start}
+@media(max-width:620px){.row{grid-template-columns:minmax(0,1fr)}}
+.col{width:100%;max-width:230px}
+.cap{margin-top:12px;font-size:12.5px}
+.cap b{display:block;font-size:13.5px;margin-bottom:3px}
+.cap ul{margin:4px 0 0;padding-left:16px;color:var(--muted-foreground,#686c75)}
+.cap li{margin-bottom:3px}
+.step{display:inline-block;width:20px;height:20px;border-radius:50%;background:var(--primary,#1F90E4);color:var(--primary-foreground,#fff);font-size:11.5px;font-weight:700;text-align:center;line-height:20px;margin-right:6px}
+.rec{font-size:10.5px;font-weight:600;background:var(--success,#1f9d55);color:var(--success-foreground,#fff);border-radius:999px;padding:1px 7px;margin-left:5px;vertical-align:1px}
+
+.phone{--acc:#1F90E4;--bg:#f2f2f7;--ink:#000;--ink2:rgba(60,60,67,.62);--fill:rgba(120,120,128,.14);
+  position:relative;width:212px;height:452px;margin:8px auto 0;border-radius:34px;background:var(--bg);color:var(--ink);overflow:hidden;box-shadow:0 0 0 6px #101012,0 0 0 7px #55565c;font:400 11px/1.25 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif}
+.phone svg{display:block;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.g{background:rgba(255,255,255,.72);-webkit-backdrop-filter:blur(14px) saturate(180%);backdrop-filter:blur(14px) saturate(180%);border:.5px solid rgba(255,255,255,.95);box-shadow:0 5px 16px rgba(0,0,0,.14),inset 0 1px 0 rgba(255,255,255,.4)}
+.nav{position:absolute;top:0;left:0;right:0;height:62px;padding:30px 12px 0;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12.5px}
+.nav .tr{position:absolute;right:10px;top:29px;display:flex;gap:5px}
+.circ{width:28px;height:28px;border-radius:50%;display:grid;place-items:center}
+.big{position:absolute;top:36px;left:14px;font-size:22px;font-weight:700}
+.list{position:absolute;top:66px;left:10px;right:10px;background:#fff;border-radius:14px;padding:0 10px}
+.it{display:flex;gap:8px;align-items:center;padding:7px 0;border-bottom:.5px solid rgba(60,60,67,.14)}
+.it:last-child{border:0}
+.it i{width:26px;height:26px;border-radius:7px;flex:none}
+.it b{display:block;font-weight:500;font-size:11px}
+.it span{color:var(--ink2);font-size:9.5px}
+.count{position:absolute;top:66px;left:14px;right:14px;display:flex;justify-content:space-between;color:var(--ink2);font-size:10px}
+.bot{position:absolute;left:0;right:0;bottom:0;padding:0 10px 12px;display:flex;flex-direction:column;gap:7px;background:linear-gradient(to top,var(--bg) 55%,rgba(242,242,247,0))}
+.chips{display:flex;gap:5px;overflow:hidden;margin:0 -10px;padding:0 10px}
+.chip{flex:none;height:25px;border-radius:13px;padding:0 9px;display:flex;align-items:center;gap:4px;font-size:10px;font-weight:500;background:#fff}
+.chip i{width:8px;height:8px;border-radius:3px}
+.chip.on{box-shadow:inset 0 0 0 1px var(--acc);background:#dcedfb}
+.bar{display:flex;gap:7px;align-items:center}
+.field{flex:1;height:38px;border-radius:19px;display:flex;align-items:center;gap:6px;padding:0 12px;color:var(--ink2);font-size:12px}
+.field.act{color:var(--ink)}
+.field.act:after{content:"";width:1.5px;height:15px;background:var(--acc);margin-left:-4px}
+.btn{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;flex:none}
+.tabs{flex:1;height:44px;border-radius:22px;display:flex;align-items:center;padding:3px}
+.tabs div{flex:1;height:100%;border-radius:19px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:7.5px;color:var(--ink2)}
+.tabs div.on{background:var(--fill);color:var(--acc)}
+.kb{margin:0 -10px -12px;background:#d3d6dc;padding:7px 4px 20px;display:grid;gap:5px}
+.kb div{display:flex;gap:3px;justify-content:center}
+.kb s{width:17px;height:23px;border-radius:4px;background:#fff;box-shadow:0 1px 0 rgba(0,0,0,.25)}
+.kb s.w{width:96px}.kb s.m{width:26px;background:#abb0ba}
+.fab{position:absolute;right:14px;bottom:70px;width:40px;height:40px;border-radius:50%;background:var(--acc);color:#fff;display:grid;place-items:center;box-shadow:0 5px 14px rgba(31,144,228,.45)}
+.topchips{position:absolute;top:62px;left:0;right:0;padding:0 10px;display:grid;gap:5px}
+.hl{outline:2px dashed #e8590c;outline-offset:3px;border-radius:16px}
+</style>
+</head>
+<body>
+<div class="study">
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="mag" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></symbol>
+<symbol id="house" viewBox="0 0 24 24"><path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+<symbol id="sl" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
+<symbol id="chk" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></symbol>
+<symbol id="dots" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="3"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="tag" viewBox="0 0 24 24"><path d="M3 4h8l10 10-7 7L4 11z"/></symbol>
+<symbol id="doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/></symbol>
+<symbol id="chart" viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></symbol>
+</defs></svg>
+
+<section>
+<h2>1 · The transition</h2>
+<p class="sub">Tapping Search collapses the tab bar into one round button and the search field grows out of the search icon, in the same bottom row. This is the system Liquid Glass morph, not a custom animation.</p>
+<div class="row" id="flow"></div>
+</section>
+
+<section>
+<h2>2 · Where the filters sit</h2>
+<p class="sub">The search field is fixed in the bottom row in every option. The choice is what happens to the type and tag chips.</p>
+<div class="row" id="opts"></div>
+</section>
+</div>
+
+<script>
+const ic=(n,s=14)=>`<svg width="${s}" height="${s}"><use href="#${n}"/></svg>`;
+const types=[['Documents','#1F90E4'],['Images','#34c759'],['PDFs','#ff3b30'],['Links','#af52de'],['Notes','#ff9500']];
+const tags=['#taxes','#travel','#receipts','#work','#home'];
+const chip=(t,c,on)=>`<span class="chip${on?' on':''}"><i style="background:${c}"></i>${t}</span>`;
+const typeRow=sel=>`<div class="chips">${types.map((t,i)=>chip(t[0],t[1],i===sel)).join('')}</div>`;
+const tagRow=()=>`<div class="chips">${tags.map(t=>chip(t,'#8e8e93')).join('')}</div>`;
+const oneRow=()=>`<div class="chips"><span class="chip on" style="padding:0 8px;color:var(--acc)">${ic('sl',12)}</span>${chip('PDFs','#ff3b30',true)}${chip('Documents','#1F90E4')}${chip('Images','#34c759')}${chip('#taxes','#8e8e93')}${chip('#travel','#8e8e93')}</div>`;
+const rows=n=>[['Lease agreement.pdf','PDF · 2 days ago','#ffd9d6'],['Tax return 2025.pdf','PDF · last week','#ffd9d6'],['Passport scan.pdf','PDF · 12 Oct','#ffd9d6'],['Insurance policy.pdf','PDF · 3 Oct','#ffd9d6'],['Car registration.pdf','PDF · 21 Sep','#ffd9d6'],['Warranty card.pdf','PDF · 2 Sep','#ffd9d6'],['Rental receipt.pdf','PDF · 30 Aug','#ffd9d6']].slice(0,n).map(r=>`<div class="it"><i style="background:${r[2]}"></i><div><b>${r[0]}</b><span>${r[1]}</span></div></div>`).join('');
+const nav=(btns)=>`<div class="nav">Search<div class="tr">${btns.map(b=>`<span class="circ g">${ic(b,13)}</span>`).join('')}</div></div>`;
+const bar=(txt,act)=>`<div class="bar"><span class="btn g" style="color:var(--acc)">${ic('house',16)}</span><div class="field g${act?' act':''}">${ic('mag',14)}${txt}</div></div>`;
+const kb=`<div class="kb">${[10,9].map(n=>`<div>${'<s></s>'.repeat(n)}</div>`).join('')}<div><s class="m"></s>${'<s></s>'.repeat(7)}<s class="m"></s></div><div><s class="m"></s><s class="w"></s><s class="m" style="width:44px;background:var(--acc)"></s></div></div>`;
+const results=(top,n)=>`<div class="count" style="top:${top}px"><span>7 results</span><span>Sort ↑↓</span></div><div class="list" style="top:${top+18}px">${rows(n)}</div>`;
+const col=(phone,cap)=>`<div class="col"><div class="phone">${phone}</div><div class="cap">${cap}</div></div>`;
+
+document.getElementById('flow').innerHTML=[
+col(`<div class="big">Home</div><div class="list" style="top:72px">${rows(5).replace(/PDF · /g,'')}</div>
+<div class="fab">${ic('plus',18)}</div>
+<div class="bot"><div class="bar"><div class="tabs g"><div class="on">${ic('house',14)}Home</div><div>${ic('tag',14)}Tags</div><div>${ic('doc',14)}Files</div><div>${ic('chart',14)}Insights</div></div><span class="btn g hl" style="width:44px;height:44px">${ic('mag',17)}</span></div></div>`,
+`<b><span class="step">1</span>Any tab</b>Search stays the separate round button at the bottom right, as it is today.`),
+col(`${nav(['chk'])}<div class="list" style="top:66px;background:none;padding:0 4px"><div style="color:var(--ink2);font-size:10px;font-weight:600;margin-bottom:6px">RECENTS</div>${['lease','tax return 2025','passport'].map(t=>`<span class="chip" style="display:inline-flex;margin:0 4px 5px 0">${t}</span>`).join('')}</div>
+<div class="bot">${oneRow()}<div class="hl">${bar('Search')}</div></div>`,
+`<b><span class="step">2</span>Search tab selected</b>Tab bar shrinks to the Home button (tap to go back). Field sits in thumb reach, filters directly above it. The add button hides, as it does now.`),
+col(`${nav(['chk'])}${results(66,3)}
+<div class="bot">${oneRow()}<div class="bar"><div class="field g act">${ic('mag',14)}lease</div><span class="btn g">${ic('x',14)}</span></div>${kb}</div>`,
+`<b><span class="step">3</span>Typing</b>Field and filter row ride up on top of the keyboard together. The round button becomes a close button that dismisses the keyboard.`)
+].join('');
+
+document.getElementById('opts').innerHTML=[
+col(`${nav(['dots','chk'])}${results(66,6)}
+<div class="bot"><div class="hl" style="display:grid;gap:6px">${typeRow(2)}${tagRow()}</div>${bar('Search')}</div>`,
+`<b>A · Two rows above the field</b>Today's layout, moved as is.<ul><li>Smallest change, no chip redesign</li><li>Bottom stack is three rows tall, so with the keyboard up only about two results stay visible</li><li>Date filter and Select stay in the top corner</li></ul>`),
+col(`${nav(['chk'])}${results(66,7)}
+<div class="bot"><div class="hl">${oneRow()}</div>${bar('Search')}</div>`,
+`<b>B · One merged row<span class="rec">Recommended</span></b>Types and tags share one scrolling row, led by a filter button.<ul><li>Filter button opens the existing date/type sheet, so the “…” leaves the top bar</li><li>Active filters jump to the front of the row</li><li>Two rows total at the bottom; most room for results</li><li>Select mode: bulk actions replace the chip row</li></ul>`),
+col(`${nav(['dots','chk'])}<div class="topchips hl" style="left:6px;right:6px;padding:0 4px">${typeRow(2)}${tagRow()}</div>${results(124,5)}
+<div class="bot">${bar('Search')}</div>`,
+`<b>C · Filters pinned on top</b>Only the field lives at the bottom.<ul><li>Cleanest bottom edge, nothing competes with the field</li><li>Filters go back to being a stretch to reach, which is the problem you want solved</li></ul>`)
+].join('');
+</script>
+</body>
+</html>
