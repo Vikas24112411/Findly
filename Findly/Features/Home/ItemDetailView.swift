@@ -81,7 +81,6 @@ struct FileViewerView: View {
     @State private var openSession = FileOpenSession()
     @State private var mediaController = MediaPlayerController()
     @State private var dismissDragOffset: CGFloat = 0
-    @State private var imageZoomed = false
 
     var body: some View {
         if item.isAvailableForPresentation {
@@ -97,7 +96,11 @@ struct FileViewerView: View {
                     .contentShape(Rectangle())
                     .offset(y: dismissDragOffset)
                     .gesture(PreviewContentTapGesture(isEnabled: contentTapEnabled, onTap: handleContentTap))
-                    .simultaneousGesture(dismissDragGesture)
+                    .gesture(DismissPanGesture(
+                        isEnabled: dismissDragEnabled,
+                        onChanged: handleDismissDragChanged,
+                        onEnded: handleDismissDragEnded
+                    ))
                 // Info panel layers BETWEEN the preview and the toolbar:
                 // preview (back) -> inspector panel -> toolbar (front, single
                 // instance). No duplicate toolbar is re-rendered inside the
@@ -143,7 +146,6 @@ struct FileViewerView: View {
         .statusBarHidden()
         .task(id: item.id) {
             controlsVisible = true
-            imageZoomed = false
             dismissDragOffset = 0
             await resolveFile()
         }
@@ -275,17 +277,18 @@ struct FileViewerView: View {
         }
     }
 
-    /// Photos-style drag-down-to-close. Only for image/video/audio: notes,
-    /// PDFs, and Quick Look documents scroll vertically, and a dismiss drag
-    /// there would fire while the user is just scrolling. Disabled while the
-    /// image is zoomed (drags pan the zoomed photo then), while the inspector
-    /// is open, and whenever the chrome cannot toggle (share/delete flows).
+    /// Photos-style drag-down-to-close for image/video/audio/PDF. Notes and
+    /// Quick Look documents are excluded. The recognizer itself refuses to
+    /// begin while the content is zoomed or scrolled away from its top, so
+    /// pinch, pan, and PDF scrolling keep working. Disabled while the
+    /// inspector is open and whenever the chrome cannot toggle (share/delete).
     private var dismissDragEnabled: Bool {
-        canToggleControls && isVisualMedia && (item.fileType != .image || !imageZoomed)
+        canToggleControls && supportsDismissDrag
     }
 
-    private var isVisualMedia: Bool {
-        (item.fileType == .image || item.fileType == .video || item.fileType == .audio) &&
+    private var supportsDismissDrag: Bool {
+        (item.fileType == .image || item.fileType == .video ||
+         item.fileType == .audio || item.fileType == .pdf) &&
         previewURL != nil && !isResolving && resolutionError == nil && noteText == nil
     }
 
@@ -294,25 +297,23 @@ struct FileViewerView: View {
         DismissDragEvaluator.fade(for: dismissDragOffset)
     }
 
-    private var dismissDragGesture: some Gesture {
-        DragGesture(minimumDistance: DismissDragEvaluator.minimumDistance)
-            .onChanged { value in
-                guard dismissDragEnabled else { return }
-                dismissDragOffset = DismissDragEvaluator.offset(for: value.translation)
-            }
-            .onEnded { value in
-                guard dismissDragEnabled,
-                      DismissDragEvaluator.shouldDismiss(translation: value.translation) else {
-                    guard dismissDragOffset != 0 else { return }
-                    withAnimation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.8)) {
-                        dismissDragOffset = 0
-                    }
-                    return
-                }
+    private func handleDismissDragChanged(_ translation: CGSize) {
+        guard dismissDragEnabled else { return }
+        dismissDragOffset = DismissDragEvaluator.offset(for: translation)
+    }
+
+    private func handleDismissDragEnded(_ translation: CGSize) {
+        guard dismissDragEnabled,
+              DismissDragEvaluator.shouldDismiss(translation: translation) else {
+            guard dismissDragOffset != 0 else { return }
+            withAnimation(reduceMotion ? nil : .spring(response: 0.3, dampingFraction: 0.8)) {
                 dismissDragOffset = 0
-                HapticFeedback.medium()
-                viewerCoordinator.close()
             }
+            return
+        }
+        dismissDragOffset = 0
+        HapticFeedback.medium()
+        viewerCoordinator.close()
     }
 
     private func actionPresentations(isActive: Bool) -> FileActionPresentations {
@@ -390,7 +391,7 @@ struct FileViewerView: View {
                 // Full-bleed with zero clearances: the chrome floats above the
                 // photo, so toggling never reflows the content (no jump), and the
                 // letterbox follows the app theme instead of forced black.
-                ImagePreviewView(url: previewURL, isZoomed: $imageZoomed)
+                ImagePreviewView(url: previewURL)
             } else if item.fileType == .video || item.fileType == .audio, let previewURL {
                 // Custom Photos-style player: a bare AVPlayerLayer with no
                 // AVPlayerViewController transport bar, so there are no native
@@ -400,8 +401,8 @@ struct FileViewerView: View {
                 MediaPreviewView(url: previewURL, fileType: item.fileType, controller: mediaController)
             } else if item.fileType == .pdf, let previewURL {
                 // Local PDF reader for the same reason: PDFView is a local
-                // UIView, so container taps work; pan/pinch selection and zoom
-                // keep working via the shared gesture delegate.
+                // UIView, so container taps work; its native scroll, pinch zoom,
+                // and selection keep working via the shared gesture delegates.
                 PDFPreviewView(url: previewURL)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .modifier(ThemedPreviewBackground())
@@ -444,43 +445,19 @@ struct FileViewerView: View {
 /// QLPreviewController renders in a remote (XPC) view whose touches never reach
 /// local gesture recognizers, which made tap-to-toggle impossible there.
 /// This view lives in the local hierarchy, so the shared container tap gesture
-/// works; pinch zoom is handled locally via MagnificationGesture.
+/// works; pinch, double-tap zoom, and panning come from a native
+/// UIScrollView (ZoomScrollView).
 private struct ImagePreviewView: View {
     let url: URL
-    /// Mirrors whether the photo is zoomed so the viewer can suspend
-    /// drag-down-to-close while drags pan the zoomed photo instead.
-    @Binding var isZoomed: Bool
 
     @State private var image: UIImage?
     @State private var loadFailed = false
-    @State private var zoom: CGFloat = 1
 
     var body: some View {
-        GeometryReader { geometry in
+        GeometryReader { _ in
             ZStack {
                 if let image {
-                    ScrollView([.horizontal, .vertical], showsIndicators: false) {
-                        Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(
-                                width: max(geometry.size.width, geometry.size.width * zoom),
-                                height: max(geometry.size.height, geometry.size.height * zoom)
-                            )
-                    }
-                    .gesture(
-                        MagnificationGesture()
-                            .onChanged { value in
-                                zoom = max(1, min(value.magnitude, 4))
-                                isZoomed = zoom > 1.02
-                            }
-                            .onEnded { _ in
-                                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                                    zoom = max(1, min(zoom, 4))
-                                }
-                                isZoomed = zoom > 1.02
-                            }
-                    )
+                    ZoomableImageView(image: image)
                 } else if loadFailed {
                     VStack(spacing: AppTheme.Spacing.small) {
                         Image(systemName: "photo.badge.exclamationmark")
@@ -509,10 +486,6 @@ private struct ImagePreviewView: View {
             image = decoded
             loadFailed = decoded == nil
         }
-        .onChange(of: url) { _, _ in
-            zoom = 1
-            isZoomed = false
-        }
     }
 
     private static func downsampledImage(at url: URL, maxPixels: CGFloat = 2048) async -> UIImage? {
@@ -527,6 +500,83 @@ private struct ImagePreviewView: View {
             guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options) else { return nil }
             return UIImage(cgImage: cgImage)
         }.value
+    }
+}
+
+/// Native zoom surface shared by the image and video previews: pinch and
+/// pan come from UIScrollView, so they never compete with the viewer's
+/// drag-down-to-close (which only begins at minimum zoom). The content view
+/// fills the bounds and aspect-fits inside itself.
+private final class ZoomScrollView: UIScrollView, UIScrollViewDelegate {
+    let contentView: UIView
+    private var laidOutSize: CGSize = .zero
+
+    init(contentView: UIView, doubleTapZooms: Bool) {
+        self.contentView = contentView
+        super.init(frame: .zero)
+        delegate = self
+        minimumZoomScale = 1
+        maximumZoomScale = 4
+        showsVerticalScrollIndicator = false
+        showsHorizontalScrollIndicator = false
+        contentInsetAdjustmentBehavior = .never
+        // Zoomed content may extend under the status bar / home indicator.
+        clipsToBounds = false
+        backgroundColor = .clear
+        addSubview(contentView)
+        if doubleTapZooms {
+            let doubleTap = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap))
+            doubleTap.numberOfTapsRequired = 2
+            addGestureRecognizer(doubleTap)
+        }
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        // Rotation / resize: start over at fit so the frame is never set
+        // while a zoom transform is applied.
+        guard bounds.size != laidOutSize else { return }
+        laidOutSize = bounds.size
+        zoomScale = 1
+        contentView.frame = CGRect(origin: .zero, size: bounds.size)
+        contentSize = bounds.size
+    }
+
+    func resetZoom() {
+        setZoomScale(1, animated: false)
+    }
+
+    func viewForZooming(in scrollView: UIScrollView) -> UIView? { contentView }
+
+    @objc private func handleDoubleTap(_ recognizer: UITapGestureRecognizer) {
+        if zoomScale > minimumZoomScale + 0.01 {
+            setZoomScale(minimumZoomScale, animated: true)
+        } else {
+            let scale: CGFloat = 2.5
+            let point = recognizer.location(in: contentView)
+            let size = CGSize(width: bounds.width / scale, height: bounds.height / scale)
+            zoom(to: CGRect(x: point.x - size.width / 2, y: point.y - size.height / 2,
+                            width: size.width, height: size.height), animated: true)
+        }
+    }
+}
+
+private struct ZoomableImageView: UIViewRepresentable {
+    let image: UIImage
+
+    func makeUIView(context: Context) -> ZoomScrollView {
+        let imageView = UIImageView(image: image)
+        imageView.contentMode = .scaleAspectFit
+        return ZoomScrollView(contentView: imageView, doubleTapZooms: true)
+    }
+
+    func updateUIView(_ view: ZoomScrollView, context: Context) {
+        guard let imageView = view.contentView as? UIImageView, imageView.image !== image else { return }
+        imageView.image = image
+        view.resetZoom()
     }
 }
 
@@ -600,23 +650,25 @@ private struct MediaPreviewView: View {
 }
 
 /// Hosts the controller's AVPlayer in a plain layer: aspect-fit with
-/// letterbox bars following the app theme (like the image viewer).
+/// letterbox bars following the app theme (like the image viewer). Wrapped
+/// in a ZoomScrollView for pinch zoom; no double-tap zoom, so the single
+/// tap that toggles the chrome stays instant.
 private struct PlayerLayerView: UIViewRepresentable {
     var player: AVPlayer?
 
-    func makeUIView(context: Context) -> PlayerRootView {
+    func makeUIView(context: Context) -> ZoomScrollView {
         let view = PlayerRootView()
         view.backgroundColor = .systemBackground
         view.playerLayer.videoGravity = .resizeAspect
         view.playerLayer.backgroundColor = UIColor.systemBackground.cgColor
         view.playerLayer.player = player
-        return view
+        return ZoomScrollView(contentView: view, doubleTapZooms: false)
     }
 
-    func updateUIView(_ view: PlayerRootView, context: Context) {
-        if view.playerLayer.player !== player {
-            view.playerLayer.player = player
-        }
+    func updateUIView(_ view: ZoomScrollView, context: Context) {
+        guard let root = view.contentView as? PlayerRootView, root.playerLayer.player !== player else { return }
+        root.playerLayer.player = player
+        view.resetZoom()
     }
 }
 
@@ -802,7 +854,6 @@ private struct ThemedPreviewBackground: ViewModifier {
 /// mostly straight down, so horizontal scrub-seeks and diagonal pans can
 /// never dismiss the viewer.
 enum DismissDragEvaluator {
-    static let minimumDistance: CGFloat = 20
     static let dismissThreshold: CGFloat = 140
 
     /// Follow-finger offset for a drag translation. Zero unless the drag
@@ -1242,6 +1293,99 @@ final class PreviewTapCoordinator: NSObject, UIGestureRecognizerDelegate {
         if let tap = other as? UITapGestureRecognizer { return tap.numberOfTapsRequired == 1 }
         return !(other is UIPanGestureRecognizer || other is UIPinchGestureRecognizer ||
                  other is UILongPressGestureRecognizer)
+    }
+}
+
+/// Drag-down-to-close as a UIKit pan, so it can be told apart from the
+/// content's own gestures: it only begins for a one-finger, mostly-downward
+/// drag while the content under the finger is at its fit zoom and scrolled to
+/// the top. Pinches, zoomed pans, and document scrolling never start it.
+struct DismissPanGesture: UIGestureRecognizerRepresentable {
+    let isEnabled: Bool
+    var onChanged: (CGSize) -> Void
+    var onEnded: (CGSize) -> Void
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> DismissPanCoordinator {
+        DismissPanCoordinator()
+    }
+
+    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
+        let recognizer = UIPanGestureRecognizer()
+        recognizer.maximumNumberOfTouches = 1
+        recognizer.cancelsTouchesInView = false
+        recognizer.delegate = context.coordinator
+        recognizer.isEnabled = isEnabled
+        return recognizer
+    }
+
+    func updateUIGestureRecognizer(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        recognizer.isEnabled = isEnabled
+    }
+
+    func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        // Window coordinates: the attached view moves with the drag offset.
+        let point = recognizer.translation(in: recognizer.view?.window)
+        let translation = CGSize(width: point.x, height: point.y)
+        switch recognizer.state {
+        case .began:
+            // Take the drag away from the content's scroll view so it does
+            // not rubber-band underneath while the viewer follows the finger.
+            if let pan = context.coordinator.contentScrollView?.panGestureRecognizer, pan.isEnabled {
+                pan.isEnabled = false
+                pan.isEnabled = true
+            }
+            onChanged(translation)
+        case .changed:
+            onChanged(translation)
+        case .ended:
+            onEnded(translation)
+        case .cancelled, .failed:
+            onEnded(.zero)
+        default:
+            break
+        }
+    }
+}
+
+final class DismissPanCoordinator: NSObject, UIGestureRecognizerDelegate {
+    private weak var touchedView: UIView?
+    private(set) weak var contentScrollView: UIScrollView?
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        touchedView = touch.view
+        return true
+    }
+
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard let pan = gestureRecognizer as? UIPanGestureRecognizer, pan.numberOfTouches == 1 else { return false }
+        let velocity = pan.velocity(in: pan.view?.window)
+        guard velocity.y > 0, velocity.y > abs(velocity.x) else { return false }
+
+        var scrollView: UIScrollView?
+        var pdfView: PDFView?
+        var current = touchedView
+        while let candidate = current {
+            if scrollView == nil, let scroll = candidate as? UIScrollView { scrollView = scroll }
+            if let pdf = candidate as? PDFView { pdfView = pdf }
+            current = candidate.superview
+        }
+        contentScrollView = scrollView
+        guard let scrollView else { return true }
+
+        // PDFView's inner scroll view can zoom out below fit, so compare
+        // against the fit scale rather than the scroll view's minimum.
+        if let pdfView {
+            guard pdfView.scaleFactor <= pdfView.scaleFactorForSizeToFit * 1.01 else { return false }
+        } else {
+            guard scrollView.zoomScale <= scrollView.minimumZoomScale + 0.01 else { return false }
+        }
+        return scrollView.contentOffset.y <= -scrollView.adjustedContentInset.top + 0.5
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                           shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+        // The content scroll view's pan may already be tracking this touch.
+        other is UIPanGestureRecognizer
     }
 }
 
