@@ -113,9 +113,13 @@ struct ContentView: View {
                             pendingConfig: $pendingSearchConfig
                         )
                     }
+                    // Kept inside the Search tab: on the TabView it also adds a search
+                    // field to every other tab's navigation bar.
                     .searchable(text: $tabSearchText)
+                    .searchPresentationToolbarBehavior(.avoidHidingContent)
                 }
             }
+            .modifier(SearchTabMorph())
             .tint(AppTheme.Colors.accent)
 
             // Floating add FAB — hidden on Search tab
@@ -149,6 +153,21 @@ struct ContentView: View {
         .sheet(isPresented: $showAddSheet) {
             AddItemSheetView()
                 .environment(appContainer)
+        }
+    }
+}
+
+// MARK: - Search field placement
+
+/// iOS 27 only separates the Search tab and morphs the tab bar into the field when
+/// search activates on tab selection; iOS 26 does it by default. Activation focuses
+/// the field, so the keyboard opens with the morph.
+private struct SearchTabMorph: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content.tabViewSearchActivation(.searchTabSelection)
+        } else {
+            content
         }
     }
 }
