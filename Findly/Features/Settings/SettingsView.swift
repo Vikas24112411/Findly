@@ -481,11 +481,21 @@ private struct SettingsOverviewView: View {
         List {
             Section {
                 NavigationLink(value: SettingsRoute.cloudSync) {
-                    SettingsSummaryRow(
-                        title: "Cloud & Sync",
-                        subtitle: cloudSyncSummary,
-                        symbol: cloudSyncSymbol
-                    )
+                    HStack {
+                        SettingsSummaryRow(
+                            title: "Cloud & Sync",
+                            subtitle: cloudSyncSummary,
+                            symbol: cloudSyncSymbol
+                        )
+                        if isCloudSyncUpToDate {
+                            Spacer()
+                            // The subtitle already says "Up to date" for VoiceOver.
+                            Image(systemName: "checkmark")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.Colors.syncSynced)
+                                .accessibilityHidden(true)
+                        }
+                    }
                 }
             }
             Section("Personalize") {
@@ -536,7 +546,7 @@ private struct SettingsOverviewView: View {
                     )
                 }
             }
-            Section {
+            Section("Vault") {
                 NavigationLink(value: SettingsRoute.dataManagement) {
                     SettingsSummaryRow(
                         title: "Data Management",
@@ -579,6 +589,12 @@ private struct SettingsOverviewView: View {
         return "Up to date"
     }
 
+    private var isCloudSyncUpToDate: Bool {
+        appContainer.auth.isAuthenticated
+            && !appContainer.sync.isSyncing
+            && appContainer.sync.pendingCount == 0
+    }
+
     private var cloudSyncSymbol: String {
         guard appContainer.auth.isAuthenticated else { return "icloud.slash" }
         if appContainer.sync.isSyncing { return "arrow.triangle.2.circlepath" }
@@ -618,8 +634,9 @@ private struct SettingsSummaryRow: View {
         } icon: {
             Image(systemName: symbol)
                 .font(.title3.weight(.regular))
+                .symbolVariant(.fill)
                 .symbolRenderingMode(.monochrome)
-                .foregroundStyle(Color(uiColor: .secondaryLabel))
+                .foregroundStyle(AppTheme.Colors.accent)
                 .imageScale(.large)
                 .accessibilityHidden(true)
         }
