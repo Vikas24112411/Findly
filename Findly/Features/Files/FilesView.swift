@@ -10,11 +10,6 @@ struct FilesView: View {
     @State private var viewModel = FilesViewModel()
     @State private var showFilterSheet = false
     @State private var showBulkTagPicker = false
-    @State private var scrollOffset: CGFloat = 0
-
-    private var titleProgress: CGFloat {
-        viewModel.isSelectMode ? 1.0 : scrollProgress(from: scrollOffset)
-    }
 
     private var inlineTitle: String {
         viewModel.isSelectMode ? "\(viewModel.selectedIDs.count) Selected" : "Files"
@@ -25,13 +20,13 @@ struct FilesView: View {
             ZStack(alignment: .bottom) {
                 ScrollView {
                     VStack(spacing: 0) {
-                        LargeTitleHeader(title: "Files", progress: scrollProgress(from: scrollOffset))
+                        LargeTitleSpace()
                         refinementBar
                         filesContent
                     }
                 }
                 .background(AppTheme.Colors.groupedBG)
-                .trackScrollOffset($scrollOffset)
+                .glassPillHeader(inlineTitle, forceDocked: viewModel.isSelectMode)
 
                 if viewModel.isSelectMode {
                     BulkActionsBar(
@@ -43,7 +38,6 @@ struct FilesView: View {
                     )
                 }
             }
-            .navTransitionTitle(inlineTitle, progress: titleProgress)
             .toolbar { filesToolbar }
             .sheet(isPresented: $showFilterSheet) {
                 FilesFilterSheetView(
