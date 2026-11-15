@@ -628,7 +628,7 @@ private struct TagEditorView: View {
         self.availableParents = availableParents
         self.onSave = onSave
 
-        let startingColor = editingTag?.colorHex ?? "#1F90E4"
+        let startingColor = editingTag?.colorHex ?? AppTheme.TagPalette.defaultHex
         _name = State(initialValue: editingTag?.name ?? initialName)
         _colorHex = State(initialValue: startingColor)
         _symbol = State(initialValue: editingTag?.sfSymbol ?? "tag.fill")
@@ -636,10 +636,7 @@ private struct TagEditorView: View {
         _customColor = State(initialValue: Color(hex: startingColor))
     }
 
-    private let colors: [(name: String, hex: String)] = [
-        ("Blue", "#1F90E4"), ("Green", "#2ECC71"), ("Red", "#E74C3C"),
-        ("Purple", "#9B59B6"), ("Orange", "#F39C12"), ("Pink", "#E84393")
-    ]
+    private let colors = AppTheme.TagPalette.options
 
     private let emojis = [
         "📁", "📄", "📝", "📌", "🔖", "💼", "📊", "💡", "🎯", "⚙️",

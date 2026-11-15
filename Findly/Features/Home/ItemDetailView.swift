@@ -2140,9 +2140,7 @@ struct TagPickerSheet: View {
 
     private func createTag() {
         guard canCreate else { return }
-        let colors = ["#3498DB", "#E74C3C", "#2ECC71", "#F39C12", "#9B59B6", "#1ABC9C"]
-        let hex = colors.randomElement() ?? "#3498DB"
-        let tag = Tag(name: trimmedSearchText, colorHex: hex, sfSymbol: "tag.fill")
+        let tag = Tag(name: trimmedSearchText, colorHex: AppTheme.TagPalette.defaultHex, sfSymbol: "tag.fill")
         modelContext.insert(tag)
         allTags.append(tag)
         allTags.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }

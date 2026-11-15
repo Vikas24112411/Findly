@@ -3,7 +3,7 @@ import SwiftUI
 struct VaultTagOption: Identifiable {
     let id: UUID
     let name: String
-    var colorHex = "#4A90E2"
+    var colorHex = AppTheme.TagPalette.defaultHex
     var sfSymbol = "tag.fill"
 }
 

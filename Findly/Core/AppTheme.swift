@@ -60,6 +60,18 @@ enum AppTheme {
         static let favoriteTint  = Color(hex: "#E84393")
     }
 
+    // MARK: - Tag palette
+
+    /// The one set of colours offered for tags, and the colour every new
+    /// tag starts with, wherever it is created.
+    enum TagPalette {
+        static let defaultHex = "#1F90E4"
+        static let options: [(name: String, hex: String)] = [
+            ("Blue", defaultHex), ("Green", "#2ECC71"), ("Red", "#E74C3C"),
+            ("Purple", "#9B59B6"), ("Orange", "#F39C12"), ("Pink", "#E84393")
+        ]
+    }
+
     // MARK: - Tint
 
     enum Tint {
