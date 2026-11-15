@@ -34,7 +34,7 @@ struct ShimmerModifier: ViewModifier {
     func body(content: Content) -> some View {
         if isActive {
             content
-                .overlay(
+                .overlay {
                     LinearGradient(
                         gradient: Gradient(stops: [
                             .init(color: .clear, location: phase - 0.3),
@@ -45,7 +45,7 @@ struct ShimmerModifier: ViewModifier {
                         endPoint: .bottomTrailing
                     )
                     .blendMode(.screen)
-                )
+                }
                 .onAppear {
                     withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
                         phase = 1.3

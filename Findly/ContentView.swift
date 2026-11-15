@@ -20,6 +20,8 @@ struct ContentView: View {
     @State private var showStoreRecoveryAlert = false
     @State private var fabDragPoint: CGPoint? = nil
     @State private var fabDragEndTrigger: Int = 0
+    @State private var chipsFlight = DiscoveryChipsFlight()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
@@ -90,6 +92,9 @@ struct ContentView: View {
                 Tab("Home", systemImage: "house", value: AppTab.home) {
                     HomeView(onSearch: { fileTypes, tag in
                         pendingSearchConfig = SearchConfig(fileTypes: fileTypes, tag: tag)
+                        if !reduceMotion {
+                            chipsFlight.begin(selectedTypes: fileTypes, selectedTagID: tag?.id)
+                        }
                         selectedTab = .search
                     })
                 }
@@ -121,6 +126,15 @@ struct ContentView: View {
             }
             .modifier(SearchTabMorph())
             .tint(AppTheme.Colors.accent)
+            .onChange(of: selectedTab) { old, new in
+                // Tapping the Search tab itself; a chip tap has already started the flight.
+                if old == .home && new == .search && !reduceMotion {
+                    chipsFlight.begin()
+                }
+            }
+
+            // Chip rows travelling from Home to Search.
+            DiscoveryChipsFlightOverlay()
 
             // Floating add FAB — hidden on Search tab
             if selectedTab != .search {
@@ -150,6 +164,7 @@ struct ContentView: View {
                 .padding(.bottom, 90)
             }
         }
+        .environment(chipsFlight)
         .sheet(isPresented: $showAddSheet) {
             AddItemSheetView()
                 .environment(appContainer)

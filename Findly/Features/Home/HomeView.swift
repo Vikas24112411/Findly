@@ -92,11 +92,7 @@ struct HomeView: View {
             if isVaultEmpty {
                 emptyStateView
             } else {
-                quickFilterChipsSection
-
-                if !allTags.isEmpty {
-                    browseByTagSection
-                }
+                HomeDiscoveryChips(allTags: allTags, slot: .home, onSearch: onSearch)
             }
         }
         .padding(.top, isVaultEmpty ? 0 : AppTheme.Spacing.small)
@@ -110,37 +106,6 @@ struct HomeView: View {
             && pinnedItems.isEmpty
             && favoriteItems.isEmpty
             && allTags.isEmpty
-    }
-
-    // MARK: - Quick filter chips
-
-    private var quickFilterChipsSection: some View {
-        DriftingFilterRow(direction: 1) {
-            HStack(spacing: AppTheme.Spacing.small) {
-                ForEach(FileType.allCases.filter { $0 != .other }, id: \.self) { type in
-                    Button {
-                        onSearch([type], nil)
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: type.sfSymbol)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(type.tintColor)
-                                .frame(width: 22, height: 22)
-                                .background(type.tintColor.opacity(0.12),
-                                            in: RoundedRectangle(cornerRadius: 6, style: .continuous))
-                            Text(type.displayName)
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundStyle(AppTheme.Colors.label)
-                        }
-                        .padding(.horizontal, AppTheme.Spacing.medium)
-                        .padding(.vertical, AppTheme.Spacing.small)
-                        .background(type.tintColor.opacity(0.08), in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, AppTheme.Spacing.base)
-        }
     }
 
     // MARK: - Essentials
@@ -251,50 +216,6 @@ struct HomeView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Browse by Tag (pill row)
-
-    private var browseByTagSection: some View {
-        DriftingFilterRow(direction: -1) {
-                HStack(spacing: AppTheme.Spacing.small) {
-                    ForEach(allTags.prefix(20)) { tag in
-                        Button {
-                            onSearch([], tag)
-                        } label: {
-                            tagPill(tag: tag)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    if allTags.count > 20 {
-                        Text("+\(allTags.count - 20) more")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                            .padding(.horizontal, AppTheme.Spacing.medium)
-                            .padding(.vertical, AppTheme.Spacing.small)
-                            .background(AppTheme.Colors.secondaryBG, in: Capsule())
-                    }
-                }
-                .padding(.horizontal, AppTheme.Spacing.base)
-        }
-    }
-
-    private func tagPill(tag: Tag) -> some View {
-        HStack(spacing: 6) {
-            Image(systemName: tag.sfSymbol)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(Color(hex: tag.colorHex))
-            Text(tag.name)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(AppTheme.Colors.label)
-            Text("\(tag.totalItemCount)")
-                .font(.system(size: 11))
-                .foregroundStyle(AppTheme.Colors.tertiaryLabel)
-        }
-        .padding(.horizontal, AppTheme.Spacing.medium)
-        .padding(.vertical, AppTheme.Spacing.small)
-        .background(Color(hex: tag.colorHex).opacity(0.08), in: Capsule())
-        .overlay(Capsule().strokeBorder(Color(hex: tag.colorHex).opacity(0.18), lineWidth: 1))
-    }
-
     // MARK: - Empty state
 
     private var emptyStateView: some View {
@@ -307,20 +228,244 @@ struct HomeView: View {
     }
 }
 
+// MARK: - Discovery chips (shared by Home and Search)
+
+/// The file-type and tag rows. Home uses them as shortcuts into Search; Search uses
+/// them as toggles, so both screens show the same rows in the same style.
+struct HomeDiscoveryChips: View {
+    enum Slot { case home, search, flight }
+
+    let allTags: [Tag]
+    let slot: Slot
+    var selectedTypes: Set<FileType> = []
+    var selectedTagID: UUID? = nil
+    var onToggleType: ((FileType) -> Void)? = nil
+    var onToggleTag: ((Tag) -> Void)? = nil
+    var onSearch: (Set<FileType>, Tag?) -> Void = { _, _ in }
+
+    @Environment(DiscoveryChipsFlight.self) private var flight: DiscoveryChipsFlight?
+
+    /// Home keeps the row short; Search needs every tag reachable.
+    private var visibleTags: [Tag] {
+        slot == .search ? allTags : Array(allTags.prefix(20))
+    }
+
+    var body: some View {
+        VStack(spacing: AppTheme.Spacing.medium) {
+            typeRow
+            if !allTags.isEmpty {
+                tagRow
+            }
+        }
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
+            flight?.report(frame, for: slot)
+        }
+        // The flying copy stands in for these rows until it lands on them.
+        .opacity(slot == .search && flight?.isActive == true ? 0 : 1)
+    }
+
+    private var typeRow: some View {
+        DriftingFilterRow(direction: 1, rowID: 0, flight: flight) {
+            HStack(spacing: AppTheme.Spacing.small) {
+                ForEach(FileType.allCases.filter { $0 != .other }, id: \.self) { type in
+                    let isSelected = selectedTypes.contains(type)
+                    Button {
+                        if let onToggleType { onToggleType(type) } else { onSearch([type], nil) }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: isSelected ? "checkmark" : type.sfSymbol)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(type.tintColor)
+                                .frame(width: 22, height: 22)
+                                .background(type.tintColor.opacity(0.12),
+                                            in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                            Text(type.displayName)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(AppTheme.Colors.label)
+                        }
+                        .padding(.horizontal, AppTheme.Spacing.medium)
+                        .padding(.vertical, AppTheme.Spacing.small)
+                        .background(type.tintColor.opacity(isSelected ? 0.24 : 0.08), in: Capsule())
+                        // Opaque backing: in Search the rows float over the results.
+                        .background(AppTheme.Colors.groupedBG, in: Capsule())
+                        .overlay(Capsule().strokeBorder(isSelected ? type.tintColor : .clear, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
+                }
+            }
+            .padding(.horizontal, AppTheme.Spacing.base)
+        }
+    }
+
+    private var tagRow: some View {
+        DriftingFilterRow(direction: -1, rowID: 1, flight: flight) {
+            HStack(spacing: AppTheme.Spacing.small) {
+                ForEach(visibleTags) { tag in
+                    Button {
+                        if let onToggleTag { onToggleTag(tag) } else { onSearch([], tag) }
+                    } label: {
+                        tagPill(tag: tag)
+                    }
+                    .buttonStyle(.plain)
+                }
+                if allTags.count > visibleTags.count {
+                    Text("+\(allTags.count - visibleTags.count) more")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                        .padding(.horizontal, AppTheme.Spacing.medium)
+                        .padding(.vertical, AppTheme.Spacing.small)
+                        .background(AppTheme.Colors.secondaryBG, in: Capsule())
+                }
+            }
+            .padding(.horizontal, AppTheme.Spacing.base)
+        }
+    }
+
+    private func tagPill(tag: Tag) -> some View {
+        let isSelected = selectedTagID == tag.id
+        let color = Color(hex: tag.colorHex)
+        return HStack(spacing: 6) {
+            Image(systemName: isSelected ? "checkmark" : tag.sfSymbol)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(color)
+            Text(tag.name)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(AppTheme.Colors.label)
+            Text("\(tag.totalItemCount)")
+                .font(.system(size: 11))
+                .foregroundStyle(AppTheme.Colors.tertiaryLabel)
+        }
+        .padding(.horizontal, AppTheme.Spacing.medium)
+        .padding(.vertical, AppTheme.Spacing.small)
+        .background(color.opacity(isSelected ? 0.24 : 0.08), in: Capsule())
+        .background(AppTheme.Colors.groupedBG, in: Capsule())
+        .overlay(Capsule().strokeBorder(color.opacity(isSelected ? 1 : 0.18), lineWidth: 1))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+// MARK: - Home → Search chip flight
+
+/// Carries the chip rows from their place on Home to their place on Search.
+/// The two tabs are separate view trees, so a copy drawn above the tab view makes the
+/// trip, and every copy shares its drift offset so the chips never jump sideways.
+@MainActor
+@Observable
+final class DiscoveryChipsFlight {
+    struct RowState {
+        var offset: CGFloat = 0
+        var cycleWidth: CGFloat = 0
+        var viewportWidth: CGFloat = 0
+    }
+
+    private(set) var isActive = false
+    private(set) var frame: CGRect = .zero
+    private(set) var selectedTypes: Set<FileType> = []
+    private(set) var selectedTagID: UUID?
+
+    // Written every frame while scrolling or drifting; nothing should re-render for them.
+    @ObservationIgnored var rows: [Int: RowState] = [:]
+    @ObservationIgnored private var homeFrame: CGRect = .zero
+    @ObservationIgnored private var searchFrame: CGRect = .zero
+    @ObservationIgnored private var hasLaunched = false
+    @ObservationIgnored private var task: Task<Void, Never>?
+
+    private static let travel = Animation.spring(duration: 0.45, bounce: 0.12)
+
+    func report(_ rect: CGRect, for slot: HomeDiscoveryChips.Slot) {
+        guard rect.width > 0, rect.height > 0 else { return }
+        switch slot {
+        case .home:
+            homeFrame = rect
+        case .search:
+            guard rect != searchFrame else { return }
+            searchFrame = rect
+            // The keyboard keeps moving the destination; follow it.
+            if isActive && hasLaunched {
+                withAnimation(Self.travel) { frame = rect }
+            }
+        case .flight:
+            break
+        }
+    }
+
+    func begin(selectedTypes: Set<FileType> = [], selectedTagID: UUID? = nil) {
+        guard !isActive, homeFrame != .zero else { return }
+        self.selectedTypes = selectedTypes
+        self.selectedTagID = selectedTagID
+        frame = homeFrame
+        hasLaunched = false
+        isActive = true
+        task?.cancel()
+        task = Task {
+            // One beat for Search to lay out and report where the rows land.
+            try? await Task.sleep(for: .milliseconds(40))
+            hasLaunched = true
+            if searchFrame != .zero {
+                withAnimation(Self.travel) { frame = searchFrame }
+            }
+            try? await Task.sleep(for: .milliseconds(650))
+            isActive = false
+        }
+    }
+}
+
+/// The copy of the rows that makes the trip. Lives above the tab view.
+struct DiscoveryChipsFlightOverlay: View {
+    @Environment(DiscoveryChipsFlight.self) private var flight
+    @Query(sort: \Tag.name) private var allTags: [Tag]
+
+    var body: some View {
+        GeometryReader { proxy in
+            if flight.isActive {
+                HomeDiscoveryChips(
+                    allTags: allTags,
+                    slot: .flight,
+                    selectedTypes: flight.selectedTypes,
+                    selectedTagID: flight.selectedTagID
+                )
+                .frame(width: flight.frame.width)
+                // Rows scrolled below the fold rise from the bottom edge instead.
+                .offset(x: flight.frame.minX, y: min(flight.frame.minY, proxy.size.height))
+            }
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
 // Keep the native scroll view and buttons so users can take over at any time.
 private struct DriftingFilterRow<Content: View>: View {
     let direction: CGFloat
-    @ViewBuilder var content: Content
+    let rowID: Int
+    let flight: DiscoveryChipsFlight?
+    let content: Content
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
     @Environment(\.scenePhase) private var scenePhase
-    @State private var position = ScrollPosition(x: 0)
-    @State private var cycleWidth: CGFloat = 0
-    @State private var viewportWidth: CGFloat = 0
-    @State private var offset: CGFloat = 0
+    @State private var position: ScrollPosition
+    @State private var cycleWidth: CGFloat
+    @State private var viewportWidth: CGFloat
+    @State private var offset: CGFloat
     @State private var visible = false
     @State private var userControlled = false
+
+    init(direction: CGFloat, rowID: Int, flight: DiscoveryChipsFlight?, @ViewBuilder content: () -> Content) {
+        self.direction = direction
+        self.rowID = rowID
+        self.flight = flight
+        self.content = content()
+        // Start where the other copies of this row already are, so a copy that
+        // appears mid-drift (the flying one, or Search's) lines up from its first frame.
+        let seed = flight?.rows[rowID] ?? .init()
+        _position = State(initialValue: ScrollPosition(x: seed.offset))
+        _cycleWidth = State(initialValue: seed.cycleWidth)
+        _viewportWidth = State(initialValue: seed.viewportWidth)
+        _offset = State(initialValue: seed.offset)
+    }
 
     private var repeats: Bool {
         !reduceMotion && !voiceOver && cycleWidth > viewportWidth && viewportWidth > 0
@@ -328,6 +473,17 @@ private struct DriftingFilterRow<Content: View>: View {
 
     private var paused: Bool {
         !repeats || !visible || userControlled || scenePhase != .active
+    }
+
+    /// The shared drift position, folded into the middle copy of the content.
+    private var sharedOffset: CGFloat {
+        guard cycleWidth > 0 else { return 0 }
+        let saved = max(flight?.rows[rowID]?.offset ?? 0, 0)
+        return cycleWidth + saved.truncatingRemainder(dividingBy: cycleWidth)
+    }
+
+    private func share(_ x: CGFloat) {
+        flight?.rows[rowID] = .init(offset: x, cycleWidth: cycleWidth, viewportWidth: viewportWidth)
     }
 
     var body: some View {
@@ -345,8 +501,19 @@ private struct DriftingFilterRow<Content: View>: View {
                 }
             }
             .scrollPosition($position)
+            // Search hosts these rows in a safe-area inset, outside a vertical scroll view,
+            // where scroll-visibility callbacks alone don't fire.
+            .onAppear { visible = true }
+            .onDisappear {
+                visible = false
+                userControlled = false
+            }
             .onScrollGeometryChange(for: CGFloat.self) { $0.containerSize.width } action: { _, width in
                 viewportWidth = width
+            }
+            .onScrollGeometryChange(for: CGFloat.self) { $0.contentOffset.x } action: { _, x in
+                // Remember where the user left the row so the other copies match it.
+                if userControlled && repeats { share(x) }
             }
             .onScrollPhaseChange { _, phase in
                 // Leave the row under manual control until it leaves the screen.
@@ -359,12 +526,12 @@ private struct DriftingFilterRow<Content: View>: View {
                 if !isVisible { userControlled = false }
             }
             .onChange(of: repeats) { _, enabled in
-                offset = enabled ? cycleWidth : 0
+                offset = enabled ? sharedOffset : 0
                 position.scrollTo(x: offset)
             }
             .onChange(of: visible) { _, isVisible in
                 if isVisible && repeats {
-                    offset = cycleWidth
+                    offset = sharedOffset
                     position.scrollTo(x: offset)
                 }
             }
@@ -376,6 +543,7 @@ private struct DriftingFilterRow<Content: View>: View {
                 if offset >= cycleWidth * 2 { offset -= cycleWidth }
                 if offset < cycleWidth { offset += cycleWidth }
                 position.scrollTo(x: offset)
+                share(offset)
             }
         }
     }
