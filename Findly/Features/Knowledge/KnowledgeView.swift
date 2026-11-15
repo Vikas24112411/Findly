@@ -161,7 +161,7 @@ struct KnowledgeView: View {
                     if tag.id != viewModel.filteredRootTags.last?.id { Divider() }
                 }
             }
-            .background(AppTheme.Colors.secondaryBG)
+            .background(AppTheme.Colors.flatCard)
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous)
@@ -354,7 +354,7 @@ private struct TagDetailView: View {
                     .background(scopeBackground)
             }
         }
-        .background(AppTheme.Colors.secondaryBG)
+        .background(AppTheme.Colors.flatCard)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous)

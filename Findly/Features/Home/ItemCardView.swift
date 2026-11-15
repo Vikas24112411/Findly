@@ -239,11 +239,7 @@ struct ItemCardView: View {
         }
         .padding(AppTheme.Spacing.medium)
         .animation(.easeInOut(duration: 0.2), value: isSelectMode)
-        .background(isSelected ? AppTheme.Colors.accent.opacity(0.08) : AppTheme.Colors.secondaryBG)
+        .background(isSelected ? AppTheme.Colors.accent.opacity(0.08) : AppTheme.Colors.flatCard)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
-        .shadow(color: AppTheme.Shadow.card.color,
-                radius: AppTheme.Shadow.card.radius,
-                x: AppTheme.Shadow.card.x,
-                y: AppTheme.Shadow.card.y)
     }
 }

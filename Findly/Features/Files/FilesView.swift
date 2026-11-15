@@ -281,7 +281,7 @@ struct FilesView: View {
                             }
                         }
                     }
-                    .background(AppTheme.Colors.secondaryBG)
+                    .background(AppTheme.Colors.flatCard)
                     .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large))
                     .padding(.horizontal, AppTheme.Spacing.base)
                 case .grid:
@@ -457,7 +457,7 @@ private struct FilesItemView: View {
         }
         .padding(AppTheme.Spacing.medium)
         .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
-        .background(isSelected ? AppTheme.Colors.accent.opacity(0.08) : AppTheme.Colors.secondaryBG)
+        .background(isSelected ? AppTheme.Colors.accent.opacity(0.08) : AppTheme.Colors.flatCard)
         .clipShape(RoundedRectangle(cornerRadius: style == .grid ? AppTheme.Radius.large : 0))
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)

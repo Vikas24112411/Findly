@@ -170,7 +170,7 @@ struct HomeView: View {
                     }
                 }
             }
-            .background(AppTheme.Colors.background, in: RoundedRectangle(cornerRadius: AppTheme.Radius.large))
+            .background(AppTheme.Colors.flatCard, in: RoundedRectangle(cornerRadius: AppTheme.Radius.large))
             .padding(.horizontal, AppTheme.Spacing.base)
         }
     }
@@ -189,7 +189,7 @@ struct HomeView: View {
                     shortcut(.frequent, symbol: "chart.bar.fill", tint: AppTheme.Colors.accent)
                 }
             }
-            .background(AppTheme.Colors.background, in: RoundedRectangle(cornerRadius: AppTheme.Radius.large))
+            .background(AppTheme.Colors.flatCard, in: RoundedRectangle(cornerRadius: AppTheme.Radius.large))
             .padding(.horizontal, AppTheme.Spacing.base)
         }
     }
@@ -678,7 +678,7 @@ private struct HomePinnedCard: View {
         }
         .padding(AppTheme.Spacing.medium)
         .frame(maxWidth: .infinity, minHeight: 148, alignment: .topLeading)
-        .background(AppTheme.Colors.background, in: RoundedRectangle(cornerRadius: AppTheme.Radius.large))
+        .background(AppTheme.Colors.flatCard, in: RoundedRectangle(cornerRadius: AppTheme.Radius.large))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(pinnedCardAccessibilityLabel)
         .task(id: item.thumbnailData) {
