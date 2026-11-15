@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Findly — Selected state</title>
+<style>
+.study{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif);color:var(--foreground,#17191e);font-size:14px;line-height:1.45}
+.study *{box-sizing:border-box}
+.study h2{font-size:17px;margin:0 0 2px}
+.study .sub{color:var(--muted-foreground,#686c75);margin:0 0 12px;font-size:13px}
+.study section+section{margin-top:30px}
+.rec{font-size:10.5px;font-weight:600;background:var(--success,#1f9d55);color:var(--success-foreground,#fff);border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:2px}
+.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media(max-width:620px){.pair{grid-template-columns:minmax(0,1fr)}}
+.panel{border-radius:var(--radius,12px);padding:16px;background:var(--pg);color:var(--ink);font:400 12px/1.25 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;border:1px solid var(--border,rgba(128,128,128,.25))}
+.panel.light{--pg:#f2f2f7;--ink:#000;--ink2:rgba(60,60,67,.62);--ink3:rgba(60,60,67,.32);--neutral:#fff;--acc:#1F90E4}
+.panel.dark{--pg:#000;--ink:#fff;--ink2:rgba(235,235,245,.62);--ink3:rgba(235,235,245,.32);--neutral:#2c2c2e;--acc:#2E9BF0}
+.mode{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin-bottom:10px}
+.lbl{font-size:10.5px;color:var(--ink2);margin:12px 0 6px}
+.lbl:first-of-type{margin-top:0}
+.line{display:flex;flex-wrap:wrap;gap:6px}
+.panel svg{display:block;flex:none;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.chip{display:flex;align-items:center;gap:6px;height:32px;padding:0 11px 0 6px;border-radius:16px;font-size:12px;font-weight:500;border:1px solid transparent}
+.chip .ic{width:20px;height:20px;border-radius:6px;display:grid;place-items:center}
+.tagc{padding-left:10px}
+.tagc small{font-size:10.5px;font-weight:400}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.tile{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;border-radius:11px;font-size:10px;font-weight:500;border:1px solid transparent}
+.fb{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.fbtn{display:flex;align-items:center;gap:5px;height:36px;padding:0 8px;border-radius:11px;font-size:11.5px;font-weight:600;border:1px solid transparent}
+.fbtn span{flex:1}
+.pill{display:flex;align-items:center;gap:5px;height:34px;padding:0 12px;border-radius:17px;font-size:12px;font-weight:600;border:1px solid transparent}
+.notes{margin:10px 0 0;padding-left:18px;color:var(--muted-foreground,#686c75);font-size:13px}
+.notes li{margin-bottom:3px}
+</style>
+</head>
+<body>
+<div class="study">
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="s-img" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 17 5-5 4 4 3-3 4 4"/></symbol>
+<symbol id="s-doc" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M10 12h5M10 16h5"/></symbol>
+<symbol id="s-note" viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M9 9h6M9 13h6"/></symbol>
+<symbol id="s-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1"/><path d="M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1"/></symbol>
+<symbol id="s-tag" viewBox="0 0 24 24"><path d="M3 4h8l10 10-7 7L4 11z"/></symbol>
+<symbol id="s-chk" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10" stroke-width="3"/></symbol>
+<symbol id="s-dn" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" stroke-width="3"/></symbol>
+<symbol id="s-sl" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></symbol>
+</defs></svg>
+<div id="root"></div>
+</div>
+<script>
+var TYPES={Image:['#FF6B6B','img'],PDF:['#E74C3C','doc'],Note:['#F39C12','note'],Link:['#9B59B6','link']};
+var ACC={light:'#1F90E4',dark:'#2E9BF0'};
+function rgba(h,a){var n=parseInt(h.slice(1),16);return 'rgba('+(n>>16)+','+(n>>8&255)+','+(n&255)+','+a+')'}
+function svg(id,size){return '<svg width="'+size+'" height="'+size+'"><use href="#s-'+id+'"/></svg>'}
+
+// Variant rules. c = the item's own colour, acc = app blue.
+function look(v,c,sel,mode){
+  var acc=ACC[mode];
+  if(v==='A')return sel?{bg:rgba(c,.24),bd:c,fg:'var(--ink)',ic:c,tile:rgba(c,.14),chk:c}
+                       :{bg:rgba(c,.08),bd:'transparent',fg:'var(--ink)',ic:c,tile:rgba(c,.12)};
+  if(v==='B')return sel?{bg:c,bd:c,fg:'#fff',ic:'#fff',tile:'rgba(255,255,255,.24)',chk:'#fff'}
+                       :{bg:rgba(c,.10),bd:'transparent',fg:'var(--ink)',ic:c,tile:rgba(c,.12)};
+  if(v==='C')return sel?{bg:rgba(acc,.16),bd:acc,fg:'var(--ink)',ic:c,tile:rgba(c,.14),chk:acc}
+                       :{bg:'var(--neutral)',bd:'transparent',fg:'var(--ink)',ic:c,tile:rgba(c,.12)};
+  // F = what the Files filter does today
+  return sel?{bg:rgba(acc,.08),bd:rgba(acc,.35),fg:acc,ic:acc,tile:'transparent',chk:acc}
+            :{bg:'var(--neutral)',bd:'transparent',fg:'var(--ink2)',ic:'var(--ink2)',tile:'transparent'};
+}
+function css(l){return 'background:'+l.bg+';border-color:'+l.bd+';color:'+l.fg}
+
+function chip(v,name,sel,mode){var t=TYPES[name],l=look(v,t[0],sel,mode);
+  return '<div class="chip" style="'+css(l)+'"><div class="ic" style="background:'+l.tile+';color:'+(sel?l.chk:l.ic)+'">'+svg(sel?'chk':t[1],12)+'</div>'+name+'</div>'}
+function tagc(v,name,count,c,sel,mode){var l=look(v,c,sel,mode);
+  if(v==='A'&&!sel)l.bd=rgba(c,.18);
+  return '<div class="chip tagc" style="'+css(l)+'"><span style="color:'+(sel?l.chk:l.ic)+'">'+svg(sel?'chk':'tag',12)+'</span>'+name+'<small style="opacity:.55">'+count+'</small></div>'}
+function tile(v,name,sel,mode){var t=TYPES[name],l=look(v,t[0],sel,mode);
+  return '<div class="tile" style="'+css(l)+'"><span style="color:'+l.ic+'">'+svg(t[1],18)+'</span><span style="opacity:'+(sel?1:.7)+'">'+name+'</span></div>'}
+function fbtn(v,name,sel,mode){var t=TYPES[name],l=look(v,t[0],sel,mode);
+  return '<div class="fbtn" style="'+css(l)+'"><span style="flex:none;color:'+l.ic+'">'+svg(t[1],13)+'</span><span>'+name+'</span>'+(sel?'<span style="flex:none;color:'+l.chk+'">'+svg('chk',11)+'</span>':'')+'</div>'}
+function pill(v,text,icon,active,mode){var acc=ACC[mode],l;
+  if(!active)l={bg:'var(--neutral)',bd:'transparent',fg:'var(--ink)'};
+  else if(v==='B')l={bg:acc,bd:acc,fg:'#fff'};
+  else if(v==='F')l={bg:rgba(acc,.12),bd:rgba(acc,.24),fg:acc};
+  else l={bg:rgba(acc,v==='A'?.24:.16),bd:acc,fg:'var(--ink)'};
+  return '<div class="pill" style="'+css(l)+'">'+(icon==='sl'?svg('sl',13):'')+text+(icon==='dn'?svg('dn',10):'')+'</div>'}
+
+function panel(o,mode){var c=o.v;
+  return '<div class="panel '+mode+'"><div class="mode">'+mode+'</div>'
+  +'<div class="lbl">Home &amp; Search chips</div><div class="line">'+chip(c.chip,'Image',0,mode)+chip(c.chip,'PDF',1,mode)+chip(c.chip,'Note',1,mode)+'</div>'
+  +'<div class="line" style="margin-top:6px">'+tagc(c.chip,'Work',12,'#1F90E4',1,mode)+tagc(c.chip,'Personal',8,'#2ECC71',0,mode)+'</div>'
+  +'<div class="lbl">Filter sheet</div><div class="tiles">'+tile(c.tile,'Image',0,mode)+tile(c.tile,'PDF',1,mode)+tile(c.tile,'Note',1,mode)+tile(c.tile,'Link',0,mode)+'</div>'
+  +'<div class="lbl">Files filter</div><div class="fb">'+fbtn(c.files,'Image',0,mode)+fbtn(c.files,'PDF',1,mode)+fbtn(c.files,'Note',1,mode)+'</div>'
+  +'<div class="line" style="margin-top:6px">'+pill(c.files,'Name','dn',1,mode)+pill(c.files,'Filters','sl',0,mode)+'</div>'
+  +'</div>'}
+
+var OPTS=[
+ {t:'Today',sub:'Three different looks for the same idea. PDF, Note, the Work tag and the Name sort are selected in every panel.',v:{chip:'A',tile:'B',files:'F'}},
+ {t:'Option A — Tinted',rec:1,sub:'Home\'s look everywhere: a soft wash of the item\'s own colour, a thin border, and a checkmark.',v:{chip:'A',tile:'A',files:'A'},
+  n:['Calm and readable in both modes; several selections at once don\'t shout.','Each type and tag keeps its own colour, so colour still helps you scan.','Smallest change: Home and Search already look like this.']},
+ {t:'Option B — Solid',sub:'The Filter sheet\'s look everywhere: fill with the item\'s colour, white text and icon.',v:{chip:'B',tile:'B',files:'B'},
+  n:['The most obvious "on" state.','White text on the orange and teal fills is hard to read.','Gets loud when several chips are selected together.']},
+ {t:'Option C — Blue only',sub:'Selected is always the app blue, whatever the item\'s colour. The colour stays in the icon only.',v:{chip:'C',tile:'C',files:'C'},
+  n:['One rule to learn: blue means selected.','Unselected chips become neutral, so Home loses some of its colour.','Closest to what the Files filter does today.']}
+];
+document.getElementById('root').innerHTML=OPTS.map(function(o){
+  return '<section><h2>'+o.t+(o.rec?'<span class="rec">Recommended</span>':'')+'</h2><p class="sub">'+o.sub+'</p><div class="pair">'+panel(o,'light')+panel(o,'dark')+'</div>'
+   +(o.n?'<ul class="notes">'+o.n.map(function(x){return '<li>'+x+'</li>'}).join('')+'</ul>':'')+'</section>'}).join('');
+</script>
+</body>
+</html>
