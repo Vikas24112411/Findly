@@ -793,7 +793,7 @@ private struct SyncStatusLabel: View {
     }
 
     private var statusTint: Color {
-        if appContainer.sync.isSyncing { return AppTheme.Colors.syncPending }
+        if appContainer.sync.isSyncing { return AppTheme.Colors.syncSyncing }
         return appContainer.sync.pendingCount == 0
             ? AppTheme.Colors.syncSynced
             : AppTheme.Colors.syncFailed
@@ -1158,7 +1158,7 @@ private struct BackupSettingsView: View {
                         }
                         if let error = backup.latestError {
                             Label(error, systemImage: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.red)
+                                .foregroundStyle(AppTheme.Colors.error)
                                 .accessibilityLabel("Backup error: \(error)")
                         }
                     }

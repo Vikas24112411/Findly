@@ -37,7 +37,7 @@ struct QuickImportView: View {
                     doneView
                 case .failed:
                     Text("Import failed. Please try again.")
-                        .foregroundStyle(.red)
+                        .foregroundStyle(AppTheme.Colors.error)
                 }
             }
             .navigationTitle("Import \(urls.count) File\(urls.count == 1 ? "" : "s")")
@@ -100,7 +100,7 @@ struct QuickImportView: View {
         VStack(spacing: AppTheme.Spacing.xLarge) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 64))
-                .foregroundStyle(.green)
+                .foregroundStyle(AppTheme.Colors.success)
             Text("\(importedCount) file\(importedCount == 1 ? "" : "s") imported")
                 .font(AppTheme.Typography.title2)
                 .foregroundStyle(AppTheme.Colors.label)

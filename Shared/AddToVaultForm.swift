@@ -193,7 +193,7 @@ struct VaultSavedToast: View {
         HStack(spacing: 10) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.title2)
-                .foregroundStyle(AppTheme.Colors.syncSynced)
+                .foregroundStyle(AppTheme.Colors.success)
             Text("Saved!").font(.subheadline.weight(.semibold))
         }
         .foregroundStyle(AppTheme.Colors.label)
