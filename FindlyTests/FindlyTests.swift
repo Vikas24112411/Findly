@@ -1552,6 +1552,56 @@ struct BackupCompletenessTests {
         }
     }
 
+    @Test("Checksum matches the standard CRC-32, including on slices")
+    func checksum() {
+        #expect(ZipChecksum.crc32(Data("123456789".utf8)) == 0xCBF4_3926)
+        #expect(ZipChecksum.crc32(Data()) == 0)
+        let padded = Data("xx123456789yy".utf8)
+        #expect(ZipChecksum.crc32(padded[2 ..< 11]) == 0xCBF4_3926)
+    }
+
+    @Test("Export and import progress only rises and reaches 100% at completion")
+    @MainActor
+    func progressIsMonotonic() async throws {
+        final class Recorder: @unchecked Sendable { var values: [Double] = [] }
+        let root = FileManager.default.temporaryDirectory.appending(component: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let storage = try LocalFileService(baseDirectory: root.appending(component: "source"))
+        let persistence = PersistenceController(inMemory: true)
+        var items: [Item] = []
+        for index in 0 ..< 12 {
+            let item = Item(title: "Item \(index)", fileType: .pdf, fileSize: 200_000, originalFileName: "f.pdf")
+            item.localFilePath = try await storage.write(
+                data: Data(repeating: UInt8(index), count: 200_000), itemID: item.id, fileExtension: "pdf")
+            persistence.container.mainContext.insert(item)
+            items.append(item)
+        }
+        try persistence.container.mainContext.save()
+
+        let exported = Recorder()
+        let archive = try await ExportService().exportVault(
+            items: items, tags: [], searchHistory: [], localStorage: storage,
+            onProgress: { exported.values.append($0) })
+        defer { try? FileManager.default.removeItem(at: archive) }
+        #expect(exported.values.last == 1)
+        #expect(exported.values.count > 3)
+        #expect(exported.values == exported.values.sorted())
+        #expect(exported.values.dropLast().allSatisfy { $0 < 1 })
+
+        let restored = try LocalFileService(baseDirectory: root.appending(component: "restored"))
+        let imported = Recorder()
+        // Keep the container alive for the whole import.
+        let restoredPersistence = PersistenceController(inMemory: true)
+        try await ImportService().importVault(
+            from: archive, localStorage: restored,
+            context: restoredPersistence.container.mainContext,
+            onProgress: { imported.values.append($0) })
+        #expect(try restoredPersistence.container.mainContext.fetchCount(FetchDescriptor<Item>()) == 12)
+        #expect(imported.values.last == 1)
+        #expect(imported.values == imported.values.sorted())
+        #expect(imported.values.dropLast().allSatisfy { $0 < 1 })
+    }
+
     @Test("Missing archive entry is rejected even when metadata references it")
     func missingEntry() async throws {
         let folder = FileManager.default.temporaryDirectory.appending(component: UUID().uuidString)

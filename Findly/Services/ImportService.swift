@@ -39,16 +39,20 @@ final class ImportService {
         context: ModelContext,
         onProgress: (@MainActor @Sendable (Double) -> Void)? = nil
     ) async throws {
-        // 1. Load ZIP on a background thread so the main actor stays responsive.
-        //    Data(contentsOf:) is synchronous and can block for several seconds on large vaults.
-        let zipData = try await Task.detached(priority: .userInitiated) {
-            try Data(contentsOf: zipURL)
-        }.value
-        let reader = ZipReader(zipData: zipData)
-        let entries = try reader.entries()
+        // Progress shares: checksum the archive, write the files, then commit records.
+        // 100% is only sent once the import has fully finished.
+        let relay = ProgressRelay(onProgress)
+        let validateShare = 0.35
+        let writeShare = 0.5
 
-        // Validate every file before writing anything or replacing existing records.
-        let manifest = try reader.validatedManifest(entries: entries)
+        // 1. Map and checksum the ZIP on a background thread so the main actor stays
+        //    responsive. Memory-mapping avoids holding the whole archive in RAM.
+        //    Every file is validated before writing anything or replacing records.
+        let (entries, manifest) = try await Task.detached(priority: .userInitiated) {
+            let reader = ZipReader(zipData: try Data(contentsOf: zipURL, options: .mappedIfSafe))
+            let entries = try reader.entries { relay.report($0 * validateShare) }
+            return (entries, try reader.validatedManifest(entries: entries))
+        }.value
 
         // 3. Write primary files to localStorage; keep thumbnails in memory.
         //    Files are written BEFORE the wipe so a failure here leaves existing SwiftData
@@ -57,17 +61,24 @@ final class ImportService {
         //    remains the sole on-disk copy — no orphan sidecar files created.
         let fileEntries = entries.filter { $0.name != "manifest.json" }
         let fileTotal = max(1, fileEntries.count)
+        let byteTotal = fileEntries.reduce(0) { $0 + $1.data.count }
+        var bytesDone = 0
         var thumbnailsByName: [String: Data] = [:]
         for (i, entry) in fileEntries.enumerated() {
             if entry.name.hasSuffix("_thumb.jpg") {
-                thumbnailsByName[entry.name] = entry.data
+                // Copy out of the mapped archive; SwiftData keeps this beyond the import.
+                thumbnailsByName[entry.name] = Data(entry.data)
                 // Yield so the main actor can update the UI between thumbnail entries
                 // (thumbnail assignments have no natural suspension point).
                 await Task.yield()
             } else {
                 try await localStorage.writeFile(named: entry.name, data: entry.data)
             }
-            if let onProgress { await onProgress(Double(i + 1) / Double(fileTotal) * 0.5) }
+            bytesDone += entry.data.count
+            let fraction = byteTotal > 0
+                ? Double(bytesDone) / Double(byteTotal)
+                : Double(i + 1) / Double(fileTotal)
+            relay.report(validateShare + fraction * writeShare)
         }
 
         // 4–9. All SwiftData mutations run on a SIBLING context, not the main context.
@@ -132,9 +143,8 @@ final class ImportService {
             importContext.insert(historyEntry)
         }
 
-        // 8. Recreate items. (progress 0.5 → 1.0)
-        let itemTotal = max(1, manifest.items.count)
-        for (itemIndex, exportItem) in manifest.items.enumerated() {
+        // 8. Recreate items.
+        for exportItem in manifest.items {
             let item = Item(
                 title: exportItem.title,
                 fileType: exportItem.fileType,
@@ -160,16 +170,17 @@ final class ImportService {
             item.thumbnailData = thumbnailsByName[thumbName]
 
             importContext.insert(item)
-            if let onProgress { await onProgress(0.5 + Double(itemIndex + 1) / Double(itemTotal) * 0.5) }
         }
 
         // 9. Commit all new inserts.
         try importContext.save()
+        relay.report(0.95)
 
         // 10. Cleanup orphan files: remove anything in baseDirectory not referenced by the new vault.
         //     Best-effort — orphans are storage waste, not data loss.
         let newFilePaths = Set(manifest.items.compactMap { $0.localFilePath })
         await localStorage.deleteFilesExcept(newFilePaths)
+        relay.finish()
     }
 }
 
@@ -226,7 +237,9 @@ struct ZipReader {
         return manifest
     }
 
-    func entries() throws -> [ZipEntry] {
+    /// Parses and checksums every entry. Entry data are slices of `zipData` (no copy).
+    /// `progress` receives the fraction of the archive processed so far (0…1).
+    func entries(progress: ((Double) -> Void)? = nil) throws -> [ZipEntry] {
         var result: [ZipEntry] = []
         var offset = 0
 
@@ -261,13 +274,14 @@ struct ZipReader {
                 continue
             }
 
-            let fileData = Data(zipData[dataStart ..< (dataStart + compressedSize)])
-            guard Self.crc32(fileData) == readUInt32(at: offset + 14) else {
+            let fileData = zipData[dataStart ..< (dataStart + compressedSize)]
+            guard ZipChecksum.crc32(fileData) == readUInt32(at: offset + 14) else {
                 throw ZipReadError.invalidData
             }
             result.append(ZipEntry(name: name, data: fileData))
 
             offset = dataStart + compressedSize
+            progress?(Double(offset) / Double(zipData.count))
         }
 
         // Require a complete end record rather than accepting a truncated local stream.
@@ -280,17 +294,6 @@ struct ZipReader {
             throw ZipReadError.invalidData
         }
         return result
-    }
-
-    private static func crc32(_ data: Data) -> UInt32 {
-        var crc: UInt32 = 0xFFFF_FFFF
-        for byte in data {
-            crc ^= UInt32(byte)
-            for _ in 0..<8 {
-                crc = (crc & 1 == 0) ? crc >> 1 : (crc >> 1) ^ 0xEDB8_8320
-            }
-        }
-        return crc ^ 0xFFFF_FFFF
     }
 
     // MARK: - Little-endian reads
