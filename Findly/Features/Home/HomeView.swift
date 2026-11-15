@@ -285,7 +285,7 @@ struct HomeDiscoveryChips: View {
                         }
                         .padding(.horizontal, AppTheme.Spacing.medium)
                         .padding(.vertical, AppTheme.Spacing.small)
-                        .background(type.tintColor.opacity(isSelected ? 0.24 : 0.08), in: Capsule())
+                        .background(type.tintColor.opacity(isSelected ? AppTheme.Selection.selectedWash : AppTheme.Selection.restingWash), in: Capsule())
                         // Opaque backing: in Search the rows float over the results.
                         .background(AppTheme.Colors.groupedBG, in: Capsule())
                         .overlay(Capsule().strokeBorder(isSelected ? type.tintColor : .clear, lineWidth: 1))
@@ -338,7 +338,7 @@ struct HomeDiscoveryChips: View {
         }
         .padding(.horizontal, AppTheme.Spacing.medium)
         .padding(.vertical, AppTheme.Spacing.small)
-        .background(color.opacity(isSelected ? 0.24 : 0.08), in: Capsule())
+        .background(color.opacity(isSelected ? AppTheme.Selection.selectedWash : AppTheme.Selection.restingWash), in: Capsule())
         .background(AppTheme.Colors.groupedBG, in: Capsule())
         .overlay(Capsule().strokeBorder(color.opacity(isSelected ? 1 : 0.18), lineWidth: 1))
         .accessibilityAddTraits(isSelected ? .isSelected : [])

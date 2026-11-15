@@ -190,14 +190,15 @@ struct FilesView: View {
                 .font(AppTheme.Typography.subheadline.weight(.semibold))
                 .lineLimit(1)
         }
-        .foregroundStyle(isActive ? AppTheme.Colors.accent : AppTheme.Colors.label)
+        .foregroundStyle(AppTheme.Colors.label)
         .padding(.horizontal, AppTheme.Spacing.medium)
         .frame(minHeight: 44)
-        .background(isActive ? AppTheme.Colors.accent.opacity(0.12) : AppTheme.Colors.secondaryBG)
+        .background(isActive ? AppTheme.Colors.accent.opacity(AppTheme.Selection.selectedWash) : AppTheme.Colors.secondaryBG)
         .clipShape(Capsule())
         .overlay {
             Capsule()
-                .stroke(isActive ? AppTheme.Colors.accent.opacity(0.24) : AppTheme.Colors.separator.opacity(0.45))
+                .strokeBorder(isActive ? AppTheme.Colors.accent : AppTheme.Colors.separator.opacity(0.45),
+                              lineWidth: AppTheme.Selection.borderWidth)
         }
         .fixedSize(horizontal: true, vertical: false)
     }
@@ -514,22 +515,22 @@ struct FilesSortPillLabel: View {
                 .font(.caption2.weight(.bold))
                 .opacity(0.7)
         }
-        .foregroundStyle(sortOrder == .modifiedAt ? AppTheme.Colors.label : AppTheme.Colors.accent)
+        .foregroundStyle(AppTheme.Colors.label)
         .padding(.horizontal, AppTheme.Spacing.medium)
         .frame(minHeight: 44)
         .background(
             sortOrder == .modifiedAt
                 ? AppTheme.Colors.secondaryBG
-                : AppTheme.Colors.accent.opacity(0.12)
+                : AppTheme.Colors.accent.opacity(AppTheme.Selection.selectedWash)
         )
         .clipShape(Capsule())
         .overlay {
             Capsule()
-                .stroke(
+                .strokeBorder(
                     sortOrder == .modifiedAt
                         ? AppTheme.Colors.separator.opacity(0.45)
-                        : AppTheme.Colors.accent.opacity(0.24),
-                    lineWidth: 1
+                        : AppTheme.Colors.accent,
+                    lineWidth: AppTheme.Selection.borderWidth
                 )
         }
         .fixedSize(horizontal: true, vertical: false)
@@ -676,17 +677,18 @@ private struct FilesFilterSheetView: View {
         } label: {
             HStack(spacing: AppTheme.Spacing.small) {
                 Image(systemName: "square.stack.3d.up.fill")
-                    .foregroundStyle(localTypes.isEmpty ? .white : AppTheme.Colors.accent)
+                    .foregroundStyle(AppTheme.Colors.accent)
                 Text("All")
                     .lineLimit(1)
                 Spacer(minLength: 2)
                 if localTypes.isEmpty {
                     Image(systemName: "checkmark")
                         .font(.caption.weight(.bold))
+                        .foregroundStyle(AppTheme.Colors.accent)
                 }
             }
             .font(AppTheme.Typography.caption1.weight(.semibold))
-            .foregroundStyle(localTypes.isEmpty ? Color.white : AppTheme.Colors.label)
+            .foregroundStyle(AppTheme.Colors.label)
             .padding(.horizontal, AppTheme.Spacing.small)
             .frame(
                 minWidth: fillWidth ? nil : 84,
@@ -694,8 +696,14 @@ private struct FilesFilterSheetView: View {
                 minHeight: 44,
                 alignment: .leading
             )
-            .background(localTypes.isEmpty ? AppTheme.Colors.accent : AppTheme.Colors.tertiaryBG)
+            .background(AppTheme.Colors.accent.opacity(
+                localTypes.isEmpty ? AppTheme.Selection.selectedWash : AppTheme.Selection.restingWash))
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous)
+                    .strokeBorder(localTypes.isEmpty ? AppTheme.Colors.accent : .clear,
+                                  lineWidth: AppTheme.Selection.borderWidth)
+            }
         }
         .buttonStyle(.plain)
         .accessibilityLabel("All file types")
@@ -719,6 +727,7 @@ private struct FilesFilterSheetView: View {
             HStack(spacing: AppTheme.Spacing.xSmall) {
                 Image(systemName: type.sfSymbol)
                     .font(.caption.weight(.semibold))
+                    .foregroundStyle(type.tintColor)
                 Text(type.displayName)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -726,10 +735,11 @@ private struct FilesFilterSheetView: View {
                 if isSelected {
                     Image(systemName: "checkmark")
                         .font(.caption2.weight(.bold))
+                        .foregroundStyle(type.tintColor)
                 }
             }
             .font(AppTheme.Typography.caption1.weight(.semibold))
-            .foregroundStyle(isSelected ? AppTheme.Colors.accent : AppTheme.Colors.secondaryLabel)
+            .foregroundStyle(AppTheme.Colors.label)
             .padding(.horizontal, AppTheme.Spacing.small)
             .frame(
                 minWidth: fillWidth ? nil : 92,
@@ -737,11 +747,12 @@ private struct FilesFilterSheetView: View {
                 minHeight: 44,
                 alignment: .leading
             )
-            .background(isSelected ? AppTheme.Colors.accent.opacity(0.08) : AppTheme.Colors.tertiaryBG)
+            .background(type.tintColor.opacity(
+                isSelected ? AppTheme.Selection.selectedWash : AppTheme.Selection.restingWash))
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous)
-                    .stroke(isSelected ? AppTheme.Colors.accent.opacity(0.35) : .clear, lineWidth: 1)
+                    .strokeBorder(isSelected ? type.tintColor : .clear, lineWidth: AppTheme.Selection.borderWidth)
             }
         }
         .buttonStyle(.plain)

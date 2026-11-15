@@ -60,6 +60,19 @@ enum AppTheme {
         static let favoriteTint  = Color(hex: "#E84393")
     }
 
+    // MARK: - Selection
+
+    /// One look for "selected" on chips, tiles and filter pills: a wash of
+    /// the item's own colour (accent for controls without one), a solid
+    /// 1pt border in that colour, and the label left in the normal ink.
+    enum Selection {
+        /// Fill opacity of a selected chip.
+        static let selectedWash: Double = 0.24
+        /// Fill opacity of the same chip at rest.
+        static let restingWash: Double = 0.08
+        static let borderWidth: CGFloat = 1
+    }
+
     // MARK: - Typography
 
     enum Typography {

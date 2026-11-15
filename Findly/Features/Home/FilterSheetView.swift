@@ -142,16 +142,21 @@ struct FilterSheetView: View {
             VStack(spacing: 4) {
                 Image(systemName: type.sfSymbol)
                     .font(.system(size: 18))
-                    .foregroundStyle(selected ? .white : type.tintColor)
+                    .foregroundStyle(type.tintColor)
                 Text(type.displayName)
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(selected ? .white : AppTheme.Colors.secondaryLabel)
+                    .foregroundStyle(selected ? AppTheme.Colors.label : AppTheme.Colors.secondaryLabel)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, AppTheme.Spacing.small)
-            .background(selected ? type.tintColor : type.tintColor.opacity(0.10))
+            .background(type.tintColor.opacity(selected ? AppTheme.Selection.selectedWash : AppTheme.Selection.restingWash))
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous)
+                    .strokeBorder(selected ? type.tintColor : .clear, lineWidth: AppTheme.Selection.borderWidth)
+            }
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
