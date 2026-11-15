@@ -314,7 +314,9 @@ final class PeriodicBackupService {
                 searchHistory: history,
                 localStorage: localStorage,
                 onProgress: { @MainActor [weak self] value in
-                    self?.progress = value
+                    // Leave room for copying the archive into the backup folder,
+                    // so 100% only appears once the backup is actually in place.
+                    self?.progress = value * 0.95
                 }
             )
             temporaryArchive = archive

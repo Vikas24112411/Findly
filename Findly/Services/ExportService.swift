@@ -1,4 +1,5 @@
 import Foundation
+import zlib
 
 /// Exports vault files as a ZIP archive without requiring a third-party library.
 /// Uses ZIP STORE method (no compression — focus is on archiving, not size reduction).
@@ -59,8 +60,15 @@ actor ExportService {
         try writer.addFile(name: "manifest.json", data: manifestData)
 
         // Pass 2: write each item's primary file and thumbnail sidecar.
+        // Progress is weighted by bytes, not item count, so one large video does
+        // not look like a stall. Writing fills the first part of the bar and the
+        // read-back verification fills the rest; 100% is only sent on return.
+        let relay = ProgressRelay(onProgress)
+        let writeShare = 0.7
         let total = max(1, manifest.items.count)
+        let totalBytes = manifest.items.reduce(Int64(0)) { $0 + max(0, $1.fileSize) }
         var done = 0
+        var doneBytes: Int64 = 0
 
         for item in manifest.items {
             try Task.checkCancellation()
@@ -86,15 +94,23 @@ actor ExportService {
             }
 
             done += 1
-            if let onProgress { await onProgress(Double(done) / Double(total)) }
+            doneBytes += Int64(data.count)
+            let fraction = totalBytes > 0
+                ? min(1, Double(doneBytes) / Double(totalBytes))
+                : Double(done) / Double(total)
+            relay.report(fraction * writeShare)
         }
 
         try Task.checkCancellation()
         try writer.finalize()
         try fileHandle.synchronize()
         // Read back the completed archive before it can replace a previous backup.
-        _ = try ZipReader(zipData: Data(contentsOf: tempURL)).validatedManifest()
+        // Memory-mapped so the archive is checksummed without loading it all into RAM.
+        let reader = ZipReader(zipData: try Data(contentsOf: tempURL, options: .mappedIfSafe))
+        let entries = try reader.entries { relay.report(writeShare + $0 * (1 - writeShare)) }
+        _ = try reader.validatedManifest(entries: entries)
         succeeded = true
+        await relay.finish()
         return tempURL
     }
 
@@ -262,7 +278,7 @@ private struct ZipWriter {
         }
 
         let nameData = name.data(using: .utf8) ?? Data()
-        let crc = crc32(data)
+        let crc = ZipChecksum.crc32(data)
         let offset = UInt32(currentOffset)
 
         // Build local file header (30 bytes fixed + filename).
@@ -363,17 +379,74 @@ private struct ZipWriter {
         let d = UInt16(c.component(.day, from: now))
         return (y << 9) | (mo << 5) | d
     }
+}
 
-    // Standard CRC-32 (ISO 3309 / ITU-T V.42) — same polynomial used by zlib.
-    private func crc32(_ data: Data) -> UInt32 {
-        var crc: UInt32 = 0xFFFF_FFFF
-        for byte in data {
-            var b = UInt32(byte) ^ (crc & 0xFF)
-            for _ in 0..<8 {
-                b = (b & 1 == 0) ? b >> 1 : (b >> 1) ^ 0xEDB8_8320
+// MARK: - CRC-32
+
+/// Standard CRC-32 (ISO 3309 / ITU-T V.42) via the system zlib, which is
+/// hardware-accelerated — orders of magnitude faster than a bitwise loop.
+enum ZipChecksum {
+    static func crc32(_ data: Data) -> UInt32 {
+        data.withUnsafeBytes { (buffer: UnsafeRawBufferPointer) -> UInt32 in
+            var crc = zlib.crc32(0, nil, 0)
+            guard let base = buffer.bindMemory(to: UInt8.self).baseAddress else {
+                return UInt32(truncatingIfNeeded: crc)
             }
-            crc = b ^ (crc >> 8)
+            var offset = 0
+            while offset < buffer.count {
+                // zlib takes a 32-bit length; feed large buffers in pieces.
+                let length = min(buffer.count - offset, 1 << 30)
+                crc = zlib.crc32(crc, base + offset, uInt(length))
+                offset += length
+            }
+            return UInt32(truncatingIfNeeded: crc)
         }
-        return crc ^ 0xFFFF_FFFF
+    }
+}
+
+// MARK: - Progress relay
+
+/// Forwards progress from background work to a main-actor handler.
+///
+/// - Throttled to whole-percent steps so tight loops do not flood the main actor.
+/// - Never moves backwards.
+/// - Holds at 99% until `finish()` so the UI only shows 100% once the work is done.
+final class ProgressRelay: @unchecked Sendable {
+    typealias Handler = @MainActor @Sendable (Double) -> Void
+
+    private let handler: Handler?
+    private let lock = NSLock()
+    private var lastQueued = -1.0
+    @MainActor private var delivered = -1.0
+    @MainActor private var finished = false
+
+    init(_ handler: Handler?) {
+        self.handler = handler
+    }
+
+    /// Safe to call from any thread.
+    func report(_ value: Double) {
+        guard handler != nil else { return }
+        let clamped = min(max(value, 0), 0.99)
+        lock.lock()
+        let shouldSend = clamped - lastQueued >= 0.01
+        if shouldSend { lastQueued = clamped }
+        lock.unlock()
+        guard shouldSend else { return }
+        Task { @MainActor in self.deliver(clamped) }
+    }
+
+    @MainActor
+    func finish() {
+        guard !finished else { return }
+        finished = true
+        handler?(1)
+    }
+
+    @MainActor
+    private func deliver(_ value: Double) {
+        guard !finished, value > delivered else { return }
+        delivered = value
+        handler?(value)
     }
 }
