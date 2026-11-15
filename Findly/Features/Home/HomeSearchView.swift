@@ -6,6 +6,12 @@ struct HomeSearchView: View {
     @Binding var searchText: String
     @Binding var pendingConfig: SearchConfig?
 
+    @Query(sort: \Tag.name) private var allTags: [Tag]
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var keyboardVisible = false
+    /// Height of the system search field that floats above the keyboard.
+    @ScaledMetric(relativeTo: .body) private var searchFieldClearance: CGFloat = 64
+
     @State private var viewModel = HomeViewModel()
     @Environment(\.modelContext) private var modelContext
     @Environment(AppContainer.self) private var appContainer
@@ -17,7 +23,6 @@ struct HomeSearchView: View {
     var body: some View {
         ScrollView {
             if viewModel.isSearching || !viewModel.selectedFileTypes.isEmpty || viewModel.selectedTag != nil {
-                activeFilterChips
                 SearchResultsView(
                     results: viewModel.searchResults,
                     isLoading: viewModel.isLoading,
@@ -32,14 +37,22 @@ struct HomeSearchView: View {
             }
         }
         .scrollDismissesKeyboard(.interactively)
-        .safeAreaInset(edge: .bottom) {
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             if viewModel.isSelectMode {
                 bulkActionBar
+            } else {
+                discoveryChips
+                    .padding(.vertical, AppTheme.Spacing.medium)
+                    // With the keyboard up, the search field floats above it, outside the
+                    // safe area. With it down, the field is back in the tab bar's own space.
+                    .padding(.bottom, keyboardVisible ? searchFieldClearance : 0)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: keyboardVisible)
             }
         }
         .background(AppTheme.Colors.groupedBG)
         .navigationTitle("Search")
-        .navigationBarTitleDisplayMode(.large)
+        // Inline: with the keyboard open, a large title costs a result row.
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if viewModel.isSelectMode {
                 ToolbarItem(placement: .topBarLeading) {
@@ -93,6 +106,12 @@ struct HomeSearchView: View {
         } message: {
             Text("Selected items will be removed from your vault and Google Drive.")
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            keyboardVisible = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+            keyboardVisible = false
+        }
         .onChange(of: searchText) { _, newValue in
             viewModel.searchText = newValue
         }
@@ -123,59 +142,33 @@ struct HomeSearchView: View {
         viewModel.performSearch()
     }
 
-    // MARK: - Active filter chips (tag + file types)
+    // MARK: - Type and tag filters (same rows as Home)
 
-    private var activeFilterChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: AppTheme.Spacing.small) {
-                ForEach(Array(viewModel.selectedFileTypes), id: \.self) { type in
-                    filterChip(
-                        label: type.displayName,
-                        symbol: type.sfSymbol,
-                        color: type.tintColor
-                    ) {
-                        viewModel.selectedFileTypes.remove(type)
-                        viewModel.performSearch()
-                    }
+    private var discoveryChips: some View {
+        HomeDiscoveryChips(
+            allTags: allTags,
+            slot: .search,
+            selectedTypes: viewModel.selectedFileTypes,
+            selectedTagID: viewModel.selectedTag?.id,
+            onToggleType: { type in
+                if viewModel.selectedFileTypes.contains(type) {
+                    viewModel.selectedFileTypes.remove(type)
+                } else {
+                    viewModel.selectedFileTypes.insert(type)
                 }
-                if let tag = viewModel.selectedTag {
-                    filterChip(
-                        label: "#\(tag.name)",
-                        symbol: tag.sfSymbol,
-                        color: Color(hex: tag.colorHex)
-                    ) {
-                        viewModel.selectedTag = nil
-                        viewModel.performSearch()
-                    }
-                }
+                viewModel.performSearch()
+            },
+            onToggleTag: { tag in
+                viewModel.selectedTag = viewModel.selectedTag?.id == tag.id ? nil : tag
+                viewModel.performSearch()
             }
-            .padding(.horizontal, AppTheme.Spacing.base)
-            .padding(.top, AppTheme.Spacing.xSmall)
-        }
+        )
     }
 
-    private func filterChip(label: String, symbol: String, color: Color, onRemove: @escaping () -> Void) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: symbol)
-                .font(.system(size: 10, weight: .medium))
-            Text(label)
-                .font(.system(size: 12, weight: .semibold))
-            Button(action: onRemove) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .bold))
-            }
-        }
-        .foregroundStyle(color)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
-        .background(color.opacity(0.15), in: Capsule())
-    }
-
-    // MARK: - Empty state content (suggestions + recents)
+    // MARK: - Empty state content (recents)
 
     private var emptyContent: some View {
         VStack(spacing: AppTheme.Spacing.xLarge) {
-            suggestionsSection
             if !viewModel.recentSearches.isEmpty {
                 recentsSection
             }
@@ -217,43 +210,6 @@ struct HomeSearchView: View {
                 }
             }
             .padding(.horizontal, AppTheme.Spacing.base)
-        }
-    }
-
-    // MARK: - Suggestions (file type icon grid)
-
-    private var suggestionsSection: some View {
-        VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
-            SectionHeader(title: "Browse by Type")
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: AppTheme.Spacing.small) {
-                    ForEach(FileType.allCases.filter { $0 != .other }, id: \.self) { type in
-                        Button {
-                            viewModel.resetFilters()
-                            viewModel.selectedFileTypes = [type]
-                            viewModel.performSearch()
-                        } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: type.sfSymbol)
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(type.tintColor)
-                                    .frame(width: 26, height: 26)
-                                    .background(type.tintColor.opacity(0.12),
-                                                in: RoundedRectangle(cornerRadius: 7, style: .continuous))
-                                Text(type.displayName)
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(AppTheme.Colors.label)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(type.tintColor.opacity(0.08),
-                                        in: RoundedRectangle(cornerRadius: AppTheme.Radius.full, style: .continuous))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, AppTheme.Spacing.base)
-            }
         }
     }
 
