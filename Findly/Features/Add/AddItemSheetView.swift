@@ -404,7 +404,7 @@ struct LinkComposerView: View {
                     if !urlString.isEmpty && !isValidURL {
                         Text("Please enter a valid URL (e.g. https://...)")
                             .font(AppTheme.Typography.caption1)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppTheme.Colors.error)
                     }
                 } header: {
                     Text("URL")

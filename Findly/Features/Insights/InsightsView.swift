@@ -185,7 +185,7 @@ struct InsightsView: View {
                 Spacer(minLength: AppTheme.Spacing.small)
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(AppTheme.Colors.syncSynced)
+                    .foregroundStyle(AppTheme.Colors.success)
                     .accessibilityHidden(true)
                 Text("All tidy")
                     .font(AppTheme.Typography.footnote)
@@ -206,7 +206,7 @@ struct InsightsView: View {
                         subtitle: "Add tags to find them later",
                         count: viewModel.untaggedCount,
                         symbol: "tag.slash.fill",
-                        tint: AppTheme.Colors.noteTint,
+                        tint: AppTheme.Colors.warning,
                         items: viewModel.untaggedItems
                     )
                     Divider().padding(.leading, 46)
@@ -215,7 +215,7 @@ struct InsightsView: View {
                         subtitle: "Open or remove what you don't need",
                         count: viewModel.neverOpenedCount,
                         symbol: "eye.slash.fill",
-                        tint: AppTheme.Colors.accent,
+                        tint: AppTheme.Colors.warning,
                         items: viewModel.neverOpenedItems
                     )
                     Divider().padding(.leading, 46)
@@ -224,7 +224,7 @@ struct InsightsView: View {
                         subtitle: "Not opened in the last 90 days",
                         count: viewModel.staleCount,
                         symbol: "clock.fill",
-                        tint: AppTheme.Colors.syncPending,
+                        tint: AppTheme.Colors.warning,
                         items: viewModel.staleItems
                     )
                 }
@@ -285,12 +285,12 @@ struct InsightsView: View {
             statCell("Tags",
                      "\(viewModel.totalTags)",
                      "tag.fill",
-                     AppTheme.Colors.noteTint)
+                     AppTheme.Colors.accent)
             Divider().frame(height: 48)
             statCell("Storage",
                      viewModel.totalStorageBytes.fileSizeString,
                      "internaldrive.fill",
-                     AppTheme.Colors.videoTint)
+                     AppTheme.Colors.accent)
             Divider().frame(height: 48)
             statCell("Pending Sync",
                      "\(viewModel.pendingSyncCount)",
@@ -344,7 +344,7 @@ struct InsightsView: View {
                 .pickerStyle(.segmented)
                 HStack(spacing: AppTheme.Spacing.medium) {
                     legendDot(AppTheme.Colors.accent, "Added · \(totalAdded)")
-                    legendDot(AppTheme.Colors.syncSynced, "Opened · \(totalOpened)")
+                    legendDot(AppTheme.Colors.chartSecondary, "Opened · \(totalOpened)")
                 }
                 Chart(trend) { day in
                     BarMark(
@@ -357,13 +357,13 @@ struct InsightsView: View {
                         x: .value("Date", day.date, unit: activityRange.unit),
                         y: .value("Opened", day.opened)
                     )
-                    .foregroundStyle(AppTheme.Colors.syncSynced)
+                    .foregroundStyle(AppTheme.Colors.chartSecondary)
                     .lineStyle(StrokeStyle(lineWidth: 2))
                     PointMark(
                         x: .value("Date", day.date, unit: activityRange.unit),
                         y: .value("Opened", day.opened)
                     )
-                    .foregroundStyle(AppTheme.Colors.syncSynced)
+                    .foregroundStyle(AppTheme.Colors.chartSecondary)
                     .symbolSize(12)
                 }
                 .frame(height: 120)
@@ -606,18 +606,18 @@ struct InsightsView: View {
                     x: .value("Month", point.month, unit: .month),
                     y: .value("MB", Double(point.cumulativeBytes) / 1_000_000.0)
                 )
-                .foregroundStyle(AppTheme.Colors.videoTint.opacity(0.15))
+                .foregroundStyle(AppTheme.Colors.accent.opacity(0.15))
                 LineMark(
                     x: .value("Month", point.month, unit: .month),
                     y: .value("MB", Double(point.cumulativeBytes) / 1_000_000.0)
                 )
-                .foregroundStyle(AppTheme.Colors.videoTint)
+                .foregroundStyle(AppTheme.Colors.accent)
                 .lineStyle(StrokeStyle(lineWidth: 2))
                 PointMark(
                     x: .value("Month", point.month, unit: .month),
                     y: .value("MB", Double(point.cumulativeBytes) / 1_000_000.0)
                 )
-                .foregroundStyle(AppTheme.Colors.videoTint)
+                .foregroundStyle(AppTheme.Colors.accent)
                 .symbolSize(25)
             }
             .frame(height: 110)

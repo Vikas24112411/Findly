@@ -37,27 +37,38 @@ enum AppTheme {
         static let fill           = Color(UIColor.systemFill)
         static let secondaryFill  = Color(UIColor.secondarySystemFill)
 
-        // File type tints
+        // Status colours. Each has one job, everywhere in the app:
+        // green = done / fine, orange = needs attention, red = went wrong.
+        static let success = Color(hex: "#2ECC71")
+        static let warning = Color(hex: "#F5831F")
+        /// System red, so it matches destructive buttons and alerts.
+        static let error   = Color(UIColor.systemRed)
+
+        // File type tints. Used only to identify a file's type; every
+        // type has its own clearly separate hue.
         static let imageTint    = Color(hex: "#FF6B6B")
         static let videoTint    = Color(hex: "#4ECDC4")
-        static let audioTint    = Color(hex: "#45B7D1")
+        static let audioTint    = Color(hex: "#6C5CE7")
         static let pdfTint      = Color(hex: "#E74C3C")
         static let documentTint = Color(hex: "#3498DB")
-        static let noteTint     = Color(hex: "#F39C12")
+        static let noteTint     = Color(hex: "#EAB308")
         static let linkTint     = Color(hex: "#9B59B6")
-        static let archiveTint  = Color(hex: "#1ABC9C")
+        static let archiveTint  = Color(hex: "#A0703C")
         static let otherTint    = Color(hex: "#95A5A6")
 
-        // Sync status tints
+        // Sync status tints, built from the status colours above.
         static let syncLocalOnly = Color(UIColor.systemGray)
-        static let syncPending   = Color(hex: "#F39C12")
-        static let syncSyncing   = Color(hex: "#3498DB")
-        static let syncSynced    = Color(hex: "#2ECC71")
-        static let syncFailed    = Color(hex: "#E74C3C")
+        static let syncPending   = warning
+        static let syncSyncing   = accent
+        static let syncSynced    = success
+        static let syncFailed    = error
 
         // Item state tints
-        static let pinnedTint    = Color(hex: "#F39C12")
+        static let pinnedTint    = accent
         static let favoriteTint  = Color(hex: "#E84393")
+
+        /// Second series colour for charts, alongside `accent`.
+        static let chartSecondary = Color(hex: "#6C5CE7")
     }
 
     // MARK: - Tag palette

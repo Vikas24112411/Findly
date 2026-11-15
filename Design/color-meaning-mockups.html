@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Findly — Colour meanings</title>
+<style>
+.study{font-family:var(--font-sans,-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif);color:var(--foreground,#17191e);font-size:14px;line-height:1.45}
+.study *{box-sizing:border-box}
+.study h2{font-size:17px;margin:0 0 2px}
+.study .sub{color:var(--muted-foreground,#686c75);margin:0 0 12px;font-size:13px}
+.study section+section{margin-top:30px}
+.rec{font-size:10.5px;font-weight:600;background:var(--success,#1f9d55);color:var(--success-foreground,#fff);border-radius:999px;padding:1px 7px;margin-left:6px;vertical-align:2px}
+.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+@media(max-width:620px){.pair{grid-template-columns:minmax(0,1fr)}}
+.panel{border-radius:var(--radius,12px);padding:16px;background:var(--pg);color:var(--ink);font:400 12px/1.25 -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;border:1px solid var(--border,rgba(128,128,128,.25))}
+.panel.light{--pg:#f2f2f7;--ink:#000;--ink2:rgba(60,60,67,.62);--sep:rgba(60,60,67,.16);--card:#fff;--acc:#1F90E4}
+.panel.dark{--pg:#000;--ink:#fff;--ink2:rgba(235,235,245,.62);--sep:rgba(235,235,245,.18);--card:#1c1c1e;--acc:#2E9BF0}
+.mode{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin-bottom:10px}
+.lbl{font-size:10.5px;color:var(--ink2);margin:14px 0 6px}
+.lbl:first-of-type{margin-top:0}
+.panel svg{display:block;flex:none;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.panel svg.f{fill:currentColor;stroke:none}
+.types{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 6px}
+.ty{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;color:var(--ink2)}
+.tl{width:34px;height:36px;border-radius:9px;display:grid;place-items:center}
+.row{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:.5px solid var(--sep)}
+.row:last-child{border:0}
+.row .tx{flex:1;min-width:0}
+.row b{display:block;font-weight:500;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row small{color:var(--ink2);font-size:10px}
+.gl{display:flex;gap:7px;align-items:center}
+.st{display:flex;flex-wrap:wrap;gap:5px 12px;font-size:11px}
+.st span{display:flex;align-items:center;gap:4px}
+.msg{display:flex;align-items:center;gap:5px;font-size:11px;margin-top:7px}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--card);border-radius:12px;padding:10px 0}
+.sc{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:9.5px;color:var(--ink2);border-right:.5px solid var(--sep)}
+.sc:last-child{border:0}
+.sc i{width:26px;height:26px;border-radius:50%;display:grid;place-items:center}
+.sc b{font-size:13px;color:var(--ink)}
+.leg{display:flex;gap:12px;margin-top:8px;font-size:10.5px;color:var(--ink2)}
+.leg span{display:flex;align-items:center;gap:4px}
+.leg i{width:8px;height:8px;border-radius:50%}
+.notes{margin:10px 0 0;padding-left:18px;color:var(--muted-foreground,#686c75);font-size:13px}
+.notes li{margin-bottom:3px}
+</style>
+</head>
+<body>
+<div class="study">
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="c-img" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 17 5-5 4 4 3-3 4 4"/></symbol>
+<symbol id="c-vid" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/></symbol>
+<symbol id="c-aud" viewBox="0 0 24 24"><path d="M5 10v4M9 6v12M13 9v6M17 4v16M21 10v4"/></symbol>
+<symbol id="c-doc" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M10 12h5M10 16h5"/></symbol>
+<symbol id="c-txt" viewBox="0 0 24 24"><path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></symbol>
+<symbol id="c-note" viewBox="0 0 24 24"><path d="M5 4h14v11l-5 5H5z"/><path d="M14 20v-5h5"/></symbol>
+<symbol id="c-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1"/><path d="M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1"/></symbol>
+<symbol id="c-arch" viewBox="0 0 24 24"><path d="M4 8h16v12H4zM3 4h18v4H3zM10 12h4"/></symbol>
+<symbol id="c-pin" viewBox="0 0 24 24"><path d="M8 3h8l-1 6 3 4H6l3-4z"/><path d="M12 13v8" fill="none" stroke="currentColor" stroke-width="2.2"/></symbol>
+<symbol id="c-heart" viewBox="0 0 24 24"><path d="M12 21C5 16 3 12 3 8.5A4.5 4.5 0 0 1 12 6a4.5 4.5 0 0 1 9 2.5C21 12 19 16 12 21z"/></symbol>
+<symbol id="c-ok" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></symbol>
+<symbol id="c-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+<symbol id="c-sync" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5l2 2M20 12a8 8 0 0 1-14 5l-2-2"/><path d="M20 4v5h-5M4 20v-5h5"/></symbol>
+<symbol id="c-warn" viewBox="0 0 24 24"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.5"/></symbol>
+<symbol id="c-tag" viewBox="0 0 24 24"><path d="M3 4h8l10 10-7 7L4 11z"/></symbol>
+<symbol id="c-drive" viewBox="0 0 24 24"><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M5 13 8 4h8l3 9M17 16.5h.5"/></symbol>
+</defs></svg>
+<div id="root"></div>
+</div>
+<script>
+var ORDER=[['Image','img'],['Video','vid'],['Audio','aud'],['PDF','doc'],['Document','txt'],['Note','note'],['Link','link'],['Archive','arch']];
+function rgba(h,a){if(h[0]!=='#')return h;var n=parseInt(h.slice(1),16);return 'rgba('+(n>>16)+','+(n>>8&255)+','+(n&255)+','+a+')'}
+function svg(id,size,fill){return '<svg'+(fill?' class="f"':'')+' width="'+size+'" height="'+size+'"><use href="#c-'+id+'"/></svg>'}
+function col(c,mode){return c==='ACC'?(mode==='dark'?'#2E9BF0':'#1F90E4'):c}
+function tile(c,icon,size){return '<div class="tl" style="background:'+rgba(c,.12)+';color:'+c+(size?';width:30px;height:32px':'')+'">'+svg(icon,size||16)+'</div>'}
+
+function panel(p,mode){
+  function C(k){return col(p[k],mode)}
+  var types=ORDER.map(function(t){return '<div class="ty">'+tile(C(t[0]),t[1])+t[0]+'</div>'}).join('');
+  function row(type,icon,title,sub,pin,fav,st){
+    var s={ok:['ok','synced'],pend:['clock','pending'],fail:['warn','failed']}[st];
+    return '<div class="row">'+tile(C(type),icon,14)+'<div class="tx"><b>'+title+'</b><small>'+sub+'</small></div><div class="gl">'
+      +(pin?'<span style="color:'+C('pin')+'">'+svg('pin',12,1)+'</span>':'')
+      +(fav?'<span style="color:'+C('fav')+'">'+svg('heart',12,1)+'</span>':'')
+      +'<span style="color:'+C(s[1])+'">'+svg(s[0],14)+'</span></div></div>'}
+  function st(k,icon,text){return '<span><i style="color:'+C(k)+'">'+svg(icon,13)+'</i>'+text+'</span>'}
+  function stat(k,icon,val,text){var c=C(k);return '<div class="sc"><i style="background:'+rgba(c,.12)+';color:'+c+'">'+svg(icon,13)+'</i><b>'+val+'</b>'+text+'</div>'}
+  return '<div class="panel '+mode+'"><div class="mode">'+mode+'</div>'
+  +'<div class="lbl">File types</div><div class="types">'+types+'</div>'
+  +'<div class="lbl">On a file row: type, pin, favourite, sync status</div>'
+  +row('Note','note','Meeting notes','Note · 2 KB',1,1,'pend')+row('PDF','doc','Invoice-March.pdf','PDF · 240 KB',0,0,'fail')+row('Video','vid','Trip.mov','Video · 48 MB',1,0,'ok')
+  +'<div class="lbl">Status and messages</div><div class="st">'+st('synced','ok','Synced')+st('pending','clock','Pending')+st('syncing','sync','Syncing')+st('failed','warn','Failed')+'</div>'
+  +'<div class="msg" style="color:'+C('error')+'">'+svg('warn',13)+'Import failed. Please try again.</div>'
+  +'<div class="msg" style="color:'+C('success')+'">'+svg('ok',13)+'3 files imported</div>'
+  +'<div class="lbl">Insights</div><div class="stats">'+stat('iFiles','txt','128','Files')+stat('iTags','tag','14','Tags')+stat('iStorage','drive','2.1 GB','Storage')+stat('pending','clock','3','Pending')+'</div>'
+  +'<div class="leg"><span><i style="background:'+C('iAdded')+'"></i>Added</span><span><i style="background:'+C('iOpened')+'"></i>Opened</span><span><i style="background:'+C('iStorage')+'"></i>Storage growth</span></div>'
+  +'</div>'}
+
+var TODAY={Image:'#FF6B6B',Video:'#4ECDC4',Audio:'#45B7D1',PDF:'#E74C3C',Document:'#3498DB',Note:'#F39C12',Link:'#9B59B6',Archive:'#1ABC9C',
+  synced:'#2ECC71',pending:'#F39C12',syncing:'#3498DB',failed:'#E74C3C',error:'#FF3B30',success:'#34C759',pin:'#F39C12',fav:'#E84393',
+  iFiles:'ACC',iTags:'#F39C12',iStorage:'#4ECDC4',iAdded:'ACC',iOpened:'#2ECC71'};
+function mix(a,b){var o={};for(var k in a)o[k]=a[k];for(k in b)o[k]=b[k];return o}
+var A=mix(TODAY,{Audio:'#6C5CE7',Archive:'#A0703C',syncing:'ACC',failed:'#E5484D',error:'#E5484D',success:'#2ECC71',
+  iTags:'ACC',iStorage:'ACC',iOpened:'#6C5CE7'});
+var B=mix(A,{Note:'#EAB308',pending:'#F5831F',pin:'ACC'});
+
+var OPTS=[
+ {t:'Today',sub:'Orange means note, pending and pinned. Video, audio and archive are near-identical. Two reds, two greens. Insights borrows the note and video colours.',p:TODAY},
+ {t:'Option A — Minimal',sub:'Fix only what you can\'t tell apart, and use one red and one green everywhere.',p:A,
+  n:['Audio becomes indigo and archive becomes brown, so the three teals are gone.','Errors and failed sync share one red; success and synced share one green.','Insights icons use the app blue; the Pending stat keeps its status colour; "Opened" gets its own chart colour.','Orange still means note, pending and pinned. Look at the Meeting notes row.']},
+ {t:'Option B — Each colour, one job',rec:1,sub:'Everything in Option A, plus orange is split up so it only means "needs attention".',p:B,
+  n:['Notes become yellow, the colour people already expect for notes.','Pending keeps orange, pushed slightly redder so it sits clearly apart from the yellow.','Pinned uses the app blue, like other things that are switched on.','PDF stays red even though errors are red: it is what people expect for PDFs, and errors always come with a warning symbol.']}
+];
+document.getElementById('root').innerHTML=OPTS.map(function(o){
+  return '<section><h2>'+o.t+(o.rec?'<span class="rec">Recommended</span>':'')+'</h2><p class="sub">'+o.sub+'</p><div class="pair">'+panel(o.p,'light')+panel(o.p,'dark')+'</div>'
+   +(o.n?'<ul class="notes">'+o.n.map(function(x){return '<li>'+x+'</li>'}).join('')+'</ul>':'')+'</section>'}).join('');
+</script>
+</body>
+</html>
