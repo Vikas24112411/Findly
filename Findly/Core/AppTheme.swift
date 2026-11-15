@@ -22,6 +22,14 @@ enum AppTheme {
         static let secondaryBG    = Color(UIColor.secondarySystemBackground)
         static let tertiaryBG     = Color(UIColor.tertiarySystemBackground)
         static let groupedBG      = Color(UIColor.systemGroupedBackground)
+        /// Surface for cards and list groups on the flat pages (Home, Files,
+        /// Tags). Matches the page background so content sits flat in both
+        /// light and dark mode. Controls (pills, chips, buttons) keep their
+        /// own fills.
+        static let flatCard       = Color(UIColor.systemGroupedBackground)
+        /// Raised card surface for dashboard blocks (Insights). Stands out
+        /// from the grouped page background in both light and dark mode.
+        static let card           = Color(UIColor.secondarySystemGroupedBackground)
         static let label          = Color(UIColor.label)
         static let secondaryLabel = Color(UIColor.secondaryLabel)
         static let tertiaryLabel  = Color(UIColor.tertiaryLabel)

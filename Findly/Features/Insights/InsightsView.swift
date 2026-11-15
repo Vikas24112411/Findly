@@ -194,7 +194,7 @@ struct InsightsView: View {
             }
             .padding(.horizontal, AppTheme.Spacing.base)
             .padding(.vertical, AppTheme.Spacing.medium)
-            .background(AppTheme.Colors.secondaryBG)
+            .background(AppTheme.Colors.card)
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Needs Attention, All tidy")
@@ -298,7 +298,7 @@ struct InsightsView: View {
                      viewModel.pendingSyncCount > 0 ? AppTheme.Colors.syncPending : AppTheme.Colors.syncSynced)
         }
         .padding(.vertical, AppTheme.Spacing.medium)
-        .background(AppTheme.Colors.secondaryBG)
+        .background(AppTheme.Colors.card)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
     }
 
@@ -696,7 +696,7 @@ struct InsightsView: View {
             content()
         }
         .padding(AppTheme.Spacing.base)
-        .background(AppTheme.Colors.secondaryBG)
+        .background(AppTheme.Colors.card)
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
     }
 }

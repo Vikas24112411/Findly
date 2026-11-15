@@ -57,7 +57,7 @@ struct HygieneListView: View {
                 }
                 .padding(.horizontal, AppTheme.Spacing.base)
                 .padding(.vertical, AppTheme.Spacing.small)
-                .background(AppTheme.Colors.secondaryBG)
+                .background(AppTheme.Colors.flatCard)
                 .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.large, style: .continuous))
                 .padding(.horizontal, AppTheme.Spacing.base)
                 .padding(.bottom, AppTheme.Spacing.large)
