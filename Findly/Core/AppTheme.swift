@@ -8,7 +8,16 @@ enum AppTheme {
     // MARK: - Colors
 
     enum Colors {
-        static let accent         = Color(hex: "#1F90E4")
+        /// Brand blue. Adapts to dark mode with a slightly brighter shade so
+        /// links, icons and tinted washes keep their presence on dark
+        /// surfaces, while white-on-accent buttons stay readable. Defined in
+        /// code (not the asset catalog) so the share extension gets it too.
+        /// Keep in sync with `AccentColor.colorset`.
+        static let accent = Color(UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(red: 0x2E / 255, green: 0x9B / 255, blue: 0xF0 / 255, alpha: 1) // #2E9BF0
+                : UIColor(red: 0x1F / 255, green: 0x90 / 255, blue: 0xE4 / 255, alpha: 1) // #1F90E4
+        })
         static let background     = Color(UIColor.systemBackground)
         static let secondaryBG    = Color(UIColor.secondarySystemBackground)
         static let tertiaryBG     = Color(UIColor.tertiarySystemBackground)
