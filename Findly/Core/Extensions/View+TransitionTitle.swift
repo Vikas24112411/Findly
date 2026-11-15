@@ -67,6 +67,9 @@ final class HeaderTransitionModel {
     private(set) var landings = 0
     /// Past the reverse threshold. Drives the Reduce Motion crossfade.
     private(set) var isPastThreshold = false
+    /// Vertical centre of the navigation bar's items, in global coordinates,
+    /// measured from the bar itself so the pill lines up with the bar buttons.
+    var barItemCentreY: CGFloat?
 
     @ObservationIgnored private var mode = Mode.scrub
     // Scrubbing is rescaled so it passes through (anchorOffset, anchorProgress).
@@ -169,7 +172,10 @@ private struct GlassPillHeaderOverlay: View {
         // ends; the layer inside it then draws from the top of the screen.
         GeometryReader { proxy in
             let safeTop = proxy.safeAreaInsets.top
-            let navCentre = safeTop - HeaderTransition.navBarHalfHeight
+            // The layer's origin is the reader's origin moved up by the safe area.
+            let layerOriginY = proxy.frame(in: .global).minY - safeTop
+            let navCentre = model.barItemCentreY.map { $0 - layerOriginY }
+                ?? safeTop - HeaderTransition.navBarHalfHeight
             let largeCentre = safeTop + HeaderTransition.largeTitleCentre
             ZStack {
                 if #unavailable(iOS 26) {
@@ -369,11 +375,17 @@ struct GlassPillHeaderModifier: ViewModifier {
             }
             .navigationBarTitleDisplayMode(.inline)
             // An empty principal item keeps the navigation bar at full height on
-            // tabs that have no other toolbar items.
+            // tabs that have no other toolbar items, and reports where the bar
+            // centres its items so the pill sits level with the bar buttons.
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Color.clear
                         .frame(width: 1, height: 1)
+                        .onGeometryChange(for: CGFloat.self) { geometry in
+                            (geometry.frame(in: .global).midY * 2).rounded() / 2
+                        } action: { [model] centre in
+                            model.barItemCentreY = centre
+                        }
                         .accessibilityHidden(true)
                 }
             }
