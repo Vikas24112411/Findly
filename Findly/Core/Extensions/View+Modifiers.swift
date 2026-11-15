@@ -215,7 +215,7 @@ struct TagChipView: View {
             .background(
                 isSelected
                     ? Color(hex: tag.colorHex)
-                    : Color(hex: tag.colorHex).opacity(0.15)
+                    : Color(hex: tag.colorHex).opacity(AppTheme.Tint.wash)
             )
             .clipShape(Capsule())
         }

@@ -202,7 +202,7 @@ struct HomeView: View {
                 Image(systemName: symbol)
                     .foregroundStyle(tint)
                     .frame(width: 40, height: 44)
-                    .background(tint.opacity(0.1), in: RoundedRectangle(cornerRadius: AppTheme.Radius.small))
+                    .background(tint.opacity(AppTheme.Tint.wash), in: RoundedRectangle(cornerRadius: AppTheme.Radius.small))
                 Text(collection.title)
                     .font(AppTheme.Typography.body)
                     .foregroundStyle(AppTheme.Colors.label)
@@ -277,7 +277,7 @@ struct HomeDiscoveryChips: View {
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundStyle(type.tintColor)
                                 .frame(width: 22, height: 22)
-                                .background(type.tintColor.opacity(0.12),
+                                .background(type.tintColor.opacity(AppTheme.Tint.wash),
                                             in: RoundedRectangle(cornerRadius: 6, style: .continuous))
                             Text(type.displayName)
                                 .font(.system(size: 13, weight: .medium))
@@ -641,7 +641,7 @@ private struct HomePinnedCard: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
             RoundedRectangle(cornerRadius: AppTheme.Radius.small)
-                .fill(item.fileType.tintColor.opacity(0.1))
+                .fill(item.fileType.tintColor.opacity(AppTheme.Tint.wash))
                 .aspectRatio(1, contentMode: .fit)
                 .overlay {
                     if let thumbnail {
@@ -776,7 +776,7 @@ private struct HomeFileIcon: View {
             .font(.title3)
             .foregroundStyle(item.fileType.tintColor)
             .frame(width: 40, height: 44)
-            .background(item.fileType.tintColor.opacity(0.1),
+            .background(item.fileType.tintColor.opacity(AppTheme.Tint.wash),
                         in: RoundedRectangle(cornerRadius: AppTheme.Radius.small))
             .accessibilityHidden(true)
     }
@@ -800,7 +800,7 @@ struct BulkTagPickerSheet: View {
                     HStack(spacing: AppTheme.Spacing.medium) {
                         TagSymbolView(sfSymbol: tag.sfSymbol, color: Color(hex: tag.colorHex), size: 14)
                             .frame(width: 22, height: 22)
-                            .background(Color(hex: tag.colorHex).opacity(0.12))
+                            .background(Color(hex: tag.colorHex).opacity(AppTheme.Tint.wash))
                             .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                         Text(tag.name)
                             .foregroundStyle(AppTheme.Colors.label)

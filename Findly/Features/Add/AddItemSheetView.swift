@@ -172,7 +172,7 @@ struct AddItemSheetView: View {
             VStack(spacing: AppTheme.Spacing.small) {
                 ZStack {
                     RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous)
-                        .fill(option.fileType.tintColor.opacity(0.12))
+                        .fill(option.fileType.tintColor.opacity(AppTheme.Tint.wash))
                         .frame(width: 64, height: 64)
                     Image(systemName: option.customSymbol ?? option.fileType.addSheetSymbol)
                         .font(.system(size: 26, weight: .medium))

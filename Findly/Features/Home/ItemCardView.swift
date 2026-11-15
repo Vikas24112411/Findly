@@ -45,7 +45,7 @@ struct ItemCardView: View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.small) {
             // Thumbnail
             RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous)
-                .fill(item.fileType.tintColor.opacity(0.10))
+                .fill(item.fileType.tintColor.opacity(AppTheme.Tint.wash))
                 .aspectRatio(4/3, contentMode: .fit)
                 .overlay {
                     if let ui = thumbnail {
@@ -101,7 +101,7 @@ struct ItemCardView: View {
                             .foregroundStyle(Color(hex: tag.colorHex))
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(Color(hex: tag.colorHex).opacity(0.12))
+                            .background(Color(hex: tag.colorHex).opacity(AppTheme.Tint.wash))
                             .clipShape(Capsule())
                             .lineLimit(1)
                     }
@@ -177,7 +177,7 @@ struct ItemCardView: View {
             // Icon
             ZStack {
                 RoundedRectangle(cornerRadius: AppTheme.Radius.small, style: .continuous)
-                    .fill(item.fileType.tintColor.opacity(0.12))
+                    .fill(item.fileType.tintColor.opacity(AppTheme.Tint.wash))
                     .frame(width: 48, height: 48)
 
                 if let ui = thumbnail {
@@ -211,7 +211,7 @@ struct ItemCardView: View {
                                 .foregroundStyle(Color(hex: tag.colorHex))
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 2)
-                                .background(Color(hex: tag.colorHex).opacity(0.12))
+                                .background(Color(hex: tag.colorHex).opacity(AppTheme.Tint.wash))
                                 .clipShape(Capsule())
                         }
                     }

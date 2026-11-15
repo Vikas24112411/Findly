@@ -391,7 +391,7 @@ private struct TagDetailView: View {
             size: 22
         )
         .frame(width: 48, height: 48)
-        .background(reduceTransparency ? AppTheme.Colors.tertiaryBG : tagColor.opacity(0.12))
+        .background(reduceTransparency ? AppTheme.Colors.tertiaryBG : tagColor.opacity(AppTheme.Tint.wash))
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous))
         .accessibilityHidden(true)
     }
@@ -495,7 +495,7 @@ private struct TagMetric: View {
                 .frame(width: resolvedGlyphSize, height: resolvedGlyphSize)
                 .foregroundStyle(tint)
                 .frame(width: resolvedIconSize, height: resolvedIconSize)
-                .background(reduceTransparency ? AppTheme.Colors.tertiaryBG : tint.opacity(0.10))
+                .background(reduceTransparency ? AppTheme.Colors.tertiaryBG : tint.opacity(AppTheme.Tint.wash))
                 .clipShape(Circle())
                 .accessibilityHidden(true)
 
@@ -741,7 +741,7 @@ private struct TagEditorView: View {
                 HStack(spacing: AppTheme.Spacing.medium) {
                     TagSymbolView(sfSymbol: symbol, color: Color(hex: colorHex), size: 18)
                         .frame(width: 36, height: 36)
-                        .background(Color(hex: colorHex).opacity(0.13))
+                        .background(Color(hex: colorHex).opacity(AppTheme.Tint.wash))
                         .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.small, style: .continuous))
                     Text(trimmedName.isEmpty ? "Tag name" : trimmedName)
                         .font(AppTheme.Typography.body.weight(.medium))
@@ -957,7 +957,7 @@ private struct TagEditorView: View {
                 size: value.unicodeScalars.allSatisfy { $0.value < 128 } ? 20 : 22
             )
             .frame(width: 44, height: 44)
-            .background(symbol == value ? Color(hex: colorHex).opacity(0.13) : Color.clear)
+            .background(symbol == value ? Color(hex: colorHex).opacity(AppTheme.Tint.wash) : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.small, style: .continuous))
             .overlay(alignment: .bottomTrailing) {
                 if symbol == value {

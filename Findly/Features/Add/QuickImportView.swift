@@ -66,7 +66,7 @@ struct QuickImportView: View {
                     .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(info.fileType.tintColor)
                     .frame(width: 36, height: 36)
-                    .background(info.fileType.tintColor.opacity(0.12))
+                    .background(info.fileType.tintColor.opacity(AppTheme.Tint.wash))
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(info.title)
