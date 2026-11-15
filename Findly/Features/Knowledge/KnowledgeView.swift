@@ -10,14 +10,13 @@ struct KnowledgeView: View {
     @State private var navigationPath: [Tag] = []
     @State private var activeSheet: TagSheet?
     @State private var tagPendingDeletion: Tag?
-    @State private var scrollOffset: CGFloat = 0
     @State private var isSearchPresented = false
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
             ScrollView {
                 VStack(spacing: 0) {
-                    LargeTitleHeader(title: "Tags", progress: scrollProgress(from: scrollOffset))
+                    LargeTitleSpace()
 
                     VStack(alignment: .leading, spacing: AppTheme.Spacing.large) {
                         hierarchyHeader
@@ -35,8 +34,7 @@ struct KnowledgeView: View {
                 }
             }
             .background(AppTheme.Colors.groupedBG)
-            .trackScrollOffset($scrollOffset)
-            .navTransitionTitle("Tags", progress: scrollProgress(from: scrollOffset))
+            .glassPillHeader("Tags")
             .modifier(TagSearch(text: searchBinding, isPresented: $isSearchPresented))
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()

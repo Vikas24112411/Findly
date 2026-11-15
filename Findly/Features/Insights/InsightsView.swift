@@ -7,7 +7,6 @@ struct InsightsView: View {
     @Environment(FileViewerCoordinator.self) private var fileViewer
     @Environment(ExperimentalFeatureStore.self) private var experiments
     @State private var viewModel = InsightsViewModel()
-    @State private var scrollOffset: CGFloat = 0
     @AppStorage("insightsShowStorageGrowth") private var showStorageGrowth = true
     @AppStorage("insightsShowWeeklyActivity") private var showWeeklyActivity = true
     @AppStorage("insightsShowBreakdownByType") private var showBreakdown = true
@@ -29,7 +28,7 @@ struct InsightsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
-                    LargeTitleHeader(title: "Insights", progress: scrollProgress(from: scrollOffset))
+                    LargeTitleSpace()
                     sectionPicker
                     LazyVStack(spacing: AppTheme.Spacing.xLarge) {
                         summaryCards
@@ -42,8 +41,7 @@ struct InsightsView: View {
                 }
             }
             .background(AppTheme.Colors.groupedBG)
-            .trackScrollOffset($scrollOffset)
-            .navTransitionTitle("Insights", progress: scrollProgress(from: scrollOffset))
+            .glassPillHeader("Insights")
             .onAppear {
                 viewModel.setup(context: modelContext)
                 migrateBreakdownToggle()

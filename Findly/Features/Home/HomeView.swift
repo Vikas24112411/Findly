@@ -13,7 +13,6 @@ struct HomeView: View {
     @Query private var favoriteItems: [Item]
     @Query(sort: \Tag.name) private var allTags: [Tag]
     @ScaledMetric(relativeTo: .body) private var pinnedCardWidth: CGFloat = 140
-    @State private var scrollOffset: CGFloat = 0
     @State private var showSettings = false
 
     @AppStorage("appearanceMode")     private var appearanceMode     = "system"
@@ -31,23 +30,16 @@ struct HomeView: View {
         _favoriteItems = Query(HomeCollection.favorites.descriptor(limit: 1))
     }
 
-    private var titleProgress: CGFloat {
-        scrollProgress(from: scrollOffset)
-    }
-
-    private var inlineTitle: String { "Findly" }
-
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
-                    LargeTitleHeader(title: "Findly", progress: scrollProgress(from: scrollOffset))
+                    LargeTitleSpace()
                     homeContent
                 }
             }
             .background(AppTheme.Colors.groupedBG)
-            .trackScrollOffset($scrollOffset)
-            .navTransitionTitle(inlineTitle, progress: titleProgress)
+            .glassPillHeader("Findly")
             // Reserve space so scroll content doesn't hide behind the bottom pill bar
             .safeAreaInset(edge: .bottom) { Color.clear.frame(height: 95) }
             .toolbar {
