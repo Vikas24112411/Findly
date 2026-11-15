@@ -10,36 +10,45 @@ struct KnowledgeView: View {
     @State private var navigationPath: [Tag] = []
     @State private var activeSheet: TagSheet?
     @State private var tagPendingDeletion: Tag?
+    @State private var scrollOffset: CGFloat = 0
+    @State private var isSearchPresented = false
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
             ScrollView {
-                VStack(alignment: .leading, spacing: AppTheme.Spacing.medium) {
-                    hierarchyHeader
+                VStack(spacing: 0) {
+                    LargeTitleHeader(title: "Tags", progress: scrollProgress(from: scrollOffset))
 
-                    if shouldOfferCreateFromSearch {
-                        createFromSearchButton
+                    VStack(alignment: .leading, spacing: AppTheme.Spacing.large) {
+                        hierarchyHeader
+
+                        if shouldOfferCreateFromSearch {
+                            createFromSearchButton
+                        }
+
+                        hierarchyContent
                     }
-
-                    hierarchyContent
+                    .frame(maxWidth: 720)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, AppTheme.Spacing.base)
+                    .padding(.bottom, 120)
                 }
-                .frame(maxWidth: 720)
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, AppTheme.Spacing.base)
-                .padding(.bottom, 120)
             }
             .background(AppTheme.Colors.groupedBG)
-            .navigationTitle("Tags")
-            .navigationBarTitleDisplayMode(.large)
-            .searchable(
-                text: searchBinding,
-                placement: .navigationBarDrawer(displayMode: .always),
-                prompt: "Find a tag"
-            )
+            .trackScrollOffset($scrollOffset)
+            .navTransitionTitle("Tags", progress: scrollProgress(from: scrollOffset))
+            .modifier(TagSearch(text: searchBinding, isPresented: $isSearchPresented))
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        isSearchPresented = true
+                    } label: {
+                        Label("Find a Tag", systemImage: "magnifyingglass")
+                    }
+                    .keyboardShortcut("f", modifiers: .command)
+
                     Button {
                         activeSheet = .create(parent: nil, initialName: "")
                     } label: {
@@ -97,20 +106,21 @@ struct KnowledgeView: View {
                     if showsExpansionControl { expansionButton }
                 }
             } else {
-                HStack(alignment: .firstTextBaseline) {
+                HStack(spacing: AppTheme.Spacing.small) {
                     hierarchyTitle
-                    Spacer()
+                    Spacer(minLength: AppTheme.Spacing.small)
                     if showsExpansionControl { expansionButton }
                 }
             }
         }
-        .padding(.top, AppTheme.Spacing.small)
+        // Same row height as the Files summary row, with or without the pill.
+        .frame(minHeight: 44)
     }
 
     private var hierarchyTitle: some View {
         VStack(alignment: .leading, spacing: AppTheme.Spacing.xxSmall) {
             Text(isSearching ? "Search Results" : "All Tags")
-                .font(AppTheme.Typography.title3)
+                .font(AppTheme.Typography.headline)
                 .foregroundStyle(AppTheme.Colors.label)
 
             Text(headerCountText)
@@ -123,8 +133,9 @@ struct KnowledgeView: View {
         !viewModel.allTags.isEmpty && !isSearching
     }
 
+    /// Styled like the Sort and Filter pills on Files.
     private var expansionButton: some View {
-        Button(viewModel.areAllBranchesExpanded ? "Collapse All" : "Expand All") {
+        Button {
             if reduceMotion {
                 toggleAllBranches()
             } else {
@@ -132,9 +143,29 @@ struct KnowledgeView: View {
                     toggleAllBranches()
                 }
             }
+        } label: {
+            HStack(spacing: AppTheme.Spacing.xSmall) {
+                Image(systemName: viewModel.areAllBranchesExpanded
+                      ? "rectangle.compress.vertical"
+                      : "rectangle.expand.vertical")
+                    .font(.caption.weight(.semibold))
+                Text(viewModel.areAllBranchesExpanded ? "Collapse All" : "Expand All")
+                    .font(AppTheme.Typography.subheadline.weight(.semibold))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(AppTheme.Colors.label)
+            .padding(.horizontal, AppTheme.Spacing.medium)
+            .frame(minHeight: 44)
+            .background(AppTheme.Colors.secondaryBG)
+            .clipShape(Capsule())
+            .overlay {
+                Capsule()
+                    .strokeBorder(AppTheme.Colors.separator.opacity(0.45),
+                                  lineWidth: AppTheme.Selection.borderWidth)
+            }
         }
-        .font(AppTheme.Typography.subheadline)
-        .fixedSize(horizontal: false, vertical: true)
+        .buttonStyle(.plain)
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     @ViewBuilder
@@ -158,7 +189,9 @@ struct KnowledgeView: View {
             LazyVStack(spacing: 0) {
                 ForEach(viewModel.filteredRootTags) { tag in
                     hierarchyNode(tag, depth: 0)
-                    if tag.id != viewModel.filteredRootTags.last?.id { Divider() }
+                    if tag.id != viewModel.filteredRootTags.last?.id {
+                        Divider().padding(.leading, TagNodeView.textInset)
+                    }
                 }
             }
             .background(AppTheme.Colors.flatCard)
@@ -282,6 +315,29 @@ struct KnowledgeView: View {
                     onMove: { viewModel.moveTag(tag, to: $0) }
                 )
             }
+        }
+    }
+}
+
+// MARK: - Search
+
+/// Attaches the native search field only while a search is running. A permanently
+/// attached `.searchable` keeps a drawer under the navigation bar on iOS 26, which
+/// pushes the title below where it sits on the other tabs.
+private struct TagSearch: ViewModifier {
+    @Binding var text: String
+    @Binding var isPresented: Bool
+
+    func body(content: Content) -> some View {
+        if isPresented {
+            content.searchable(
+                text: $text,
+                isPresented: $isPresented,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: "Find a tag"
+            )
+        } else {
+            content
         }
     }
 }
