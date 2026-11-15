@@ -117,7 +117,7 @@ private struct ShareSaveView: View {
 
     private var tagOptions: [VaultTagOption] {
         model.tags.map {
-            VaultTagOption(id: $0.id, name: $0.name, colorHex: $0.colorHex ?? "#4A90E2", sfSymbol: $0.sfSymbol ?? "tag.fill")
+            VaultTagOption(id: $0.id, name: $0.name, colorHex: $0.colorHex ?? AppTheme.TagPalette.defaultHex, sfSymbol: $0.sfSymbol ?? "tag.fill")
         } + model.newTags
     }
 

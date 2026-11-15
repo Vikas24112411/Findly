@@ -39,7 +39,7 @@ final class PersistenceController: @unchecked Sendable {
         let controller = PersistenceController(inMemory: true)
         // Seed a few sample items for previews.
         let ctx = ModelContext(controller.container)
-        let sampleTag = Tag(name: "Work", colorHex: "#3498DB", sfSymbol: "briefcase.fill")
+        let sampleTag = Tag(name: "Work", colorHex: AppTheme.TagPalette.defaultHex, sfSymbol: "briefcase.fill")
         let sampleItem = Item(title: "Q4 Report.pdf", fileType: .pdf, fileSize: 2_048_000, originalFileName: "Q4_Report.pdf")
         sampleItem.tags = [sampleTag]
         sampleItem.syncStatus = .synced

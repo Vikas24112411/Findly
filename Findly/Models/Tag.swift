@@ -53,7 +53,7 @@ final class Tag {
     init(
         id: UUID = UUID(),
         name: String,
-        colorHex: String = "#4A90E2",
+        colorHex: String = AppTheme.TagPalette.defaultHex,
         sfSymbol: String = "tag.fill"
     ) {
         self.id = id
