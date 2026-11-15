@@ -137,7 +137,7 @@ struct TagNodeView: View {
             size: 16
         )
         .frame(width: 32, height: 32)
-        .background(Color(hex: tag.colorHex).opacity(0.13))
+        .background(Color(hex: tag.colorHex).opacity(AppTheme.Tint.wash))
         .clipShape(RoundedRectangle(cornerRadius: AppTheme.Radius.small, style: .continuous))
         .accessibilityHidden(true)
     }

@@ -248,7 +248,7 @@ struct InsightsView: View {
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(tint)
                     .frame(width: 30, height: 30)
-                    .background(tint.opacity(0.12))
+                    .background(tint.opacity(AppTheme.Tint.wash))
                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
@@ -306,7 +306,7 @@ struct InsightsView: View {
         VStack(spacing: 4) {
             ZStack {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(color.opacity(0.14))
+                    .fill(color.opacity(AppTheme.Tint.wash))
                     .frame(width: 30, height: 30)
                 Image(systemName: symbol)
                     .font(.system(size: 14, weight: .semibold))
@@ -539,7 +539,7 @@ struct InsightsView: View {
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundStyle(item.fileType.tintColor)
                                 .frame(width: 30, height: 30)
-                                .background(item.fileType.tintColor.opacity(0.12))
+                                .background(item.fileType.tintColor.opacity(AppTheme.Tint.wash))
                                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
                             Text(item.title)
@@ -574,7 +574,7 @@ struct InsightsView: View {
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundStyle(item.fileType.tintColor)
                                 .frame(width: 30, height: 30)
-                                .background(item.fileType.tintColor.opacity(0.12))
+                                .background(item.fileType.tintColor.opacity(AppTheme.Tint.wash))
                                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
                             Text(item.title)

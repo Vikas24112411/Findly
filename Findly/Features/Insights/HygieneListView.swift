@@ -29,7 +29,7 @@ struct HygieneListView: View {
                                     .font(.system(size: 14, weight: .medium))
                                     .foregroundStyle(item.fileType.tintColor)
                                     .frame(width: 30, height: 30)
-                                    .background(item.fileType.tintColor.opacity(0.12))
+                                    .background(item.fileType.tintColor.opacity(AppTheme.Tint.wash))
                                     .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
 
                                 VStack(alignment: .leading, spacing: 2) {

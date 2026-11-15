@@ -60,6 +60,14 @@ enum AppTheme {
         static let favoriteTint  = Color(hex: "#E84393")
     }
 
+    // MARK: - Tint
+
+    enum Tint {
+        /// Opacity of the soft colour wash behind an icon (file type, tag
+        /// or action tiles) and behind resting tag chips.
+        static let wash: Double = 0.12
+    }
+
     // MARK: - Selection
 
     /// One look for "selected" on chips, tiles and filter pills: a wash of

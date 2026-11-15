@@ -64,7 +64,7 @@ struct VaultTagPicker: View {
                                 HStack(spacing: AppTheme.Spacing.medium) {
                                     Image(systemName: "plus.circle.fill")
                                         .frame(width: 28, height: 28)
-                                        .background(AppTheme.Colors.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+                                        .background(AppTheme.Colors.accent.opacity(AppTheme.Tint.wash), in: RoundedRectangle(cornerRadius: 8))
                                     Text("Create \"\(query)\"")
                                         .multilineTextAlignment(.leading)
                                     Spacer()
@@ -85,7 +85,7 @@ struct VaultTagPicker: View {
                                 HStack(spacing: AppTheme.Spacing.medium) {
                                     VaultTagSymbol(tag: tag, color: Color(hex: tag.colorHex), size: 16)
                                         .frame(width: 28, height: 28)
-                                        .background(Color(hex: tag.colorHex).opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+                                        .background(Color(hex: tag.colorHex).opacity(AppTheme.Tint.wash), in: RoundedRectangle(cornerRadius: 8))
                                     Text(tag.name)
                                         .font(AppTheme.Typography.body)
                                         .foregroundStyle(AppTheme.Colors.label)

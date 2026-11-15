@@ -37,7 +37,7 @@ private struct RecentItemCard: View {
             // Thumbnail or type icon
             ZStack {
                 RoundedRectangle(cornerRadius: AppTheme.Radius.medium, style: .continuous)
-                    .fill(item.fileType.tintColor.opacity(0.12))
+                    .fill(item.fileType.tintColor.opacity(AppTheme.Tint.wash))
                     .frame(width: 140, height: 100)
 
                 if let uiImage = thumbnail {

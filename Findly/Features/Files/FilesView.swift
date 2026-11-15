@@ -369,7 +369,7 @@ private struct FilesItemView: View {
             .font(.title3)
             .foregroundStyle(item.fileType.tintColor)
             .frame(width: 40, height: 44)
-            .background(AppTheme.Colors.tertiaryBG,
+            .background(item.fileType.tintColor.opacity(AppTheme.Tint.wash),
                         in: RoundedRectangle(cornerRadius: AppTheme.Radius.small))
             .accessibilityHidden(true)
     }

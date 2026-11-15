@@ -1667,7 +1667,7 @@ private struct MetadataInspectorView: View {
         HStack(spacing: AppTheme.Spacing.medium) {
             ZStack {
                 RoundedRectangle(cornerRadius: AppTheme.Radius.small, style: .continuous)
-                    .fill(item.fileType.tintColor.opacity(0.12))
+                    .fill(item.fileType.tintColor.opacity(AppTheme.Tint.wash))
                 Image(systemName: item.fileType.sfSymbol)
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(item.fileType.tintColor)
@@ -1727,7 +1727,7 @@ private struct MetadataInspectorView: View {
                         .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(AppTheme.Colors.accent)
                         .frame(width: 30, height: 30)
-                        .background(AppTheme.Colors.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
+                        .background(AppTheme.Colors.accent.opacity(AppTheme.Tint.wash), in: RoundedRectangle(cornerRadius: 8))
                     Text("Add a description")
                         .font(AppTheme.Typography.subheadline.weight(.medium))
                         .foregroundStyle(AppTheme.Colors.label)
@@ -1772,7 +1772,7 @@ private struct MetadataInspectorView: View {
                         .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(AppTheme.Colors.accent)
                         .frame(width: 28, height: 28)
-                        .background(AppTheme.Colors.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 7))
+                        .background(AppTheme.Colors.accent.opacity(AppTheme.Tint.wash), in: RoundedRectangle(cornerRadius: 7))
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("More Details")
@@ -1887,7 +1887,7 @@ private struct MetadataInspectorView: View {
                 .foregroundStyle(AppTheme.Colors.accent)
                 .padding(.horizontal, AppTheme.Spacing.medium)
                 .frame(minHeight: 36)
-                .background(AppTheme.Colors.accent.opacity(0.10), in: Capsule())
+                .background(AppTheme.Colors.accent.opacity(AppTheme.Tint.wash), in: Capsule())
         }
         .buttonStyle(.plain)
         .frame(minHeight: 44)
@@ -1907,7 +1907,7 @@ private struct MetadataInspectorView: View {
             .foregroundStyle(Color(hex: tag.colorHex))
             .padding(.horizontal, AppTheme.Spacing.medium)
             .frame(minHeight: 36)
-            .background(Color(hex: tag.colorHex).opacity(0.15), in: Capsule())
+            .background(Color(hex: tag.colorHex).opacity(AppTheme.Tint.wash), in: Capsule())
         }
         .buttonStyle(.plain)
         .frame(minHeight: 44)
@@ -1925,7 +1925,7 @@ private struct MetadataInspectorView: View {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(AppTheme.Colors.accent)
                 .frame(width: 30, height: 30)
-                .background(AppTheme.Colors.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 8))
+                .background(AppTheme.Colors.accent.opacity(AppTheme.Tint.wash), in: RoundedRectangle(cornerRadius: 8))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -2099,7 +2099,7 @@ struct TagPickerSheet: View {
                             HStack(spacing: AppTheme.Spacing.medium) {
                                 TagSymbolView(sfSymbol: tag.sfSymbol, color: Color(hex: tag.colorHex), size: 14)
                                     .frame(width: 22, height: 22)
-                                    .background(Color(hex: tag.colorHex).opacity(0.12))
+                                    .background(Color(hex: tag.colorHex).opacity(AppTheme.Tint.wash))
                                     .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                                 Text(tag.name)
                                     .foregroundStyle(AppTheme.Colors.label)
