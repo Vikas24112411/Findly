@@ -276,11 +276,11 @@ struct RadialMenuView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(option.radialLabel)
-        .scaleEffect(animationProgress[index] ? scale : 0.3)
+        .scaleEffect(animationProgress[index] ? scale : 0.5)
         .opacity(animationProgress[index] ? 1.0 : 0.0)
         // No built-in delay here — all staggering is driven via asyncAfter in animateIn/dismissMenuVisual
         // so open and close can use different orderings without fighting each other.
-        .animation(.spring(response: 0.4, dampingFraction: 0.65), value: animationProgress[index])
+        .animation(.spring(response: 0.22, dampingFraction: 0.75), value: animationProgress[index])
         .animation(.spring(response: 0.15, dampingFraction: 0.7), value: hoverState)
     }
 
@@ -288,9 +288,9 @@ struct RadialMenuView: View {
 
     private func animateIn() {
         // Stagger icons in forward order (0 → last).
-        // 25 ms per icon → ~125 ms total.
+        // 12 ms per icon → ~50 ms total, so the fan reads as one quick burst.
         for i in options.indices {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.025) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i) * 0.012) {
                 animationProgress[i] = true
             }
         }

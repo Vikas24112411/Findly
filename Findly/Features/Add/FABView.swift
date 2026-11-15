@@ -2,11 +2,11 @@ import SwiftUI
 
 /// Floating action button with two interactions:
 /// - Short tap  → opens the add-item sheet
-/// - Long press (400 ms) → opens the radial menu; the user can then drag to an option and release to select it.
+/// - Long press (250 ms) → opens the radial menu; the user can then drag to an option and release to select it.
 ///
-/// Uses a single `DragGesture(minimumDistance: 0)` + a manual 400 ms timer to detect long-press.
-/// This is more reliable than `LongPressGesture.sequenced(before: DragGesture)`, which can fail
-/// when the finger moves slightly during the hold.
+/// Touches come from a UIKit recogniser (`FABTouchSurface`) + a manual 250 ms timer to detect long-press.
+/// A SwiftUI `DragGesture(minimumDistance: 0)` here only receives its first event ~750 ms after
+/// touch-down (measured on device), which made the hold feel close to a second long.
 struct FABView: View {
 
     @Binding var showSheet: Bool
@@ -40,46 +40,49 @@ struct FABView: View {
         .scaleEffect(isPressed ? 0.92 : 1.0)
         .animation(AppTheme.Animation.snappy, value: isPressed)
         .contentShape(Circle())
-        .gesture(
-            DragGesture(minimumDistance: 0, coordinateSpace: .global)
-                .onChanged { value in
-                    if !isPressed { isPressed = true }
+        .overlay(
+            FABTouchSurface(
+                onBegan: { _ in
+                    isPressed = true
 
-                    // Start the 400 ms long-press timer on first event.
+                    // Start the 250 ms long-press timer.
                     // Uses .common RunLoop mode so it fires even while the RunLoop is in
                     // .tracking mode (during scroll) or under brief main-thread load.
-                    if longPressTimer == nil && !longPressConsumed {
-                        let t = Timer(timeInterval: 0.4, repeats: false) { _ in
-                            DispatchQueue.main.async {
-                                longPressConsumed = true
-                                HapticFeedback.medium()
-                                onLongPress?()
-                            }
+                    longPressTimer?.invalidate()
+                    longPressConsumed = false
+                    let t = Timer(timeInterval: 0.25, repeats: false) { _ in
+                        DispatchQueue.main.async {
+                            longPressConsumed = true
+                            HapticFeedback.medium()
+                            onLongPress?()
                         }
-                        RunLoop.main.add(t, forMode: .common)
-                        longPressTimer = t
                     }
-
+                    RunLoop.main.add(t, forMode: .common)
+                    longPressTimer = t
+                },
+                onChanged: { location in
                     // Once long press has fired, forward drag location.
                     if longPressConsumed {
-                        onDragChanged?(value.location)
+                        onDragChanged?(location)
                     }
-                }
-                .onEnded { value in
+                },
+                onEnded: { location, cancelled in
                     isPressed = false
                     longPressTimer?.invalidate()
                     longPressTimer = nil
 
                     if longPressConsumed {
                         // Finger lifted after long press — report final drag position.
-                        onDragEnded?(value.location)
+                        onDragEnded?(location)
                         longPressConsumed = false
-                    } else {
-                        // Finger lifted before 500 ms — treat as a tap.
+                    } else if !cancelled {
+                        // Finger lifted before the long press fired — treat as a tap.
                         HapticFeedback.medium()
                         showSheet = true
                     }
                 }
+            )
+            .clipShape(Circle())
         )
         .onDisappear {
             longPressTimer?.invalidate()
@@ -88,6 +91,50 @@ struct FABView: View {
             isPressed = false
         }
         .accessibilityLabel("Add item")
+    }
+}
+
+// MARK: - Touch surface
+
+/// Transparent UIKit view that reports touch-down, movement and lift immediately,
+/// in window coordinates (matches SwiftUI's `.global` space for the root view).
+private struct FABTouchSurface: UIViewRepresentable {
+    var onBegan: (CGPoint) -> Void
+    var onChanged: (CGPoint) -> Void
+    /// Second argument is true when the system cancelled the touch.
+    var onEnded: (CGPoint, Bool) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.backgroundColor = .clear
+        let press = UILongPressGestureRecognizer(target: context.coordinator,
+                                                 action: #selector(Coordinator.handle(_:)))
+        press.minimumPressDuration = 0
+        press.cancelsTouchesInView = false
+        view.addGestureRecognizer(press)
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.parent = self
+    }
+
+    final class Coordinator: NSObject {
+        var parent: FABTouchSurface
+        init(_ parent: FABTouchSurface) { self.parent = parent }
+
+        @objc func handle(_ press: UILongPressGestureRecognizer) {
+            let location = press.location(in: nil)
+            switch press.state {
+            case .began:     parent.onBegan(location)
+            case .changed:   parent.onChanged(location)
+            case .ended:     parent.onEnded(location, false)
+            case .cancelled, .failed: parent.onEnded(location, true)
+            default: break
+            }
+        }
     }
 }
 
