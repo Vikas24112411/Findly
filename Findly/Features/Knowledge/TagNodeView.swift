@@ -17,6 +17,12 @@ struct TagNodeView: View {
 
     private var children: [Tag] { visibleChildren(tag) }
     private var isExpanded: Bool { expandedIDs.contains(tag.id) }
+    /// Leading inset of the row content inside the card; matches `ItemCardView`'s row style.
+    static let contentInset: CGFloat = AppTheme.Spacing.medium
+    /// Where the tag name starts: inset + 32pt icon + icon-to-text spacing.
+    static let textInset: CGFloat = contentInset + 32 + AppTheme.Spacing.medium
+    private static let disclosureWidth: CGFloat = 44
+
     private var cappedDepth: Int { min(depth, dynamicTypeSize.isAccessibilitySize ? 3 : 6) }
 
     var body: some View {
@@ -26,7 +32,7 @@ struct TagNodeView: View {
             if !children.isEmpty && isExpanded {
                 ForEach(children) { child in
                     Divider()
-                        .padding(.leading, rowLeadingPadding + 44)
+                        .padding(.leading, rowLeadingPadding + Self.textInset)
                     TagNodeView(
                         tag: child,
                         depth: depth + 1,
@@ -45,29 +51,6 @@ struct TagNodeView: View {
 
     private var row: some View {
         HStack(spacing: 0) {
-            if !children.isEmpty {
-                Button {
-                    if reduceMotion {
-                        toggleExpansion()
-                    } else {
-                        withAnimation(AppTheme.Animation.snappy) { toggleExpansion() }
-                    }
-                } label: {
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
-                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                        .frame(width: 44, height: 52)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(isExpanded ? "Collapse \(tag.name)" : "Expand \(tag.name)")
-            } else {
-                Color.clear
-                    .frame(width: 44, height: 52)
-                    .accessibilityHidden(true)
-            }
-
             Button { onSelect(tag) } label: {
                 HStack(spacing: AppTheme.Spacing.medium) {
                     tagIcon
@@ -97,13 +80,9 @@ struct TagNodeView: View {
                             .background(AppTheme.Colors.fill, in: Capsule())
                             .accessibilityLabel("\(tag.totalItemCount) files including subtags")
                     }
-
-                    Image(systemName: "chevron.forward")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(AppTheme.Colors.tertiaryLabel)
-                        .accessibilityHidden(true)
                 }
-                .padding(.trailing, AppTheme.Spacing.base)
+                // Same inset as a file row, so tag and file icons share a left edge.
+                .padding(.leading, Self.contentInset)
                 .padding(.vertical, AppTheme.Spacing.small)
                 .frame(minHeight: 56)
                 .contentShape(Rectangle())
@@ -112,6 +91,30 @@ struct TagNodeView: View {
             .accessibilityLabel(tag.name)
             .accessibilityValue(accessibilityValue)
             .accessibilityHint("Opens files for this tag")
+
+            // Trailing disclosure column. Leaf tags keep the width so counts stay aligned.
+            if !children.isEmpty {
+                Button {
+                    if reduceMotion {
+                        toggleExpansion()
+                    } else {
+                        withAnimation(AppTheme.Animation.snappy) { toggleExpansion() }
+                    }
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppTheme.Colors.secondaryLabel)
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                        .frame(width: Self.disclosureWidth, height: 52)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isExpanded ? "Collapse \(tag.name)" : "Expand \(tag.name)")
+            } else {
+                Color.clear
+                    .frame(width: Self.disclosureWidth, height: 52)
+                    .accessibilityHidden(true)
+            }
         }
         .padding(.leading, rowLeadingPadding)
         .background(alignment: .leading) {
